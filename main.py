@@ -20,6 +20,10 @@ templates = Jinja2Templates(directory="templates")
 NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
 NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
 
+if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+    raise ValueError("네이버 API 환경변수(NAVER_CLIENT_ID, NAVER_CLIENT_SECRET)가 설정되지 않았습니다.")
+
+
 DOMAIN_MAP = {
     "joongang.joins.com": "중앙일보", "hani.co.kr": "한겨레", "yna.co.kr": "연합뉴스",
     "chosun.com": "조선일보", "donga.com": "동아일보", "mediatoday.co.kr": "미디어오늘",
