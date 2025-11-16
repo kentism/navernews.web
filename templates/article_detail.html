@@ -1,0 +1,14 @@
+{% if content %}
+    <div style="line-height: 1.8; color: #555;">
+        {{ content }}
+    </div>
+    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+        <a href="{{ url }}" target="_blank" style="color: #667eea; text-decoration: none; font-size: 12px;">
+            🔗 원본 기사 보기
+        </a>
+    </div>
+{% else %}
+    <div style="text-align: center; color: #999; padding: 20px;">
+        <p>기사 본문을 불러올 수 없습니다</p>
+    </div>
+{% endif %}
