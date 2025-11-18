@@ -135,10 +135,12 @@
 
         .tab-pane {
             display: none;
+            height: 100%; /* 부모(.tabs-content)의 높이를 채우도록 설정 */
         }
 
         .tab-pane.active {
-            display: block;
+            display: flex; /* flexbox 레이아웃 활성화 */
+            flex-direction: column; /* 자식 요소들을 세로로 배치 */
         }
 
         /* 검색 결과 탭 */
@@ -234,6 +236,8 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
+            max-height: 300px; /* 클리핑 카드 목록의 최대 높이 제한 */
+            overflow-y: auto; /* 내용이 많아지면 스크롤 생성 */
         }
 
         .clip-card {
@@ -438,7 +442,7 @@
     <div class="container">
         <!-- 헤더 (검색폼) -->
         <div class="header">
-            <h1>📰 네이버 뉴스 클리핑</h1>
+            <h1>📰 KCSC 네이버 뉴스 클리핑</h1>
             <div class="search-box">
                 <input 
                     type="text" 
