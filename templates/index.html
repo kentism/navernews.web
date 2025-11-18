@@ -53,15 +53,12 @@
         .search-box {
             display: flex;
             gap: 10px;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-bottom: 1px solid #e0e0e0;
         }
 
         .search-box input {
             flex: 1;
             padding: 12px 15px;
-            border: 1px solid #ddd;
+            border: none;
             border-radius: 6px;
             font-size: 14px;
             outline: none;
@@ -69,8 +66,8 @@
 
         .search-box button {
             padding: 12px 30px;
-            background: #667eea;
-            color: white;
+            background: white;
+            color: #667eea;
             border: none;
             border-radius: 6px;
             font-weight: bold;
@@ -79,17 +76,18 @@
         }
 
         .search-box button:hover {
-            background: #5568d3;
+            background: #f0f0f0;
+            transform: translateY(-2px);
         }
 
         /* 탭 네비게이션 */
-        .main-tabs-nav {
+        .tabs-nav {
             display: flex;
             border-bottom: 2px solid #e0e0e0;
             background: #fafafa;
         }
 
-        .main-tab-btn {
+        .tab-btn {
             flex: 1;
             padding: 15px;
             background: none;
@@ -102,15 +100,15 @@
             transition: color 0.3s ease;
         }
 
-        .main-tab-btn:hover {
+        .tab-btn:hover {
             color: #667eea;
         }
 
-        .main-tab-btn.active {
+        .tab-btn.active {
             color: #667eea;
         }
 
-        .main-tab-btn.active::after {
+        .tab-btn.active::after {
             content: "";
             position: absolute;
             bottom: -2px;
@@ -119,36 +117,14 @@
             height: 3px;
             background: #667eea;
         }
-        
-        #resultTabs {
-            display: flex;
-            flex-wrap: wrap;
-            padding: 10px 20px 0;
-            background-color: #f9f9f9;
-            border-bottom: 1px solid #e0e0e0;
-        }
 
+        /* 검색 결과 탭 버튼 스타일 조정 */
         #resultTabs .tab-btn {
-            padding: 8px 12px;
-            font-size: 14px;
-            flex: 0 1 auto;
-            border: 1px solid #ccc;
-            border-bottom: none;
-            border-radius: 6px 6px 0 0;
-            margin-right: 5px;
-            margin-bottom: -1px;
-            background-color: #f0f0f0;
-            cursor: pointer;
+            padding: 8px 12px; /* 세로, 가로 패딩 축소 */
+            font-size: 14px;   /* 폰트 크기 약간 축소 */
+            flex: 0 1 auto;    /* 탭 너비를 내용에 맞게 조절 */
+            border-radius: 6px; /* 둥근 모서리 추가 */
         }
-        
-        #resultTabs .tab-btn.active {
-            background-color: white;
-            border-color: #e0e0e0;
-            border-bottom: 1px solid white;
-            color: #667eea;
-            font-weight: bold;
-        }
-
 
         /* 탭 콘텐츠 */
         .tabs-content {
@@ -158,19 +134,12 @@
 
         .tab-pane {
             display: none;
-            height: 100%;
+            height: 100%; /* 부모(.tabs-content)의 높이를 채우도록 설정 */
         }
 
         .tab-pane.active {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        #resultContent .tab-panel {
-            display: none;
-        }
-        #resultContent .tab-panel.active {
-            display: block;
+            display: flex; /* flexbox 레이아웃 활성화 */
+            flex-direction: column; /* 자식 요소들을 세로로 배치 */
         }
 
         /* 검색 결과 탭 */
@@ -475,40 +444,40 @@
 </head>
 <body>
     <div class="container">
-        <!-- 헤더 -->
+        <!-- 헤더 (검색폼) -->
         <div class="header">
             <h1>📰 KCSC 네이버 뉴스 클리핑</h1>
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="keyword" 
+                    placeholder="검색어를 입력하세요..."
+                >
+                <button id="searchBtn">검색</button>
+            </div>
         </div>
 
-        <!-- 메인 탭 네비게이션 -->
-        <div class="main-tabs-nav">
-            <button data-tab="search" class="main-tab-btn active">🔍 검색</button>
-            <button data-tab="clippings" class="main-tab-btn" id="clippingsBtn">📌 클리핑</button>
+        <!-- 탭 네비게이션: 검색 + 클리핑 유지 -->
+        <div class="tabs-nav">
+            <button data-tab="search" class="tab-btn active">🔍 검색</button>
+            <button data-tab="clippings" class="tab-btn" id="clippingsBtn">📌 클리핑</button>
+        </div>
+
+        <!-- 상단: 결과 탭(영구) -->
+        <div id="persistentResultArea" style="padding:12px; border-bottom:1px solid #eee; background:#fafafa;">
+            <div id="resultTabs" style="display:flex; gap:8px; overflow:auto;"></div>
+            <div id="resultContent" style="margin-top:12px;"></div>
         </div>
 
         <!-- 탭 콘텐츠 -->
         <div class="tabs-content">
             <!-- 검색 탭 -->
             <div id="search" class="tab-pane active">
-                <!-- 검색 폼 -->
-                <div class="search-box">
-                    <input 
-                        type="text" 
-                        id="keyword" 
-                        placeholder="검색어를 입력하세요..."
-                    >
-                    <button id="searchBtn">검색</button>
-                </div>
-                
-                <!-- 검색 결과 탭 영역 -->
-                <div id="resultArea">
-                    <div id="resultTabs"></div>
-                    <div id="resultContent" class="tab-content-inner"></div>
-                </div>
-
-                <div id="searchEmptyState" class="empty-state">
-                    <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
-                    <p>최신 뉴스부터 표시됩니다</p>
+                <div class="tab-content-inner">
+                    <div class="empty-state">
+                        <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
+                        <p>최신 뉴스부터 표시됩니다</p>
+                    </div>
                 </div>
             </div>
 
@@ -530,7 +499,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle"></h2>
-                <button class="btn-close" onclick="closeModal()">×</button>
+                <button class="btn-close" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body" id="modalBody"></div>
             <div class="modal-actions">
@@ -555,7 +524,7 @@
         localStorage.setItem(CLIPS_STORAGE_KEY, JSON.stringify(clips));
     }
 
-    function escapeHtml(s){ return String(s||'').replace(/[&<>'"`]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
     let searchTabCounter = 0;
@@ -583,15 +552,13 @@
     window.showToast = showToast; // 다른 스크립트에서 접근 가능하도록 전역화
 
     function createSearchTab(keyword, htmlContent, start = 1){
-        document.getElementById('searchEmptyState').style.display = 'none';
-        
         const id = 'search-' + (++searchTabCounter) + '-' + Date.now().toString(36);
         // 버튼
         const btn = document.createElement('button');
         btn.className = 'tab-btn';
         btn.dataset.tab = id;
         btn.textContent = keyword.length>20 ? keyword.slice(0,17)+'…' : keyword;
-        btn.onclick = ()=> switchResultTab(id);
+        btn.onclick = ()=> switchTab(id);
         const close = document.createElement('span'); close.textContent=' ×'; close.style.marginLeft='8px';
         close.onclick = (e)=>{ e.stopPropagation(); removeSearchTab(id); };
         btn.appendChild(close);
@@ -610,7 +577,7 @@
         panel.appendChild(sentinel);
         document.getElementById('resultContent').appendChild(panel);
 
-        switchResultTab(id);
+        switchTab(id);
 
         // 뉴스 아이템 클릭 시 상세 보기 이벤트 리스너 추가
         panel.querySelectorAll('.news-item').forEach(item => {
@@ -636,41 +603,51 @@
             panel.remove();
         }
         const remaining = document.getElementById('resultTabs').querySelectorAll('.tab-btn');
-        if(remaining.length) switchResultTab(remaining[remaining.length-1].dataset.tab);
+        if(remaining.length) switchTab(remaining[remaining.length-1].dataset.tab);
         else {
-            document.getElementById('searchEmptyState').style.display = 'block';
+            document.getElementById('resultContent').style.display = 'none';
+            switchTab('search'); // 메인 검색 탭으로 전환
         }
     }
 
-    function switchMainTab(tabId) {
-        document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`.main-tabs-nav [data-tab="${tabId}"]`).classList.add('active');
-
-        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-    }
-
-    function switchResultTab(tabId){
+    function switchTab(tabId){
         if(!tabId) return;
 
-        // 검색 결과 탭 버튼 활성화/비활성화
+        // 모든 탭 버튼 비활성화
+        document.querySelectorAll('.tabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#resultTabs .tab-btn').forEach(b => b.classList.remove('active'));
+
+        // 모든 메인 패널(.tab-pane)과 검색 결과 패널(.tab-panel) 숨기기
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('#resultContent .tab-panel').forEach(p => p.style.display = 'none');
+
+        const mainTabBtn = document.querySelector(`.tabs-nav [data-tab="${tabId}"]`);
+        const resultTabBtn = document.querySelector(`#resultTabs [data-tab="${tabId}"]`);
+        const panel = document.getElementById(tabId);
+
+        if (mainTabBtn) { // 'search' 또는 'clippings' 탭
+            mainTabBtn.classList.add('active');
+            if(panel) panel.classList.add('active');
+            document.getElementById('resultContent').style.display = 'none';
+        } else {
+            if(resultTabBtn) resultTabBtn.classList.add('active');
+            if(panel) panel.style.display = 'block';
+            document.getElementById('resultContent').style.display = 'block';
+        }
+
+        // 4) resultTabs 버튼 상태 업데이트
         document.querySelectorAll('#resultTabs .tab-btn').forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`#resultTabs [data-tab="${tabId}"]`);
         if (btn) btn.classList.add('active');
-
-        // 검색 결과 패널 활성화/비활성화
-        document.querySelectorAll('#resultContent .tab-panel').forEach(p => p.classList.remove('active'));
-        const panel = document.getElementById(tabId);
-        if (panel) panel.classList.add('active');
     }
 
     function setupInfiniteScrollForPanel(panel){
         const sentinel = panel.querySelector('.panel-sentinel');
         if(!sentinel) return;
         
-        if(panelObservers.has(panel.id)){
-            try{ panelObservers.get(panel.id).disconnect(); }catch(e){}
-            panelObservers.delete(panel.id);
+        if(panelObservers.has(panel.id)){ 
+            try{ panelObservers.get(panel.id).disconnect(); }catch(e){} 
+            panelObservers.delete(panel.id); 
         }
         
         let loading = false;
@@ -734,8 +711,8 @@
                 }
             }
         }, { 
-            root: document.querySelector('.tabs-content'),
-            rootMargin: '200px'
+            root: null,  // viewport 기준
+            rootMargin: '200px'  // 200px 전에 미리 감지
         });
         
         observer.observe(sentinel);
@@ -767,20 +744,24 @@
             const clippingsPane = document.getElementById('clippings');
             if(!clippingsPane) return;
             
+            // 패딩을 위한 내부 컨테이너를 찾거나 생성합니다.
             const innerContainer = clippingsPane.querySelector('.tab-content-inner');
 
+            // 1. 스크립트를 제외한 HTML을 먼저 삽입합니다.
             const template = document.createElement('template');
             template.innerHTML = html;
             const scriptEl = template.content.querySelector('script');
             if (scriptEl) { scriptEl.remove(); }
             innerContainer.innerHTML = template.innerHTML;
 
+            // 탭이 로드된 후, 전역 변수에 저장된 텍스트를 textarea에 복원합니다.
             const textArea = document.getElementById('clippingTextArea');
             if (textArea) textArea.value = clippedTextContent;
 
+            // 2. 분리했던 스크립트를 DOM에 추가하여 실행시킵니다.
             if (scriptEl) {
                 const newScript = document.createElement('script');
-                newScript.textContent = scriptEl.textContent;
+                newScript.textContent = scriptEl.textContent; // 스크립트 내용 복사
                 innerContainer.appendChild(newScript);
             }
         } catch(e) {
@@ -811,6 +792,7 @@
     async function deleteAllClips(){
         if(!confirm('정말 모든 클리핑을 삭제하시겠습니까?')) return;
         try {
+            // UI 즉시 반영
             clippedTextContent = defaultClippedText;
             const textArea = document.getElementById('clippingTextArea');
             if (textArea) textArea.value = defaultClippedText;
@@ -845,13 +827,16 @@
                     : '';
                 const textToAdd = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}\n`;
                 
+                // 1. 전역 변수에 텍스트를 누적합니다.
                 clippedTextContent += textToAdd;
                 
+                // 2. 만약 클리핑 탭이 현재 활성화되어 있다면, textarea의 값을 즉시 업데이트합니다.
                 const textArea = document.getElementById('clippingTextArea');
                 if (textArea) textArea.value = clippedTextContent;
 
                 showToast('클립이 저장되었습니다.');
 
+                // 버튼 상태 변경
                 if (btnEl) {
                     btnEl.textContent = '✓ 클립됨';
                     btnEl.classList.add('clipped');
@@ -890,9 +875,11 @@
         modalBody.innerHTML = '<div class="loading">기사 본문을 불러오는 중...</div>';
         modal.classList.add('active');
 
+        // 모달의 클리핑 버튼에 데이터 설정
         const clipBtn = modal.querySelector('.btn-primary');
         clipBtn.dataset.url = url;
         clipBtn.dataset.title = title;
+        // news-item 클릭 리스너에서 이미 source, pubdate, originallink를 설정함
 
         const fd = new FormData();
         fd.append('url', url);
@@ -900,7 +887,7 @@
 
         const resp = await fetch('/article-detail', { method: 'POST', body: fd });
         modalBody.innerHTML = await resp.text();
-        clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500);
+        clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500); // 파싱된 본문 일부 저장
     }
 
     function closeModal() {
@@ -916,7 +903,7 @@
             btn.dataset.source,
             btn.dataset.pubdate,
             btn.dataset.originallink,
-            btn
+            btn // 모달의 클립 버튼도 상태 변경
         );
     }
 
@@ -926,19 +913,20 @@
         if (searchBtn) searchBtn.addEventListener('click', handleSearch);
         if (input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
 
-        const tabsNav = document.querySelector('.main-tabs-nav');
+        const tabsNav = document.querySelector('.tabs-nav');
         if (tabsNav) {
             tabsNav.addEventListener('click', (e) => {
                 const btn = e.target.closest('button[data-tab]');
                 if (!btn) return;
                 const tab = btn.dataset.tab;
                 if (tab === 'clippings') {
-                    loadClippingsTab();
+                    loadClippingsTab(); // 클리핑 탭을 누를 때마다 목록을 새로고침하고 텍스트를 복원합니다.
                 }
-                switchMainTab(tab);
+                switchTab(tab);
             });
         }
 
+        // ===== 페이지 로드 시 기본 검색 =====
         async function loadDefaultSearch(){
             const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
             for (const kw of keywords) {
