@@ -922,12 +922,7 @@
                 if (tab === 'clippings') {
                     loadClippingsTab(); // 클리핑 탭을 누를 때마다 목록을 새로고침하고 텍스트를 복원합니다.
                 }
-                // 검색 결과 탭이 하나라도 있으면 기본 검색 탭으로 돌아가지 않음
-                if (tab === 'search' && document.querySelector('#resultTabs .tab-btn')) {
-                    // 아무것도 하지 않음 (또는 첫번째 검색결과 탭으로 이동)
-                } else {
-                    switchTab(tab);
-                }
+                switchTab(tab);
             });
         }
 
