@@ -1,5 +1,5 @@
 <div class="clipping-text-wrapper" style="padding: 12px; border-bottom: 2px solid #eee; margin-bottom: 12px;">
-    <h3 style="margin-bottom: 10px;">클리핑 텍스트(크기를 조정하려면 오른쪽 하단의 핸들을 드래그하세요)</h3>
+    <h3 style="margin-bottom: 10px;">클리핑 텍스트</h3>
     <textarea id="clippingTextArea" style="width: 100%; min-height: 400px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; line-height: 1.6;" title="텍스트 영역의 크기를 조정하려면 오른쪽 하단의 핸들을 드래그하세요."></textarea>
     <div style="margin-top: 10px; display: flex; gap: 10px;">
         <button id="copyTextBtn" style="padding: 8px 16px; background: #667eea; color: #fff; border: none; border-radius: 4px; cursor: pointer;">📋 텍스트 복사</button>
@@ -17,17 +17,23 @@
                 </button>
             </div>
         </div>
-        {% for clip_id, clip in clips.items() %}
-        <div class="clipping-item" style="padding:12px; border:1px solid #ddd; margin-bottom:12px; border-radius:6px; min-height:100px;">
-            <h3 style="margin:0 0 8px 0;">{{ clip.title }}</h3>
-            <p style="font-size:12px; color:#666; margin:8px 0;">{{ clip.created_at }}</p>
-            <p style="color:#333; margin-bottom:8px; line-height:1.5;">{{ clip.content[:200] }}...</p>
-            <div style="display:flex; gap:8px;">
-                <a href="{{ clip.url }}" target="_blank" style="padding:6px 12px; background:#667eea; color:#fff; text-decoration:none; border-radius:4px; font-size:12px;">원문 보기</a>
-                <button onclick="deleteClip('{{ clip_id }}')" style="padding:6px 12px; background:#ff6b6b; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">삭제</button>
+        <div class="news-list">
+            {% for clip_id, clip in clips.items() %}
+            <div class="news-item" style="cursor: default; border-left-color: #ffd700;">
+                <div class="news-content">
+                    <h3>{{ clip.title }}</h3>
+                    <p>{{ clip.content[:200] }}...</p>
+                    <div class="news-meta">
+                        <span>클리핑 일시: {{ clip.created_at }}</span>
+                    </div>
+                </div>
+                <div class="news-actions">
+                    <a href="{{ clip.url }}" target="_blank" class="btn-small btn-detail">원문 보기</a>
+                    <button onclick="deleteClip('{{ clip_id }}')" class="btn-small btn-delete">삭제</button>
+                </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     {% else %}
         <div style="padding:40px 20px; text-align:center; color:#999; min-height:200px; display:flex; align-items:center; justify-content:center;">
             <p>저장된 클리핑이 없습니다.</p>
