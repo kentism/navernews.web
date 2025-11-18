@@ -142,28 +142,21 @@
             flex-direction: column; /* 자식 요소들을 세로로 배치 */
         }
 
-        /* 클리핑 탭이 활성화되면, 부모(.tabs-content)의 스크롤을 비활성화하고 자체적으로 레이아웃을 관리합니다. */
-        .tab-pane.active#clippings {
-            overflow-y: hidden; /* 내부에서 스크롤을 관리하므로 부모 스크롤 방지 */
-        }
-
-
-        /* 클리핑 탭 내부 레이아웃 */
-        .clipping-text-section {
+        /* --- 클리핑 탭 레이아웃 재구성 --- */
+        #clippings .tab-content-inner {
+            height: 100%;
             display: flex;
             flex-direction: column;
-            /* flex-basis를 통해 높이를 지정하므로 flex:1은 제거 */
+        }
+        
+        #clippings .clipping-text-wrapper {
+            /* 텍스트 영역은 내용에 따라 높이 자동 조절 */
         }
 
-        .clipping-text-section textarea {
-            min-height: 400px; /* 최소 높이 지정 */
-        }
-
-        .clipping-list-section {
-            flex: 1; /* 텍스트 영역을 제외한 나머지 공간을 모두 차지 */
-            min-height: 0; /* flex 아이템이 스크롤되기 위해 필요 */
+        #clippings .clipping-list-wrapper {
+            flex: 1; /* 남은 공간을 모두 차지 */
             overflow-y: auto; /* 내용이 넘치면 스크롤 */
-            padding: 12px; /* 상단 텍스트 섹션과 일관된 패딩 */
+            min-height: 0; /* flex 아이템이 스크롤되기 위해 필수 */
         }
 
         /* 검색 결과 탭 */
@@ -234,13 +227,6 @@
         /* 탭 콘텐츠 내부 패딩용 */
         .tab-content-inner {
             padding: 20px;
-        }
-
-        /* 클리핑 탭의 내부 컨테이너는 flex로 자식들을 관리 */
-        #clippings .tab-content-inner {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
         }
 
         .btn-detail {
