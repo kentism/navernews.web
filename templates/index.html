@@ -130,7 +130,6 @@
         .tabs-content {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
         }
 
         .tab-pane {
@@ -231,6 +230,11 @@
             text-decoration: none; /* 링크 밑줄 제거 */
             color: #333; /* 기본 텍스트 색상 지정 */
             background-color: #f0f0f0; /* 기본 배경색 지정 */
+        }
+
+        /* 탭 콘텐츠 내부 패딩용 */
+        .tab-content-inner {
+            padding: 20px;
         }
 
         .btn-detail {
@@ -494,17 +498,19 @@
         <div class="tabs-content">
             <!-- 검색 탭 -->
             <div id="search" class="tab-pane active">
-                <div class="empty-state">
-                    <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
-                    <p>최신 뉴스부터 표시됩니다</p>
+                <div class="tab-content-inner">
+                    <div class="empty-state">
+                        <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
+                        <p>최신 뉴스부터 표시됩니다</p>
+                    </div>
                 </div>
             </div>
 
             <!-- 클리핑 탭 -->
             <div id="clippings" class="tab-pane">
-                <!-- 기존 클리핑 목록/내용이 여기 들어와야 합니다 -->
-                <div class="empty-state">
-                    <p>저장된 클리핑이 없습니다</p>
+                <div class="tab-content-inner">
+                    <!-- 클리핑 탭 콘텐츠는 loadClippingsTab()에 의해 동적으로 채워집니다. -->
+                    <p>클리핑 탭을 로드하는 중...</p>
                 </div>
             </div>
         </div>
@@ -762,13 +768,16 @@
             const html = await resp.text();
             const clippingsPane = document.getElementById('clippings');
             if(!clippingsPane) return;
+            
+            // 패딩을 위한 내부 컨테이너를 찾거나 생성합니다.
+            const innerContainer = clippingsPane.querySelector('.tab-content-inner');
 
             // 1. 스크립트를 제외한 HTML을 먼저 삽입합니다.
             const template = document.createElement('template');
             template.innerHTML = html;
             const scriptEl = template.content.querySelector('script');
-            if (scriptEl) scriptEl.remove();
-            clippingsPane.innerHTML = template.innerHTML;
+            if (scriptEl) { scriptEl.remove(); }
+            innerContainer.innerHTML = template.innerHTML;
 
             // 탭이 로드된 후, 전역 변수에 저장된 텍스트를 textarea에 복원합니다.
             const textArea = document.getElementById('clippingTextArea');
@@ -777,8 +786,8 @@
             // 2. 분리했던 스크립트를 DOM에 추가하여 실행시킵니다.
             if (scriptEl) {
                 const newScript = document.createElement('script');
-                newScript.textContent = scriptEl.textContent;
-                clippingsPane.appendChild(newScript);
+                newScript.textContent = scriptEl.textContent; // 스크립트 내용 복사
+                innerContainer.appendChild(newScript);
             }
         } catch(e) {
             console.error('클리핑 로드 실패', e);
