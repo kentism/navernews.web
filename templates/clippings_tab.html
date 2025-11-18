@@ -1,13 +1,13 @@
-<div style="padding: 12px; border-bottom: 2px solid #eee; margin-bottom: 12px;">
+<div class="clipping-text-section" style="padding: 12px; border-bottom: 2px solid #eee; margin-bottom: 12px;">
     <h3 style="margin-bottom: 10px;">클리핑 텍스트</h3>
-    <textarea id="clippingTextArea" style="width: 100%; min-height: 800px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; line-height: 1.6;"></textarea>
+    <textarea id="clippingTextArea" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; line-height: 1.6; flex: 1; overflow-y: auto;"></textarea>
     <div style="margin-top: 10px; display: flex; gap: 10px;">
         <button id="copyTextBtn" style="padding: 8px 16px; background: #667eea; color: #fff; border: none; border-radius: 4px; cursor: pointer;">📋 텍스트 복사</button>
         <button id="clearTextBtn" style="padding: 8px 16px; background: #f0f0f0; color: #333; border: none; border-radius: 4px; cursor: pointer;">✨ 비우기</button>
     </div>
 </div>
 
-<div class="clippings-list">
+<div class="clipping-list-section">
     {% if clips %}
         <div style="padding:12px; margin-bottom:12px; border-bottom:2px solid #eee;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
