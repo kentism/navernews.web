@@ -577,6 +577,14 @@
         btn.textContent = keyword.length>20 ? keyword.slice(0,17)+'…' : keyword;
         btn.onclick = ()=> switchTab(id);
         const close = document.createElement('span'); close.textContent=' ×'; close.style.marginLeft='8px';
+        const refresh = document.createElement('span'); 
+        refresh.textContent = ' 🔄'; 
+        refresh.style.cursor = 'pointer';
+        refresh.onclick = (e) => {
+            e.stopPropagation();
+            refreshSearchTab(id);
+        };
+        btn.appendChild(refresh);
         close.onclick = (e)=>{ 
             e.stopPropagation(); 
             removeSearchTab(id); 
@@ -621,6 +629,47 @@
         } else {
             // 남은 검색 탭이 없으면 초기 메시지 화면을 보여줍니다.
             switchTab('searchPanelsContainer');
+        }
+    }
+
+    async function refreshSearchTab(id) {
+        const panel = document.getElementById(id);
+        if (!panel) return;
+
+        const keyword = panel.dataset.keyword;
+        if (!keyword) return;
+
+        const contentArea = panel.querySelector('.search-panel-content');
+        if (contentArea) {
+            contentArea.innerHTML = '<div class="loading">새로고침 중...</div>';
+        }
+
+        const fd = new FormData();
+        fd.append('keyword', keyword);
+        fd.append('start', 1);
+
+        try {
+            const resp = await fetch('/search-results', { method: 'POST', body: fd });
+            if (!resp.ok) {
+                showToast('새로고침 실패: 서버 오류');
+                if (contentArea) contentArea.innerHTML = '<div class="empty-state"><p>새로고침에 실패했습니다.</p></div>';
+                return;
+            }
+            const html = await resp.text();
+
+            if (contentArea) {
+                contentArea.innerHTML = html;
+                const sentinel = document.createElement('div');
+                sentinel.className = 'panel-sentinel';
+                sentinel.textContent = '로딩...';
+                contentArea.appendChild(sentinel);
+            }
+            panel.dataset.start = '21';
+            setupInfiniteScrollForPanel(panel);
+            showToast(`'${keyword}' 검색 결과를 새로고침했습니다.`);
+        } catch (e) {
+            console.error('새로고침 오류:', e);
+            showToast('새로고침 중 네트워크 오류가 발생했습니다.');
         }
     }
 
@@ -896,6 +945,7 @@
 
         const fd = new FormData();
         fd.append('url', itemEl.dataset.link);
+        fd.append('title', itemEl.dataset.title); // 'title' 필드 추가
 
         const resp = await fetch('/article-detail', { method: 'POST', body: fd });
         modalBody.innerHTML = await resp.text();
