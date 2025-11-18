@@ -499,7 +499,7 @@
         <div class="tabs-nav">
             <button data-tab="clippings" class="tab-btn" id="clippingsBtn">📌 클리핑</button>
             <!-- 검색 결과 탭이 여기에 동적으로 추가됩니다 -->
-            <button id="globalRefreshBtn" title="현재 탭 새로고침">🔄</button>
+            <button id="globalRefreshBtn" title="현재 탭 새로고침">⟳</button>
         </div>
 
         <!-- 탭 콘텐츠 -->
@@ -599,7 +599,15 @@
             removeSearchTab(id); 
         };
         btn.appendChild(close);
-        document.querySelector('.tabs-nav').appendChild(btn);
+
+        // 새로고침 버튼 앞에 탭을 추가하여 항상 오른쪽 끝에 있도록 보장
+        const navContainer = document.querySelector('.tabs-nav');
+        const refreshBtn = document.getElementById('globalRefreshBtn');
+        if (navContainer && refreshBtn) {
+            navContainer.insertBefore(btn, refreshBtn);
+        } else if (navContainer) {
+            navContainer.appendChild(btn); // Fallback
+        }
 
         // 패널
         const panel = document.createElement('div');
