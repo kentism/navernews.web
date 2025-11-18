@@ -90,6 +90,22 @@
             gap: 6px; /* 탭 버튼 사이 간격 */
         }
 
+        #globalRefreshBtn {
+            background: none;
+            border: none;
+            font-size: 18px; /* 아이콘 크기 키우기 */
+            cursor: pointer;
+            padding: 0 12px;
+            color: #666;
+            margin-left: auto; /* 오른쪽 끝으로 밀기 */
+            align-self: center; /* 세로 중앙 정렬 */
+            display: none; /* 기본적으로 숨김 */
+        }
+
+        #globalRefreshBtn:hover {
+            color: #667eea;
+        }
+
         .tab-btn {
             flex: 0 0 auto; /* 탭 너비를 내용에 맞게 조절 (왼쪽 정렬) */
             padding: 8px 12px; /* 검색 결과 탭과 동일한 패딩 */
@@ -483,6 +499,7 @@
         <div class="tabs-nav">
             <button data-tab="clippings" class="tab-btn" id="clippingsBtn">📌 클리핑</button>
             <!-- 검색 결과 탭이 여기에 동적으로 추가됩니다 -->
+            <button id="globalRefreshBtn" title="현재 탭 새로고침">🔄</button>
         </div>
 
         <!-- 탭 콘텐츠 -->
@@ -577,14 +594,6 @@
         btn.textContent = keyword.length>20 ? keyword.slice(0,17)+'…' : keyword;
         btn.onclick = ()=> switchTab(id);
         const close = document.createElement('span'); close.textContent=' ×'; close.style.marginLeft='8px';
-        const refresh = document.createElement('span'); 
-        refresh.textContent = ' 🔄'; 
-        refresh.style.cursor = 'pointer';
-        refresh.onclick = (e) => {
-            e.stopPropagation();
-            refreshSearchTab(id);
-        };
-        btn.appendChild(refresh);
         close.onclick = (e)=>{ 
             e.stopPropagation(); 
             removeSearchTab(id); 
@@ -685,6 +694,15 @@
         const panel = document.getElementById(tabId);
         if(tabBtn) tabBtn.classList.add('active');
         if(panel) panel.classList.add('active');
+
+        // 새로고침 버튼 표시/숨김 로직
+        const refreshBtn = document.getElementById('globalRefreshBtn');
+        if (refreshBtn) {
+            // 활성화된 탭이 검색 결과 탭일 경우에만 새로고침 버튼 표시
+            const isSearchTabActive = tabBtn && tabBtn.dataset.tab.startsWith('search-');
+            refreshBtn.style.display = isSearchTabActive ? 'block' : 'none';
+        }
+
 
         // 검색 결과가 하나라도 있으면 초기 메시지 숨기기
         const hasSearchResults = !!document.querySelector('.tabs-nav button[data-tab^="search-"]');
@@ -994,6 +1012,16 @@
             if (item) showArticleDetailFromEl(item);
         });
 
+        // 전역 새로고침 버튼 이벤트 리스너
+        const globalRefreshBtn = document.getElementById('globalRefreshBtn');
+        if (globalRefreshBtn) {
+            globalRefreshBtn.addEventListener('click', () => {
+                const activeTab = document.querySelector('.tabs-nav .tab-btn.active');
+                if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
+                    refreshSearchTab(activeTab.dataset.tab);
+                }
+            });
+        }
         // ===== 페이지 로드 시 기본 검색 =====
         async function loadDefaultSearch(){
             const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
