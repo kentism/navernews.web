@@ -120,7 +120,7 @@ async function refreshSearchTab(id) {
     fd.append('start', 1);
 
     try {
-        const resp = await fetch('/search-results', { method: 'POST', body: fd });
+        const resp = await fetch('search-results', { method: 'POST', body: fd });
         if (!resp.ok) {
             showToast('새로고침 실패: 서버 오류');
             if (contentArea) contentArea.innerHTML = '<div class="empty-state"><p>새로고침에 실패했습니다.</p></div>';
@@ -258,7 +258,7 @@ async function handleSearch(){
     if(!kw){ alert('검색어를 입력하세요'); return; }
     const fd = new FormData(); fd.append('keyword', kw); fd.append('start', 1);
     try{
-        const resp = await fetch('/search-results', { method: 'POST', body: fd });
+        const resp = await fetch('search-results', { method: 'POST', body: fd });
         if(!resp.ok){ showToast('검색 실패: 서버 오류'); return; }
         const html = await resp.text();
         const newTabId = createSearchTab(kw, html, 21); // 다음 시작은 21 (1~20은 이미 로드됨)
@@ -273,7 +273,7 @@ window.handleSearch = handleSearch; // 기존 코드와 호환
 // 클리핑 탭 동적 로드
 async function loadClippingsTab(){
     try {
-        const resp = await fetch('/clippings-tab');
+        const resp = await fetch('clippings-tab');
         const html = await resp.text();
         const clippingsPane = document.getElementById('clippings');
         if(!clippingsPane) return;
@@ -307,7 +307,7 @@ async function loadClippingsTab(){
 async function deleteClip(clipId){
     if(!confirm('정말 삭제하시겠습니까?')) return;
     try {
-        const resp = await fetch('/api/clip/' + clipId, { method: 'DELETE' });
+        const resp = await fetch('api/clip/' + clipId, { method: 'DELETE' });
         const j = await resp.json();
         if(j.success) {
             showToast('클리핑이 삭제되었습니다.');
@@ -331,7 +331,7 @@ async function deleteAllClips(){
         const textArea = document.getElementById('clippingTextArea');
         if (textArea) textArea.value = defaultClippedText;
 
-        const resp = await fetch('/api/clips/all', { method: 'DELETE' });
+        const resp = await fetch('api/clips/all', { method: 'DELETE' });
         const j = await resp.json();
         if(j.success) {
             showToast('모든 클리핑이 삭제되었습니다.');
@@ -351,7 +351,7 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
     fd.append('url', url);
     fd.append('content', content || '');
     try {
-        const r = await fetch('/api/clip', { method: 'POST', body: fd });
+        const r = await fetch('api/clip', { method: 'POST', body: fd });
         const j = await r.json();
         console.log('[CLIP] 응답:', j);
         if (j.success) {
@@ -427,7 +427,7 @@ async function showArticleDetailFromEl(itemEl) {
     fd.append('url', itemEl.dataset.link);
     fd.append('title', itemEl.dataset.title); // 'title' 필드 추가
 
-    const resp = await fetch('/article-detail', { method: 'POST', body: fd });
+    const resp = await fetch('article-detail', { method: 'POST', body: fd });
     modalBody.innerHTML = await resp.text();
     clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500); // 파싱된 본문 일부 저장
 }
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
             fd.append('keyword', kw);
             fd.append('start', 1);
             try {
-                const resp = await fetch('/search-results', { method: 'POST', body: fd });
+                    const resp = await fetch('search-results', { method: 'POST', body: fd });
                 if (resp.ok) {
                     const html = await resp.text();
                     createSearchTab(kw, html, 21); // 탭 생성 및 활성화는 함수 내부에서 처리
