@@ -3,6 +3,7 @@ import html
 import os
 import re
 import uuid
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from datetime import datetime
 from typing import List
 from urllib.parse import urlparse
@@ -22,6 +23,7 @@ from pydantic import BaseModel
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI()
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 # static과 templates 폴더를 절대 경로로 연결합니다.
 # Railway에서 경로 오류를 방지하는 안전한 방법입니다.
