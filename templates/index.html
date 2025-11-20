@@ -4,57 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KCSC 네이버 뉴스 클리핑</title>
-    <!-- favicon -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E%F0%9F%97%90%3C/text%3E%3C/svg%3E">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    </head>
+    
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+</head>
 <body>
     <div class="container">
-        <!-- 헤더 (검색폼) -->
         <div class="header">
             <h1>📰 KCSC 네이버 뉴스 클리핑</h1>
             <div class="search-box">
-                <input 
-                    type="text" 
-                    id="keyword" 
-                    placeholder="검색어를 입력하세요..."
-                >
+                <input type="text" id="keyword" placeholder="검색어를 입력하세요...">
                 <button id="searchBtn">검색</button>
             </div>
         </div>
 
-        <!-- 탭 네비게이션: 검색 + 클리핑 유지 -->
         <div class="tabs-nav">
             <button data-tab="clippings" class="tab-btn" id="clippingsBtn">📌 클리핑</button>
-            <!-- 검색 결과 탭이 여기에 동적으로 추가됩니다 -->
-            <button id="globalRefreshBtn" title="현재 탭 새로고침">⟳</button>
+            <button id="globalRefreshBtn" title="현재 탭 새로고침" style="display:none;">⟳</button>
         </div>
 
-        <!-- 탭 콘텐츠 -->
         <div class="tabs-content">
-            <!-- 검색 탭 -->
-            <!-- 초기 메시지 및 검색 탭들이 추가될 영역 -->
             <div id="searchPanelsContainer" class="tab-pane active">
                 <div class="empty-state" id="initialSearchMessage">
                     <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
                     <p>최신 뉴스부터 표시됩니다</p>
                 </div>
             </div>
-
-            <!-- 클리핑 탭 -->
+            
             <div id="clippings" class="tab-pane">
                 <div class="tab-content-inner" style="height: 100%;">
-                    <!-- 클리핑 탭 콘텐츠는 loadClippingsTab()에 의해 동적으로 채워집니다. -->
                     <p>클리핑 탭을 로드하는 중...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 토스트 알림 컨테이너 -->
     <div id="toastContainer" class="toast-container"></div>
-
-    <!-- 상세 보기 모달 -->
+    
     <div id="detailModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -68,6 +54,7 @@
             </div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+
+    <script src="{{ url_for('static', path='js/main.js') }}"></script>
 </body>
 </html>

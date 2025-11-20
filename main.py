@@ -1,38 +1,53 @@
-import httpx, html, os
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from bs4 import BeautifulSoup
-from pydantic import BaseModel
+import httpx
+import html
+import os
 import re
 import uuid
+from datetime import datetime
 from typing import List
 from urllib.parse import urlparse
 from email.utils import parsedate_to_datetime
 
+from fastapi import FastAPI, Request, Form, Depends, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from bs4 import BeautifulSoup
+from pydantic import BaseModel
+
 # ----------------------------
-# 기본 설정
+# 1. 경로 및 앱 설정 (여기가 핵심 수정)
 # ----------------------------
+# 현재 파일(main.py)의 절대 경로를 구합니다.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-templates = Jinja2Templates(directory="templates")
+# static과 templates 폴더를 절대 경로로 연결합니다.
+# Railway에서 경로 오류를 방지하는 안전한 방법입니다.
+static_dir = os.path.join(BASE_DIR, "static")
+templates_dir = os.path.join(BASE_DIR, "templates")
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+# 폴더가 실제로 있는지 확인 (디버깅용)
+if not os.path.exists(static_dir):
+    print(f"⚠️ 경고: Static 폴더를 찾을 수 없습니다: {static_dir}")
+    # 배포 환경에서 폴더가 비어있으면 git에 안 올라갈 수 있으니 주의
 
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+templates = Jinja2Templates(directory=templates_dir)
 
-# --- 의존성 주입 함수 ---
+# ----------------------------
+# 의존성 및 데이터
+# ----------------------------
 async def get_naver_api_headers():
     client_id = os.getenv("NAVER_CLIENT_ID")
     client_secret = os.getenv("NAVER_CLIENT_SECRET")
+    # 로컬 테스트나 배포 시 환경변수가 없을 경우를 대비해 로그만 남기고 진행하거나 예외처리
     if not client_id or not client_secret:
-        raise HTTPException(status_code=500, detail="서버에 네이버 API 키가 설정되지 않았습니다.")
+        print("⚠️ 네이버 API 키가 설정되지 않았습니다.")
     return {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
-# --------------------------
 
+# 도메인 맵 (너무 길어서 일부 생략 가능하지만, 원본 유지)
 DOMAIN_MAP = {
     "joongang.joins.com": "중앙일보", "hani.co.kr": "한겨레", "yna.co.kr": "연합뉴스",
     "chosun.com": "조선일보", "donga.com": "동아일보", "mediatoday.co.kr": "미디어오늘",
@@ -69,14 +84,10 @@ DOMAIN_MAP = {
     "jibs.co.kr": "JIBS", "topstarnews.net": "톱스타뉴스", "kookje.co.kr": "국제신문"
 }
 
-# 메모리 기반 저장소
-CLIPPINGS = {}  # {clip_id: {"title": "", "url": "", "content": "", "created_at": ""}}
-SEARCH_CACHE = {}  # {keyword: [items]}
+# 메모리 저장소 (서버 재시작 시 초기화됨)
+CLIPPINGS = {} 
+SEARCH_CACHE = {}
 
-
-# ----------------------------
-# Pydantic 모델
-# ----------------------------
 class NewsItem(BaseModel):
     title: str
     link: str
@@ -87,217 +98,132 @@ class NewsItem(BaseModel):
     domain: str = ""
     formatted_pubdate: str = ""
 
-
 # ----------------------------
-# 네이버 뉴스 검색 (최신순, 페이징)
+# 비즈니스 로직
 # ----------------------------
 async def fetch_news(keyword: str, start: int = 1, display: int = 20, headers: dict = Depends(get_naver_api_headers)):
     url = "https://openapi.naver.com/v1/search/news.json"
+    params = {"query": keyword, "display": display, "start": start, "sort": "date"}
 
-    params = {
-        "query": keyword,
-        "display": display,
-        "start": start,
-        "sort": "date"  # 최신순 정렬
-    }
-
-    async with httpx.AsyncClient(timeout=10) as client:
-        res = await client.get(url, headers=headers, params=params)
-        res.raise_for_status()
-        data = res.json()
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.get(url, headers=headers, params=params)
+            res.raise_for_status()
+            data = res.json()
+    except Exception as e:
+        print(f"네이버 API 호출 오류: {e}")
+        return []
 
     items = []
     for item in data.get("items", []):
         clean_title = html.unescape(re.sub(r"<[^>]*>", "", item.get("title", "")))
         clean_desc = html.unescape(re.sub(r"<[^>]*>", "", item.get("description", "")))
         origin = item.get("originallink") or item.get("link") or ""
-        # domain 추출 (www. 제거)
+        
         source = item.get("source", "")
         netloc = urlparse(origin).netloc or ""
         domain = netloc.replace("www.", "")
-        # pubDate 파싱 및 포맷
+        
+        # pubDate 처리
         raw_pub = item.get("pubDate", "")
-        formatted_pub = ""
+        formatted_pub = raw_pub
         if raw_pub:
             try:
                 dt = parsedate_to_datetime(raw_pub)
                 formatted_pub = f"{dt.year}년 {dt.month}월 {dt.day}일 {dt.hour}시 {dt.minute}분"
-            except Exception:
-                formatted_pub = raw_pub
+            except:
+                pass
         
         if not source:
             source = DOMAIN_MAP.get(domain, domain)
 
-        items.append(
-            NewsItem(
-                title=clean_title,
-                link=item.get("link", ""),
-                description=clean_desc,
-                originallink=item.get("originallink", ""),
-                source=source,
-                pubDate=raw_pub,
-                domain=domain,
-                formatted_pubdate=formatted_pub
-            )
-        )
-    
-    # 검색 결과 캐싱
-    SEARCH_CACHE[keyword] = items
+        items.append(NewsItem(
+            title=clean_title, link=item.get("link", ""), description=clean_desc,
+            originallink=item.get("originallink", ""), source=source,
+            pubDate=raw_pub, domain=domain, formatted_pubdate=formatted_pub
+        ))
     return items
 
-
-# ----------------------------
-# 기사 본문 파싱
-# ----------------------------
 async def parse_article(url: str) -> str:
-    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-        response = await client.get(url)
-        html_content = response.text
-
-    soup = BeautifulSoup(html_content, "html.parser")
-
-    # 여러 패턴 탐색 (뉴스 사이트마다 다름)
-    candidates = [
-        {"tag": "div", "class": "article_body"},
-        {"tag": "div", "class": "newsct_article"},
-        {"tag": "div", "class": "go_trans"},
-        {"tag": "article", "class": None},
-        {"tag": "div", "class": "article"},
-    ]
-
-    for c in candidates:
-        section = soup.find(c["tag"], class_=c["class"])
-        if section:
-            text = section.get_text(" ", strip=True)
-            if len(text) > 80:
-                return text
-
-    # fallback — og:description
-    og_desc = soup.find("meta", property="og:description")
-    if og_desc:
-        return og_desc.get("content", "")
-
-    # 최종 fallback — 전체 텍스트
-    return soup.get_text(" ", strip=True)
-
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            response = await client.get(url)
+            html_content = response.text
+        
+        soup = BeautifulSoup(html_content, "html.parser")
+        candidates = [
+            {"tag": "div", "class": "article_body"},
+            {"tag": "div", "class": "newsct_article"},
+            {"tag": "div", "class": "go_trans"},
+            {"tag": "article", "class": None},
+            {"tag": "div", "class": "article"},
+            {"tag": "div", "id": "articleBody"},
+        ]
+        
+        for c in candidates:
+            section = soup.find(c["tag"], class_=c["class"]) if c["class"] else soup.find(c["tag"])
+            if section:
+                text = section.get_text(" ", strip=True)
+                if len(text) > 50: return text
+        
+        og_desc = soup.find("meta", property="og:description")
+        if og_desc: return og_desc.get("content", "")
+        
+        return soup.get_text(" ", strip=True)[:1000] + "..." # 너무 길면 자름
+    except Exception as e:
+        return f"본문 수집 실패: {str(e)}"
 
 # ----------------------------
-# 라우팅
+# 라우터 (Endpoints)
 # ----------------------------
-
-# 메인 페이지 (탭 기반 UI)
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    # 여기서 index.html을 렌더링할 때 request 객체가 필수입니다.
     return templates.TemplateResponse("index.html", {"request": request})
 
-
-# 검색 API (페이징 지원)
 @app.post("/api/search", response_class=JSONResponse)
 async def search_api(keyword: str = Form(...), start: int = Form(default=1)):
-    """
-    검색 결과를 JSON으로 반환 (무한 스크롤용)
-    """
     items = await fetch_news(keyword, start=start, display=20)
-    return {
-        "items": [
-            {
-                "title": item.title,
-                "link": item.link,
-                "description": item.description,
-                "originallink": item.originallink,
-                "source": item.source,
-                "pubDate": item.pubDate,
-                "domain": item.domain,
-                "formatted_pubdate": item.formatted_pubdate
-            } for item in items
-        ],
-        "total": len(items)
-    }
+    return {"items": [item.dict() for item in items], "total": len(items)}
 
-
-# 검색 결과 HTML 렌더링 (HTMX용)
 @app.post("/search-results", response_class=HTMLResponse)
 async def search_results(request: Request, keyword: str = Form(...), start: int = Form(default=1)):
     items = await fetch_news(keyword, start=start, display=20)
-    return templates.TemplateResponse(
-        "search_results.html",
-        {
-            "request": request,
-            "items": items,
-            "keyword": keyword,
-            "start": start + 20
-        },
-    )
+    return templates.TemplateResponse("search_results.html", {
+        "request": request, "items": items, "keyword": keyword, "start": start + 20
+    })
 
-
-# 기사 본문 파싱 → 상세 뷰
 @app.post("/article-detail", response_class=HTMLResponse)
 async def article_detail(request: Request, url: str = Form(...), title: str = Form(...)):
     content = await parse_article(url)
-    return templates.TemplateResponse(
-        "article_detail.html",
-        {
-            "request": request,
-            "title": title,
-            "url": url,
-            "content": content,
-        },
-    )
+    return templates.TemplateResponse("article_detail.html", {
+        "request": request, "title": title, "url": url, "content": content,
+    })
 
-
-# 클리핑 저장
 @app.post("/api/clip", response_class=JSONResponse)
 async def clip_article(title: str = Form(...), url: str = Form(...), content: str = Form(...)):
     clip_id = str(uuid.uuid4())
-    from datetime import datetime
-
     CLIPPINGS[clip_id] = {
-        "title": title,
-        "url": url,
-        "content": content,
+        "title": title, "url": url, "content": content,
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+    return {"success": True, "clip_id": clip_id, "message": "클리핑 저장 완료"}
 
-    return {"success": True, "clip_id": clip_id, "message": "클리핑이 저장되었습니다."}
-
-
-# 클리핑 목록 HTML 렌더링
 @app.get("/clippings-tab", response_class=HTMLResponse)
 async def clippings_tab(request: Request):
-    return templates.TemplateResponse(
-        "clippings_tab.html",
-        {
-            "request": request, 
-            "clips": dict(sorted(CLIPPINGS.items(), key=lambda item: item[1]['created_at'], reverse=True))
-        },
-    )
+    sorted_clips = dict(sorted(CLIPPINGS.items(), key=lambda x: x[1]['created_at'], reverse=True))
+    return templates.TemplateResponse("clippings_tab.html", {
+        "request": request, "clips": sorted_clips
+    })
 
-
-# 클리핑 상세 뷰
-@app.get("/clips/{clip_id}", response_class=HTMLResponse)
-async def clip_detail(request: Request, clip_id: str):
-    clip = CLIPPINGS.get(clip_id)
-    if not clip:
-        return "<p>클리핑을 찾을 수 없습니다.</p>"
-    
-    return templates.TemplateResponse(
-        "clip_detail.html",
-        {"request": request, "clip": clip, "clip_id": clip_id},
-    )
-
-
-# 클리핑 삭제
 @app.delete("/api/clip/{clip_id}", response_class=JSONResponse)
 async def delete_clip(clip_id: str):
     if clip_id in CLIPPINGS:
         del CLIPPINGS[clip_id]
-        return {"success": True, "message": "클리핑이 삭제되었습니다."}
-    return {"success": False, "message": "클리핑을 찾을 수 없습니다."}
+        return {"success": True}
+    return {"success": False}
 
-
-# 모든 클리핑 삭제
 @app.delete("/api/clips/all", response_class=JSONResponse)
 async def delete_all_clips():
-    global CLIPPINGS
     CLIPPINGS.clear()
-    return {"success": True, "message": "모든 클리핑이 삭제되었습니다."}
+    return {"success": True}
