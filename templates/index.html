@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KCSC 네이버 뉴스 클리핑</title>
     <!-- favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>📰</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
-</head>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E%F0%9F%97%90%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- JavaScript 파일은 <body> 닫는 태그 직전에 위치하는 것이 성능상 좋습니다. -->
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+
+    </head>
 <body>
     <div class="container">
         <!-- 헤더 (검색폼) -->
@@ -71,6 +75,5 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', path='js/main.js') }}" defer></script>
 </body>
 </html>
