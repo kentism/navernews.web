@@ -1,6 +1,6 @@
 import httpx, html, os
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, Form, Depends, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from bs4 import BeautifulSoup
@@ -18,12 +18,14 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
-NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
-
-if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
-    raise ValueError("네이버 API 환경변수(NAVER_CLIENT_ID, NAVER_CLIENT_SECRET)가 설정되지 않았습니다.")
-
+# --- 의존성 주입 함수 ---
+async def get_naver_api_headers():
+    client_id = os.getenv("NAVER_CLIENT_ID")
+    client_secret = os.getenv("NAVER_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=500, detail="서버에 네이버 API 키가 설정되지 않았습니다.")
+    return {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
+# --------------------------
 
 DOMAIN_MAP = {
     "joongang.joins.com": "중앙일보", "hani.co.kr": "한겨레", "yna.co.kr": "연합뉴스",
@@ -83,13 +85,8 @@ class NewsItem(BaseModel):
 # ----------------------------
 # 네이버 뉴스 검색 (최신순, 페이징)
 # ----------------------------
-async def fetch_news(keyword: str, start: int = 1, display: int = 20):
+async def fetch_news(keyword: str, start: int = 1, display: int = 20, headers: dict = Depends(get_naver_api_headers)):
     url = "https://openapi.naver.com/v1/search/news.json"
-
-    headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
-    }
 
     params = {
         "query": keyword,
