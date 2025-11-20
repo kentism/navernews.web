@@ -15,12 +15,12 @@ from email.utils import parsedate_to_datetime
 # 기본 설정
 # ----------------------------
 app = FastAPI()
-app.mount(
-    "/static",
-    StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
-    name="static"
-)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 # --- 의존성 주입 함수 ---
 async def get_naver_api_headers():
