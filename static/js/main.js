@@ -1,5 +1,6 @@
 // localStorage 키
 const CLIPS_STORAGE_KEY = 'navernews_clips';
+const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
 
 // localStorage에서 클립 로드
 function getClipsFromStorage() {
@@ -10,6 +11,68 @@ function getClipsFromStorage() {
 // localStorage에 클립 저장
 function saveClipsToStorage(clips) {
     localStorage.setItem(CLIPS_STORAGE_KEY, JSON.stringify(clips));
+}
+
+// --- Recent Keywords ---
+function getRecentKeywords() {
+    const data = localStorage.getItem(RECENT_KEYWORDS_KEY);
+    return data ? JSON.parse(data) : [];
+}
+
+function saveRecentKeyword(keyword) {
+    if (!keyword) return;
+    let keywords = getRecentKeywords();
+    // 중복 제거 및 최신 검색어를 맨 앞으로
+    keywords = keywords.filter(k => k !== keyword);
+    keywords.unshift(keyword);
+    // 최대 10개 유지
+    if (keywords.length > 10) keywords.pop();
+    localStorage.setItem(RECENT_KEYWORDS_KEY, JSON.stringify(keywords));
+}
+
+function deleteRecentKeyword(keyword, event) {
+    if (event) event.stopPropagation();
+    let keywords = getRecentKeywords();
+    keywords = keywords.filter(k => k !== keyword);
+    localStorage.setItem(RECENT_KEYWORDS_KEY, JSON.stringify(keywords));
+    renderRecentKeywords();
+    // 목록이 비었으면 드롭다운 숨김
+    if (keywords.length === 0) {
+        document.getElementById('recentKeywords').classList.remove('show');
+    }
+}
+
+function renderRecentKeywords() {
+    const container = document.getElementById('recentKeywords');
+    if (!container) return;
+
+    const keywords = getRecentKeywords();
+    if (keywords.length === 0) {
+        container.innerHTML = '';
+        container.classList.remove('show');
+        return;
+    }
+
+    let html = '<div class="recent-keywords-header">최근 검색어</div>';
+    keywords.forEach(kw => {
+        html += `
+            <div class="recent-keyword-item" onclick="handleRecentKeywordClick('${escapeAttr(kw)}')">
+                <span>${escapeHtml(kw)}</span>
+                <span class="delete-btn" onclick="deleteRecentKeyword('${escapeAttr(kw)}', event)">×</span>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function handleRecentKeywordClick(keyword) {
+    const input = document.getElementById('keyword');
+    if (input) {
+        input.value = keyword;
+        handleSearch();
+        // 드롭다운 숨기기
+        document.getElementById('recentKeywords').classList.remove('show');
+    }
 }
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -280,6 +343,12 @@ async function handleSearch() {
         return;
     }
 
+    // 최근 검색어 저장
+    saveRecentKeyword(keyword);
+    // 드롭다운 숨기기
+    document.getElementById('recentKeywords').classList.remove('show');
+
+
     // 이미 같은 키워드의 탭이 있는지 확인
     const existingTab = Array.from(document.querySelectorAll('.tab-pane')).find(p => p.dataset.keyword === keyword);
     if (existingTab) {
@@ -513,8 +582,27 @@ function clipFromModal() {
 document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const input = document.getElementById('keyword');
+    const recentKeywords = document.getElementById('recentKeywords');
+
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
-    if (input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
+    if (input) {
+        input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
+
+        // 최근 검색어 드롭다운 이벤트
+        input.addEventListener('focus', () => {
+            renderRecentKeywords();
+            if (getRecentKeywords().length > 0) {
+                recentKeywords.classList.add('show');
+            }
+        });
+
+        // blur 시 드롭다운 숨김 (클릭 이벤트 처리를 위해 지연)
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                recentKeywords.classList.remove('show');
+            }, 200);
+        });
+    }
 
     const tabsNav = document.querySelector('.tabs-nav');
     if (tabsNav) {

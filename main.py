@@ -39,6 +39,73 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=templates_dir)
 
 # ----------------------------
+# Jinja2 Custom Filters
+# ----------------------------
+from markupsafe import Markup
+
+def time_ago(value):
+    """
+    datetime 객체 또는 날짜 문자열을 받아 '방금 전', 'X분 전' 등으로 변환합니다.
+    """
+    if not value:
+        return ""
+    
+    if isinstance(value, str):
+        try:
+            # 네이버 API 날짜 포맷: "Thu, 21 Nov 2024 11:50:00 +0900"
+            dt = parsedate_to_datetime(value)
+            # timezone info 제거 (단순 비교를 위해)
+            if dt.tzinfo:
+                dt = dt.replace(tzinfo=None)
+        except:
+            return value
+    elif isinstance(value, datetime):
+        dt = value
+    else:
+        return value
+
+    now = datetime.now()
+    diff = now - dt
+
+    seconds = diff.total_seconds()
+
+    if seconds < 60:
+        return "방금 전"
+    elif seconds < 3600:
+        minutes = int(seconds / 60)
+        return f"{minutes}분 전"
+    elif seconds < 86400:
+        hours = int(seconds / 3600)
+        return f"{hours}시간 전"
+    elif seconds < 604800: # 7일
+        days = int(seconds / 86400)
+        return f"{days}일 전"
+    else:
+        return dt.strftime("%Y-%m-%d")
+
+def highlight_keyword(text, keyword):
+    """
+    텍스트에서 키워드를 찾아 <mark> 태그로 감쌉니다.
+    """
+    if not keyword or not text:
+        return text
+    
+    # HTML 태그가 포함되어 있을 수 있으므로 unescape 후 처리하거나 주의 필요
+    # 여기서는 단순 텍스트라고 가정하고 처리
+    
+    # 대소문자 구분 없이 검색
+    pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+    
+    def replace_func(match):
+        return f'<mark class="highlight">{match.group(0)}</mark>'
+    
+    highlighted = pattern.sub(replace_func, text)
+    return Markup(highlighted)
+
+templates.env.filters["time_ago"] = time_ago
+templates.env.filters["highlight"] = highlight_keyword
+
+# ----------------------------
 # 의존성 및 데이터
 # ----------------------------
 async def get_naver_api_headers():
