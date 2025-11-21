@@ -490,21 +490,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tabId === 'clippings') {
                 loadClippingsTab(); // 클리핑 탭을 누를 때마다 목록을 새로고침하고 텍스트를 복원합니다.
             }
-            switchTab(tabId);
-        });
-    }
-
-    // 이벤트 위임을 사용하여 모든 뉴스 아이템 클릭 처리
-    document.querySelector('.container').addEventListener('click', (e) => {
-        const item = e.target.closest('.news-item');
-        if (item) showArticleDetailFromEl(item);
-    });
-
-    // 전역 새로고침 버튼 이벤트 리스너
-    const globalRefreshBtn = document.getElementById('globalRefreshBtn');
-    if (globalRefreshBtn) {
-        globalRefreshBtn.addEventListener('click', () => {
-            const activeTab = document.querySelector('.tabs-nav .tab-btn.active');
             if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
                 refreshSearchTab(activeTab.dataset.tab);
             }
