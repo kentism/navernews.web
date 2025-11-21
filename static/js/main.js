@@ -526,17 +526,6 @@ window.clipArticleFromEl = function (btnEl) {
     const url = item?.dataset?.link || '';
     const content = item?.dataset?.desc || '';
     const source = item?.dataset?.source || item?.dataset?.domain || '';
-    const pubDate = item?.dataset?.pubdate || '';
-    const originalLink = item?.dataset?.origin || url;
-    return clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl);
-};
-
-// 모달 관련 함수
-const modal = document.getElementById('detailModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalBody = document.getElementById('modalBody');
-
-async function showArticleDetailFromEl(itemEl) {
     if (!itemEl) return;
 
     modalTitle.textContent = itemEl.dataset.title;
@@ -564,6 +553,8 @@ async function showArticleDetailFromEl(itemEl) {
 
 function closeModal() {
     modal.classList.remove('active');
+    // Remove active class from all news cards
+    document.querySelectorAll('.news-card.active').forEach(card => card.classList.remove('active'));
 }
 
 function clipFromModal() {
