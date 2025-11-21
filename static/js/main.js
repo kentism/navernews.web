@@ -526,6 +526,17 @@ window.clipArticleFromEl = function (btnEl) {
     const url = item?.dataset?.link || '';
     const content = item?.dataset?.desc || '';
     const source = item?.dataset?.source || item?.dataset?.domain || '';
+    const pubDate = item?.dataset?.pubdate || '';
+    const originalLink = item?.dataset?.origin || url;
+    return clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl);
+};
+
+// 모달 관련 함수
+const modal = document.getElementById('detailModal');
+const modalTitle = document.getElementById('modalTitle');
+const modalBody = document.getElementById('modalBody');
+
+async function showArticleDetailFromEl(itemEl) {
     if (!itemEl) return;
 
     modalTitle.textContent = itemEl.dataset.title;
@@ -553,8 +564,6 @@ window.clipArticleFromEl = function (btnEl) {
 
 function closeModal() {
     modal.classList.remove('active');
-    // Remove active class from all news cards
-    document.querySelectorAll('.news-card.active').forEach(card => card.classList.remove('active'));
 }
 
 function clipFromModal() {
@@ -601,16 +610,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = e.target.closest('button[data-tab]');
             if (!btn) return;
             const tabId = btn.dataset.tab;
+
             if (tabId === 'clippings') {
                 loadClippingsTab(); // 클리핑 탭을 누를 때마다 목록을 새로고침하고 텍스트를 복원합니다.
             }
-            // 활성화된 탭 저장
+
+            // 🛑 수정완료: 탭 전환만 하고 불필요한 새로고침은 제거했습니다.
+            switchTab(tabId);
+        });
+    }
+
+    // 전역 새로고침 버튼 이벤트 리스너 (여기에만 새로고침 기능 연결)
+    const globalRefreshBtn = document.getElementById('globalRefreshBtn');
+    if (globalRefreshBtn) {
+        globalRefreshBtn.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-pane.active');
             if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
                 refreshSearchTab(activeTab.dataset.tab);
             }
         });
     }
+
     // ===== 페이지 로드 시 기본 검색 =====
     async function loadDefaultSearch() {
         const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
