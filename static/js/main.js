@@ -2,18 +2,18 @@
 const CLIPS_STORAGE_KEY = 'navernews_clips';
 
 // localStorage에서 클립 로드
-function getClipsFromStorage(){
+function getClipsFromStorage() {
     const data = localStorage.getItem(CLIPS_STORAGE_KEY);
     return data ? JSON.parse(data) : {};
 }
 
 // localStorage에 클립 저장
-function saveClipsToStorage(clips){
+function saveClipsToStorage(clips) {
     localStorage.setItem(CLIPS_STORAGE_KEY, JSON.stringify(clips));
 }
 
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escapeAttr(s) { return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 let searchTabCounter = 0;
 const panelObservers = new Map();
@@ -39,18 +39,18 @@ function showToast(message) {
 }
 window.showToast = showToast; // 다른 스크립트에서 접근 가능하도록 전역화
 
-function createSearchTab(keyword, htmlContent, start = 1){
+function createSearchTab(keyword, htmlContent, start = 1) {
     const id = 'search-' + (++searchTabCounter) + '-' + Date.now().toString(36);
     // 버튼
     const btn = document.createElement('button');
     btn.className = 'tab-btn';
     btn.dataset.tab = id;
-    btn.textContent = keyword.length>20 ? keyword.slice(0,17)+'…' : keyword;
-    btn.onclick = ()=> switchTab(id);
-    const close = document.createElement('span'); close.textContent=' ×'; close.style.marginLeft='8px';
-    close.onclick = (e)=>{ 
-        e.stopPropagation(); 
-        removeSearchTab(id); 
+    btn.textContent = keyword.length > 20 ? keyword.slice(0, 17) + '…' : keyword;
+
+    const close = document.createElement('span'); close.textContent = ' ×'; close.style.marginLeft = '8px';
+    close.onclick = (e) => {
+        e.stopPropagation();
+        removeSearchTab(id);
     };
     btn.appendChild(close);
 
@@ -75,7 +75,7 @@ function createSearchTab(keyword, htmlContent, start = 1){
     sentinel.textContent = '로딩...';
     const innerDiv = panel.querySelector('.search-panel-content');
     if (innerDiv) innerDiv.appendChild(sentinel);
-    
+
     document.querySelector('.tabs-content').appendChild(panel);
 
     switchTab(id);
@@ -84,12 +84,12 @@ function createSearchTab(keyword, htmlContent, start = 1){
     return id;
 }
 
-function removeSearchTab(id){
+function removeSearchTab(id) {
     const btn = document.querySelector(`.tabs-nav [data-tab="${id}"]`);
     const panel = document.getElementById(id);
-    if(btn) btn.remove();
-    if(panel){
-        if(panelObservers.has(id)){ try{ panelObservers.get(id).disconnect(); }catch(e){} panelObservers.delete(id); }
+    if (btn) btn.remove();
+    if (panel) {
+        if (panelObservers.has(id)) { try { panelObservers.get(id).disconnect(); } catch (e) { } panelObservers.delete(id); }
         panel.remove();
     }
     const remainingTabs = document.querySelectorAll('.tabs-nav .tab-btn');
@@ -120,7 +120,7 @@ async function refreshSearchTab(id) {
     fd.append('start', 1);
 
     try {
-        const resp = await fetch('search-results', { method: 'POST', body: fd });
+        const resp = await fetch('/search-results', { method: 'POST', body: fd });
         if (!resp.ok) {
             showToast('새로고침 실패: 서버 오류');
             if (contentArea) contentArea.innerHTML = '<div class="empty-state"><p>새로고침에 실패했습니다.</p></div>';
@@ -144,8 +144,8 @@ async function refreshSearchTab(id) {
     }
 }
 
-function switchTab(tabId){
-    if(!tabId) return;
+function switchTab(tabId) {
+    if (!tabId) return;
 
     // 모든 탭 버튼 비활성화
     document.querySelectorAll('.tabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
@@ -154,8 +154,8 @@ function switchTab(tabId){
     // 선택된 탭 버튼과 패널 활성화
     const tabBtn = document.querySelector(`.tabs-nav [data-tab="${tabId}"]`);
     const panel = document.getElementById(tabId);
-    if(tabBtn) tabBtn.classList.add('active');
-    if(panel) panel.classList.add('active');
+    if (tabBtn) tabBtn.classList.add('active');
+    if (panel) panel.classList.add('active');
 
     // 새로고침 버튼 표시/숨김 로직
     const refreshBtn = document.getElementById('globalRefreshBtn');
@@ -169,55 +169,55 @@ function switchTab(tabId){
     // 검색 결과가 하나라도 있으면 초기 메시지 숨기기
     const hasSearchResults = !!document.querySelector('.tabs-nav button[data-tab^="search-"]');
     const initialMessage = document.getElementById('initialSearchMessage');
-    if(initialMessage) {
+    if (initialMessage) {
         initialMessage.style.display = hasSearchResults ? 'none' : 'block';
     }
 }
 
-function setupInfiniteScrollForPanel(panel){
+function setupInfiniteScrollForPanel(panel) {
     const sentinel = panel.querySelector('.panel-sentinel');
-    if(!sentinel) return;
-    
-    if(panelObservers.has(panel.id)){ 
-        try{ panelObservers.get(panel.id).disconnect(); }catch(e){} 
-        panelObservers.delete(panel.id); 
+    if (!sentinel) return;
+
+    if (panelObservers.has(panel.id)) {
+        try { panelObservers.get(panel.id).disconnect(); } catch (e) { }
+        panelObservers.delete(panel.id);
     }
-    
+
     let loading = false;
-    const observer = new IntersectionObserver(async (entries)=>{
-        for(const entry of entries){
-            if(!entry.isIntersecting) continue;
-            if(loading) return;
-            
+    const observer = new IntersectionObserver(async (entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            if (loading) return;
+
             loading = true;
             console.log('[INFINITE] Sentinel reached for', panel.id);
-            
+
             const keyword = panel.dataset.keyword;
             let start = parseInt(panel.dataset.start || '1', 10);
-            
+
             console.log('[INFINITE] Loading keyword:', keyword, 'start:', start);
-            
-            const fd = new FormData(); 
-            fd.append('keyword', keyword); 
+
+            const fd = new FormData();
+            fd.append('keyword', keyword);
             fd.append('start', start);
-            
-            try{
+
+            try {
                 const resp = await fetch('/search-results', { method: 'POST', body: fd });
                 console.log('[INFINITE] Response status:', resp.status);
-                
-                if(!resp.ok){ 
+
+                if (!resp.ok) {
                     console.error('[INFINITE] Load failed', resp.status);
                     sentinel.textContent = '추가 로드 실패 (상태: ' + resp.status + ')';
-                    observer.disconnect(); 
-                    panelObservers.delete(panel.id); 
-                    loading = false; 
-                    return; 
+                    observer.disconnect();
+                    panelObservers.delete(panel.id);
+                    loading = false;
+                    return;
                 }
-                
+
                 const html = await resp.text();
                 console.log('[INFINITE] Loaded HTML length:', html.length);
-                
-                if(!html || html.trim().length === 0){
+
+                if (!html || html.trim().length === 0) {
                     console.log('[INFINITE] No more results');
                     sentinel.textContent = '더 이상 결과가 없습니다';
                     observer.disconnect();
@@ -225,17 +225,17 @@ function setupInfiniteScrollForPanel(panel){
                     loading = false;
                     return;
                 }
-                
+
                 // sentinel 앞에 콘텐츠 삽입
                 sentinel.insertAdjacentHTML('beforebegin', html);
-                
+
                 // start 업데이트
                 panel.dataset.start = String(start + 20);
                 console.log('[INFINITE] Updated start to:', start + 20);
-                
+
                 loading = false;
-                
-            }catch(err){
+
+            } catch (err) {
                 console.error('[INFINITE] Error:', err);
                 sentinel.textContent = '네트워크 오류';
                 observer.disconnect();
@@ -243,27 +243,27 @@ function setupInfiniteScrollForPanel(panel){
                 loading = false;
             }
         }
-    }, { 
+    }, {
         root: null,  // viewport 기준
         rootMargin: '200px'  // 200px 전에 미리 감지
     });
-    
+
     observer.observe(sentinel);
     panelObservers.set(panel.id, observer);
     console.log('[INFINITE] Observer setup for', panel.id);
 }
 
-async function handleSearch(){
+async function handleSearch() {
     const kw = document.getElementById('keyword').value.trim();
-    if(!kw){ alert('검색어를 입력하세요'); return; }
+    if (!kw) { alert('검색어를 입력하세요'); return; }
     const fd = new FormData(); fd.append('keyword', kw); fd.append('start', 1);
-    try{
-        const resp = await fetch('search-results', { method: 'POST', body: fd });
-        if(!resp.ok){ showToast('검색 실패: 서버 오류'); return; }
+    try {
+        const resp = await fetch('/search-results', { method: 'POST', body: fd });
+        if (!resp.ok) { showToast('검색 실패: 서버 오류'); return; }
         const html = await resp.text();
         const newTabId = createSearchTab(kw, html, 21); // 다음 시작은 21 (1~20은 이미 로드됨)
         switchTab(newTabId);
-    }catch(e){
+    } catch (e) {
         console.error('검색 오류', e);
         showToast('검색 실패: 네트워크 오류');
     }
@@ -271,13 +271,13 @@ async function handleSearch(){
 window.handleSearch = handleSearch; // 기존 코드와 호환
 
 // 클리핑 탭 동적 로드
-async function loadClippingsTab(){
+async function loadClippingsTab() {
     try {
-        const resp = await fetch('clippings-tab');
+        const resp = await fetch('/clippings-tab');
         const html = await resp.text();
         const clippingsPane = document.getElementById('clippings');
-        if(!clippingsPane) return;
-        
+        if (!clippingsPane) return;
+
         // 패딩을 위한 내부 컨테이너를 찾거나 생성합니다.
         let innerContainer = clippingsPane.querySelector('.tab-content-inner');
 
@@ -298,24 +298,24 @@ async function loadClippingsTab(){
             newScript.textContent = scriptEl.textContent; // 스크립트 내용 복사
             innerContainer.appendChild(newScript);
         }
-    } catch(e) {
+    } catch (e) {
         console.error('클리핑 로드 실패', e);
     }
 }
 
 // 클리핑 삭제 (전역 함수 — 클리핑_tab.html의 버튼에서 호출)
-async function deleteClip(clipId){
-    if(!confirm('정말 삭제하시겠습니까?')) return;
+async function deleteClip(clipId) {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
     try {
-        const resp = await fetch('api/clip/' + clipId, { method: 'DELETE' });
+        const resp = await fetch('/api/clip/' + clipId, { method: 'DELETE' });
         const j = await resp.json();
-        if(j.success) {
+        if (j.success) {
             showToast('클리핑이 삭제되었습니다.');
             loadClippingsTab(); // 재로드
         } else {
             showToast('삭제에 실패했습니다.');
         }
-    } catch(e) {
+    } catch (e) {
         console.error(e);
         showToast('삭제 요청 실패');
     }
@@ -323,47 +323,47 @@ async function deleteClip(clipId){
 window.deleteClip = deleteClip;
 
 // 모든 클리핑 삭제
-async function deleteAllClips(){
-    if(!confirm('정말 모든 클리핑을 삭제하시겠습니까?')) return;
+async function deleteAllClips() {
+    if (!confirm('정말 모든 클리핑을 삭제하시겠습니까?')) return;
     try {
         // UI 즉시 반영
         clippedTextContent = defaultClippedText;
         const textArea = document.getElementById('clippingTextArea');
         if (textArea) textArea.value = defaultClippedText;
 
-        const resp = await fetch('api/clips/all', { method: 'DELETE' });
+        const resp = await fetch('/api/clips/all', { method: 'DELETE' });
         const j = await resp.json();
-        if(j.success) {
+        if (j.success) {
             showToast('모든 클리핑이 삭제되었습니다.');
             loadClippingsTab();
         }
-    } catch(e) {
+    } catch (e) {
         console.error(e);
         showToast('삭제 요청 실패');
     }
 }
 window.deleteAllClips = deleteAllClips;
 
-async function clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl = null){
-    console.log('[CLIP] 저장 시도:', {title, url, content, source, pubDate, originalLink});
+async function clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl = null) {
+    console.log('[CLIP] 저장 시도:', { title, url, content, source, pubDate, originalLink });
     const fd = new FormData();
     fd.append('title', title);
     fd.append('url', url);
     fd.append('content', content || '');
     try {
-        const r = await fetch('api/clip', { method: 'POST', body: fd });
+        const r = await fetch('/api/clip', { method: 'POST', body: fd });
         const j = await r.json();
         console.log('[CLIP] 응답:', j);
         if (j.success) {
             const date = new Date(pubDate);
-            const formattedDate = !isNaN(date) 
+            const formattedDate = !isNaN(date)
                 ? `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}`
                 : '';
             const textToAdd = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}\n`;
-            
+
             // 1. 전역 변수에 텍스트를 누적합니다.
             clippedTextContent += textToAdd;
-            
+
             // 2. 만약 클리핑 탭이 현재 활성화되어 있다면, textarea의 값을 즉시 업데이트합니다.
             const textArea = document.getElementById('clippingTextArea');
             if (textArea) textArea.value = clippedTextContent;
@@ -376,7 +376,7 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
                 btnEl.classList.add('clipped');
                 btnEl.disabled = true;
             }
-            
+
             // 추가: URL을 기반으로 목록에 있는 다른 버튼도 업데이트
             const otherBtn = document.querySelector(`.news-item[data-link="${escapeAttr(url)}"] .btn-clip`);
             if (otherBtn && otherBtn !== btnEl) {
@@ -388,13 +388,13 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
         } else {
             showToast('클립 저장에 실패했습니다: ' + (j.message || ''));
         }
-    } catch(e) {
+    } catch (e) {
         console.error('[CLIP] 요청 실패:', e);
         showToast('클립 요청 실패');
     }
 }
 
-window.clipArticleFromEl = function(btnEl){
+window.clipArticleFromEl = function (btnEl) {
     const item = (btnEl && btnEl.closest) ? btnEl.closest('.news-item') : null;
     const title = item?.dataset?.title || '';
     const url = item?.dataset?.link || '';
@@ -412,7 +412,7 @@ const modalBody = document.getElementById('modalBody');
 
 async function showArticleDetailFromEl(itemEl) {
     if (!itemEl) return;
-    
+
     modalTitle.textContent = itemEl.dataset.title;
     modalBody.innerHTML = '<div class="loading">기사 본문을 불러오는 중...</div>';
     modal.classList.add('active');
@@ -427,7 +427,7 @@ async function showArticleDetailFromEl(itemEl) {
     fd.append('url', itemEl.dataset.link);
     fd.append('title', itemEl.dataset.title); // 'title' 필드 추가
 
-    const resp = await fetch('article-detail', { method: 'POST', body: fd });
+    const resp = await fetch('/article-detail', { method: 'POST', body: fd });
     modalBody.innerHTML = await resp.text();
     clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500); // 파싱된 본문 일부 저장
 }
@@ -439,8 +439,8 @@ function closeModal() {
 function clipFromModal() {
     const btn = modal.querySelector('.btn-primary');
     clipArticleFromData(
-        btn.dataset.title, 
-        btn.dataset.url, 
+        btn.dataset.title,
+        btn.dataset.url,
         btn.dataset.content,
         btn.dataset.source,
         btn.dataset.pubdate,
@@ -449,7 +449,7 @@ function clipFromModal() {
     );
 }
 
-document.addEventListener('DOMContentLoaded', ()=>{
+document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const input = document.getElementById('keyword');
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
@@ -485,19 +485,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
         });
     }
     // ===== 페이지 로드 시 기본 검색 =====
-    async function loadDefaultSearch(){
+    async function loadDefaultSearch() {
         const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
         for (const kw of keywords) {
             const fd = new FormData();
             fd.append('keyword', kw);
             fd.append('start', 1);
             try {
-                    const resp = await fetch('search-results', { method: 'POST', body: fd });
+                const resp = await fetch('/search-results', { method: 'POST', body: fd });
                 if (resp.ok) {
                     const html = await resp.text();
                     createSearchTab(kw, html, 21); // 탭 생성 및 활성화는 함수 내부에서 처리
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error('기본 검색 오류:', e);
             }
         }
