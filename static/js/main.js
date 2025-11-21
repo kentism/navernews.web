@@ -174,6 +174,12 @@ async function refreshSearchTab(id) {
     const keyword = panel.dataset.keyword;
     const contentArea = panel.querySelector('.search-panel-content');
 
+    // [추가] 새로고침 시작 시 로딩 메시지 및 스켈레톤 표시
+    if (contentArea) {
+        contentArea.innerHTML = getSkeletonHTML();
+        showToast(`'${keyword}' 검색 결과를 새로고침하는 중...`);
+    }
+
     const fd = new FormData();
     fd.append('keyword', keyword);
     fd.append('start', 1);
@@ -196,10 +202,13 @@ async function refreshSearchTab(id) {
         }
         panel.dataset.start = '21';
         setupInfiniteScrollForPanel(panel);
-        showToast(`'${keyword}' 검색 결과를 새로고침했습니다.`);
+        // [수정] 새로고침 성공 메시지
+        showToast(`✅ '${keyword}' 검색 결과를 새로고침 완료했습니다.`);
     } catch (e) {
         console.error('새로고침 오류:', e);
-        showToast('새로고침 중 네트워크 오류가 발생했습니다.');
+        // [수정] 새로고침 오류 메시지
+        showToast('❌ 새로고침 중 네트워크 오류가 발생했습니다.');
+        if (contentArea) contentArea.innerHTML = '<div class="empty-state"><p>네트워크 오류로 새로고침에 실패했습니다.</p></div>';
     }
 }
 
@@ -415,13 +424,16 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
             const textArea = document.getElementById('clippingTextArea');
             if (textArea) textArea.value = clippedTextContent;
 
-            showToast('클립이 저장되었습니다.');
+            // [추가] 클립보드에 텍스트 복사
+            await navigator.clipboard.writeText(clippedTextContent);
+
+            showToast('클립이 저장되었으며 텍스트가 클립보드에 복사되었습니다.');
             if (btnEl) {
                 btnEl.textContent = '✓ 클립됨';
                 btnEl.classList.add('clipped');
                 btnEl.disabled = true;
             }
-            // 같은 URL 가진 다른 버튼도 상태 변경
+            // 같은 URL 가진 다른 버튼도 상태 변경 (생략)
             const otherBtn = document.querySelector(`.news-item[data-link="${escapeAttr(url)}"] .btn-clip`);
             if (otherBtn && otherBtn !== btnEl) {
                 otherBtn.textContent = '✓ 클립됨';
