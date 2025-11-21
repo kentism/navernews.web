@@ -265,7 +265,12 @@ async def search_api(keyword: str = Form(...), start: int = Form(default=1), hea
 
 @app.post("/search-results", response_class=HTMLResponse)
 async def search_results(request: Request, keyword: str = Form(...), start: int = Form(default=1), headers: dict = Depends(get_naver_api_headers)):
-    items = await fetch_news(keyword, headers=headers, start=start, display=20)
+    try:
+        items = await fetch_news(keyword, headers=headers, start=start, display=20)
+    except Exception as e:
+        print(f"Error in search_results: {e}")
+        items = []
+        
     return templates.TemplateResponse("search_results.html", {
         "request": request, "items": items, "keyword": keyword, "start": start + 20
     })
