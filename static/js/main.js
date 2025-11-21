@@ -557,4 +557,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+    // ==========================================
+    // ▼▼▼ 다크모드 코드 추가된 부분 ▼▼▼
+    // ==========================================
+
+    // [추가] 다크모드 토글 함수 (전역 접근 가능하게 window에 할당)
+    window.toggleTheme = function () {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+        const btn = document.querySelector('.theme-btn');
+        if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+    };
+
+    // [추가] 페이지 로드 시 저장된 테마 불러오기
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        const btn = document.querySelector('.theme-btn');
+        if (btn) btn.textContent = '☀️';
+    }
 });

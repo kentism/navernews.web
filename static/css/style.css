@@ -723,14 +723,168 @@ mark.highlight {
 .search-box {
     position: relative;
 }
+
 /* News Card Styles */
-.news-card { padding: 24px; border-radius: 12px; background: var(--card-bg); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); border: 1px solid var(--border-color); margin-bottom: 16px; position: relative; }
-.news-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--primary-color); }
-.news-card.active { border-left: 4px solid var(--primary-color); background: linear-gradient(to right, rgba(102, 126, 234, 0.05), var(--card-bg)); }
-.news-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
-.news-source { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--primary-color); background: rgba(102, 126, 234, 0.1); padding: 5px 12px; border-radius: 14px; }
-.news-source::before { content: ''; font-size: 12px; }
-.news-date { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-sub); background: var(--bg-color); padding: 5px 12px; border-radius: 14px; font-weight: 500; }
-.news-date::before { content: ''; font-size: 12px; }
-.news-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin: 0 0 12px 0; line-height: 1.5; }
-.news-desc { font-size: 15px; color: var(--text-sub); line-height: 1.6; margin: 0 0 16px 0; }
+.news-card {
+    padding: 24px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.news-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
+}
+
+.news-card.active {
+    border-left: 4px solid var(--primary-color);
+    background: linear-gradient(to right, rgba(102, 126, 234, 0.05), var(--card-bg));
+}
+
+.news-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.news-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.1);
+    padding: 5px 12px;
+    border-radius: 14px;
+}
+
+.news-source::before {
+    content: '';
+    font-size: 12px;
+}
+
+.news-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-sub);
+    background: var(--bg-color);
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-weight: 500;
+}
+
+.news-date::before {
+    content: '';
+    font-size: 12px;
+}
+
+.news-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 12px 0;
+    line-height: 1.5;
+}
+
+.news-desc {
+    font-size: 15px;
+    color: var(--text-sub);
+    line-height: 1.6;
+    margin: 0 0 16px 0;
+}
+
+
+/* === 최근 검색어 드롭다운 스타일 === */
+.recent-keywords-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    /* 검색창 너비에 맞춤 */
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: none;
+    /* 평소엔 숨김 */
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.recent-keywords-dropdown.show {
+    display: block;
+}
+
+.recent-keywords-header {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #888;
+    background: #f9f9f9;
+    border-bottom: 1px solid #eee;
+}
+
+.recent-keyword-item {
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.recent-keyword-item:hover {
+    background-color: #f0f7ff;
+}
+
+.delete-btn {
+    color: #aaa;
+    font-weight: bold;
+    padding: 0 4px;
+}
+
+.delete-btn:hover {
+    color: red;
+}
+
+/* === 다크모드 스타일 === */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .header,
+body.dark-mode .modal-content,
+body.dark-mode .recent-keywords-dropdown {
+    background-color: #2d2d2d;
+    color: #fff;
+    border-color: #444;
+}
+
+body.dark-mode .news-item {
+    background-color: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .news-item h3 {
+    color: #8ab4f8;
+    /* 링크 색상 밝게 */
+}
+
+body.dark-mode input[type="text"] {
+    background-color: #333;
+    color: #fff;
+    border-color: #555;
+}
