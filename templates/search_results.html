@@ -1,19 +1,30 @@
->
-📌 클립
-</button>
+<div class="search-results-list">
+    {% for item in items %}
+    <div class="news-card" onclick="openModal('{{ item.link }}', '{{ item.title | escape }}')">
+        <div class="news-header">
+            <span class="news-source">{{ item.source }}</span>
+            <span class="news-date">{{ item.pubDate | time_ago }}</span>
+        </div>
+        <h3 class="news-title">{{ item.title | highlight(keyword) }}</h3>
+        <p class="news-desc">{{ item.description | highlight(keyword) }}</p>
+        <div class="news-actions">
+            <button class="btn-small btn-outline"
+                onclick="event.stopPropagation(); toggleClip('{{ item.link }}', '{{ item.title | escape }}', '{{ item.source }}', '{{ item.pubDate }}')">
+                📌 클립
+            </button>
+            <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">🔗 네이버에서
+                보기</a>
+            {% if item.originallink %}
+            <a class="btn-small" href="{{ item.originallink }}" target="_blank" onclick="event.stopPropagation();">🌐
+                원문(외부)</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
 
-<a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">🔗 네이버에서 보기</a>
-
-{% if item.originallink %}
-<a class="btn-small" href="{{ item.originallink }}" target="_blank" onclick="event.stopPropagation();">🌐 원문(외부)</a>
-{% endif %}
-</div>
-</div>
-{% endfor %}
-
-{% if items|length == 0 %}
-<div class="empty-state">
-    <p>검색 결과가 없습니다</p>
-</div>
-{% endif %}
+    {% if items|length == 0 %}
+    <div class="empty-state">
+        <p>검색 결과가 없습니다</p>
+    </div>
+    {% endif %}
 </div>
