@@ -285,12 +285,23 @@ async def article_detail(request: Request, url: str = Form(...), title: str = Fo
     })
 
 @app.post("/api/clip", response_class=JSONResponse)
-async def clip_article(title: str = Form(...), url: str = Form(...), content: str = Form(...)):
+async def clip_article(
+    title: str = Form(...), 
+    url: str = Form(...), 
+    content: str = Form(...),
+    source: str = Form(None),
+    pubDate: str = Form(None),
+    originalLink: str = Form(None)
+):
     clip_id = str(uuid.uuid4())
     CLIPPINGS[clip_id] = {
         "title": title, "url": url, "content": content,
+        "source": source, 
+        "pubDate": pubDate, 
+        "originalLink": originalLink, 
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+    # 참고: CLIPPINGS는 일반적으로 전역 변수나 DB를 대체하는 딕셔너리입니다.
     return {"success": True, "clip_id": clip_id, "message": "클리핑 저장 완료"}
 
 @app.get("/clippings-tab", response_class=HTMLResponse)

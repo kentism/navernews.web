@@ -2,6 +2,14 @@
 const CLIPS_STORAGE_KEY = 'navernews_clips';
 const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
 
+// ⭐⭐ [수정] 4. 탭 및 검색 로직 변수 (전역으로 이동) ⭐⭐
+let searchTabCounter = 0;
+const panelObservers = new Map();
+// clippedTextContent와 defaultClippedText를 전역에서 정의 및 localStorage 연동
+const defaultClippedText = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타 관련\n\n';
+let clippedTextContent = localStorage.getItem('clippedTextContent') || defaultClippedText;
+// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+
 // 2. 유틸리티 함수들 (HTML 이스케이프 등)
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function escapeAttr(s) { return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -58,11 +66,11 @@ function renderRecentKeywords() {
     let html = '<div class="recent-keywords-header">최근 검색어</div>';
     keywords.forEach(kw => {
         html += `
-            <div class="recent-keyword-item" onclick="handleRecentKeywordClick('${escapeAttr(kw)}')">
-                <span>${escapeHtml(kw)}</span>
-                <span class="delete-btn" onclick="deleteRecentKeyword('${escapeAttr(kw)}', event)">×</span>
-            </div>
-        `;
+            <div class="recent-keyword-item" onclick="handleRecentKeywordClick('${escapeAttr(kw)}')">
+                <span>${escapeHtml(kw)}</span>
+                <span class="delete-btn" onclick="deleteRecentKeyword('${escapeAttr(kw)}', event)">×</span>
+            </div>
+        `;
     });
     container.innerHTML = html;
 }
@@ -77,30 +85,25 @@ function handleRecentKeywordClick(keyword) {
     }
 }
 
-// 4. 탭 및 검색 로직 변수
-let searchTabCounter = 0;
-const panelObservers = new Map();
-const defaultClippedText = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타 관련\n\n';
-let clippedTextContent = defaultClippedText;
-
 // 스켈레톤 HTML 반환
 function getSkeletonHTML() {
     return `
-    <div class="skeleton-card">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-text"></div>
-        <div class="skeleton skeleton-text short"></div>
-    </div>
-    <div class="skeleton-card">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-text"></div>
-        <div class="skeleton skeleton-text short"></div>
-    </div>
-    `;
+    <div class="skeleton-card">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+    </div>
+    <div class="skeleton-card">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+    </div>
+    `;
 }
 
-// 5. 탭 생성 및 관리
+// 5. 탭 생성 및 관리 (이전과 동일)
 function createSearchTab(keyword, htmlContent, start = 1) {
+    // ... (createSearchTab 함수 본문 유지) ...
     const id = 'search-' + (++searchTabCounter) + '-' + Date.now().toString(36);
 
     // 탭 버튼 생성
@@ -151,6 +154,7 @@ function createSearchTab(keyword, htmlContent, start = 1) {
 }
 
 function removeSearchTab(id) {
+    // ... (removeSearchTab 함수 본문 유지) ...
     const btn = document.querySelector(`.tabs-nav [data-tab="${id}"]`);
     const panel = document.getElementById(id);
     if (btn) btn.remove();
@@ -169,6 +173,7 @@ function removeSearchTab(id) {
 }
 
 async function refreshSearchTab(id) {
+    // ... (refreshSearchTab 함수 본문 유지) ...
     const panel = document.getElementById(id);
     if (!panel) return;
     const keyword = panel.dataset.keyword;
@@ -213,6 +218,7 @@ async function refreshSearchTab(id) {
 }
 
 function switchTab(tabId) {
+    // ... (switchTab 함수 본문 유지) ...
     if (!tabId) return;
     document.querySelectorAll('.tabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -236,6 +242,7 @@ function switchTab(tabId) {
 }
 
 function setupInfiniteScrollForPanel(panel) {
+    // ... (setupInfiniteScrollForPanel 함수 본문 유지) ...
     const sentinel = panel.querySelector('.panel-sentinel');
     if (!sentinel) return;
 
@@ -292,6 +299,7 @@ function setupInfiniteScrollForPanel(panel) {
 }
 
 async function handleSearch() {
+    // ... (handleSearch 함수 본문 유지) ...
     const input = document.getElementById('keyword');
     if (!input) return;
     const keyword = input.value.trim();
@@ -346,35 +354,54 @@ async function handleSearch() {
 }
 window.handleSearch = handleSearch;
 
-// 6. 클리핑 관련 로직
-async function loadClippingsTab() {
+
+// ⭐⭐ [수정] 6. 클리핑 관련 로직 (loadClippingsTab 함수를 전역으로 정의) ⭐⭐
+window.loadClippingsTab = async function () {
+    const clippingsPane = document.getElementById('clippings');
+    if (!clippingsPane) return;
+
+    let innerContainer = clippingsPane.querySelector('.tab-content-inner');
+    if (!innerContainer) { // innerContainer가 없으면 생성
+        innerContainer = document.createElement('div');
+        innerContainer.className = 'tab-content-inner';
+        clippingsPane.appendChild(innerContainer);
+    }
+    innerContainer.innerHTML = '클리핑을 로드하는 중...'; // 로딩 표시
+
     try {
         const resp = await fetch('/clippings-tab');
         const html = await resp.text();
-        const clippingsPane = document.getElementById('clippings');
-        if (!clippingsPane) return;
 
-        let innerContainer = clippingsPane.querySelector('.tab-content-inner');
         const template = document.createElement('template');
         template.innerHTML = html;
+
         const scriptEl = template.content.querySelector('script');
-        if (scriptEl) { scriptEl.remove(); }
-        innerContainer.innerHTML = template.innerHTML;
+        if (scriptEl) { scriptEl.remove(); } // 스크립트 제거 (main.js가 함수를 관리)
 
+        innerContainer.innerHTML = template.innerHTML; // HTML 내용 삽입
+
+        // ⭐⭐ 핵심 초기화: 전역 변수의 내용을 TextArea에 반영 ⭐⭐
         const textArea = document.getElementById('clippingTextArea');
-        if (textArea) textArea.value = clippedTextContent;
+        if (textArea) {
+            textArea.value = clippedTextContent;
+        }
 
-        if (scriptEl) {
+        if (scriptEl) { // 동적으로 삽입된 HTML 내 스크립트 재실행
             const newScript = document.createElement('script');
             newScript.textContent = scriptEl.textContent;
             innerContainer.appendChild(newScript);
         }
+
     } catch (e) {
         console.error('클리핑 로드 실패', e);
+        innerContainer.innerHTML = '<p class="empty-state">클리핑 로드 실패.</p>';
     }
 }
+// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+
 
 async function deleteClip(clipId) {
+    // ... (deleteClip 함수 본문 유지) ...
     if (!confirm('정말 삭제하시겠습니까?')) return;
     try {
         const resp = await fetch('/api/clip/' + clipId, { method: 'DELETE' });
@@ -390,9 +417,11 @@ async function deleteClip(clipId) {
 window.deleteClip = deleteClip;
 
 async function deleteAllClips() {
+    // ... (deleteAllClips 함수 본문 유지) ...
     if (!confirm('정말 모든 클리핑을 삭제하시겠습니까?')) return;
     try {
         clippedTextContent = defaultClippedText;
+        localStorage.setItem('clippedTextContent', defaultClippedText); // 로컬 스토리지 업데이트
         const textArea = document.getElementById('clippingTextArea');
         if (textArea) textArea.value = defaultClippedText;
         const resp = await fetch('/api/clips/all', { method: 'DELETE' });
@@ -406,10 +435,17 @@ async function deleteAllClips() {
 window.deleteAllClips = deleteAllClips;
 
 async function clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl = null) {
+    // ... (clipArticleFromData 함수 본문 유지) ...
     const fd = new FormData();
     fd.append('title', title);
     fd.append('url', url);
     fd.append('content', content || '');
+    // ⭐⭐ [수정]: 백엔드로 메타데이터 전송 (main.py 수정 필요) ⭐⭐
+    fd.append('source', source || '');
+    fd.append('pubDate', pubDate || '');
+    fd.append('originalLink', originalLink || url);
+    // ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+
     try {
         const r = await fetch('/api/clip', { method: 'POST', body: fd });
         const j = await r.json();
@@ -418,9 +454,11 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
             const formattedDate = !isNaN(date)
                 ? `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}`
                 : '';
+            // pubDate와 originalLink를 사용하여 텍스트 구성
             const textToAdd = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}\n`;
 
             clippedTextContent += textToAdd;
+            localStorage.setItem('clippedTextContent', clippedTextContent); // 로컬 스토리지 업데이트
             const textArea = document.getElementById('clippingTextArea');
             if (textArea) textArea.value = clippedTextContent;
 
@@ -450,15 +488,18 @@ window.clipArticleFromEl = function (btnEl) {
     const item = (btnEl && btnEl.closest) ? btnEl.closest('.news-item') : null;
     if (!item) return;
     const d = item.dataset;
+    // ⭐⭐ [수정]: 모든 메타데이터 (source, pubdate, originallink) 전달 ⭐⭐
     return clipArticleFromData(d.title, d.link, d.desc, d.source || d.domain, d.pubdate, d.origin || d.link, btnEl);
 };
 
-// 7. 모달 관련
+
+// 7. 모달 관련 (이전과 동일)
 const modal = document.getElementById('detailModal');
 const modalTitle = document.getElementById('modalTitle');
 const modalBody = document.getElementById('modalBody');
 
 async function showArticleDetailFromEl(itemEl) {
+    // ... (showArticleDetailFromEl 함수 본문 유지) ...
     if (!itemEl) return;
     modalTitle.textContent = itemEl.dataset.title;
     modalBody.innerHTML = `<div class="skeleton skeleton-text" style="height: 200px;"></div>`;
@@ -479,14 +520,16 @@ async function showArticleDetailFromEl(itemEl) {
 }
 
 function closeModal() {
+    // ... (closeModal 함수 본문 유지) ...
     modal.classList.remove('active');
 }
 
 function clipFromModal() {
+    // ... (clipFromModal 함수 본문 유지) ...
     const btn = modal.querySelector('.btn-primary');
     clipArticleFromData(
         btn.dataset.title,
-        btn.dataset.url,
+        btn.dataset.link,
         btn.dataset.content,
         btn.dataset.source,
         btn.dataset.pubdate,
@@ -497,6 +540,7 @@ function clipFromModal() {
 
 // 8. 초기화 (DOMContentLoaded)
 document.addEventListener('DOMContentLoaded', () => {
+    // ... (DOMContentLoaded 함수 본문 유지) ...
     const searchBtn = document.getElementById('searchBtn');
     const input = document.getElementById('keyword');
     const recentKeywords = document.getElementById('recentKeywords');
