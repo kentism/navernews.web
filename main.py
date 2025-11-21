@@ -267,13 +267,15 @@ async def search_api(keyword: str = Form(...), start: int = Form(default=1), hea
 async def search_results(request: Request, keyword: str = Form(...), start: int = Form(default=1), headers: dict = Depends(get_naver_api_headers)):
     try:
         items = await fetch_news(keyword, headers=headers, start=start, display=20)
-    except Exception as e:
-        print(f"Error in search_results: {e}")
-        items = []
         
-    return templates.TemplateResponse("search_results.html", {
-        "request": request, "items": items, "keyword": keyword, "start": start + 20
-    })
+        return templates.TemplateResponse("search_results.html", {
+            "request": request, "items": items, "keyword": keyword, "start": start + 20
+        })
+    except Exception as e:
+        import traceback
+        error_msg = f"Server Error: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return HTMLResponse(content=f"<pre>{error_msg}</pre>", status_code=500)
 
 @app.post("/article-detail", response_class=HTMLResponse)
 async def article_detail(request: Request, url: str = Form(...), title: str = Form(...)):
