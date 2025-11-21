@@ -9,7 +9,7 @@
         <p class="news-desc">{{ item.description | highlight(keyword) }}</p>
         <div class="news-actions">
             <button class="btn-small btn-outline"
-                onclick="event.stopPropagation(); toggleClip('{{ item.link }}', '{{ item.title | escape }}', '{{ item.source }}', '{{ item.pubDate }}')">
+                onclick="event.stopPropagation(); clipArticle('{{ item.link }}', '{{ item.title | escape }}', '{{ item.source }}', '{{ item.pubDate }}')">
                 📌 클립
             </button>
             <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">🔗 네이버에서

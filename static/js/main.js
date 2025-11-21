@@ -355,7 +355,7 @@ async function handleSearch() {
 window.handleSearch = handleSearch;
 
 
-// ⭐⭐ [수정] 6. 클리핑 관련 로직 (loadClippingsTab 함수를 전역으로 정의) ⭐⭐
+// [수정] 6. 클리핑 관련 로직 (loadClippingsTab 함수를 전역으로 정의)
 window.loadClippingsTab = async function () {
     const clippingsPane = document.getElementById('clippings');
     if (!clippingsPane) return;
@@ -397,8 +397,6 @@ window.loadClippingsTab = async function () {
         innerContainer.innerHTML = '<p class="empty-state">클리핑 로드 실패.</p>';
     }
 }
-// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
-
 
 async function deleteClip(clipId) {
     // ... (deleteClip 함수 본문 유지) ...
@@ -433,6 +431,28 @@ async function deleteAllClips() {
     } catch (e) { showToast('삭제 요청 실패'); }
 }
 window.deleteAllClips = deleteAllClips;
+
+async function clipArticle(url, title, source, pubDate, originalLink) {
+    try {
+        window.showToast(`'${title}' 본문 로딩 중...`);
+
+        // 1. 기사 본문 가져오기 (Back-end API 가정)
+        const contentResponse = await fetch(`/api/article?url=${encodeURIComponent(url)}`);
+        if (!contentResponse.ok) throw new Error("본문 가져오기 실패");
+        const data = await contentResponse.json();
+        const content = data.content || '';
+
+        // 2. 기존 로직 함수를 호출하여 저장 실행
+        // (content를 포함하여 기존 clipArticleFromData에 전달)
+        // btnEl은 없으므로 null 전달
+        await clipArticleFromData(title, url, content, source, pubDate, originalLink, null);
+
+    } catch (error) {
+        console.error("클리핑 로직 에러:", error);
+        window.showToast(`클리핑 실패: ${error.message || 'API 호출 오류'}`, 'error');
+    }
+}
+window.clipArticle = clipArticle;
 
 async function clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl = null) {
     // ... (clipArticleFromData 함수 본문 유지) ...
