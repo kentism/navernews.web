@@ -103,7 +103,7 @@ class NewsItem(BaseModel):
 # ----------------------------
 # 비즈니스 로직
 # ----------------------------
-async def fetch_news(keyword: str, start: int = 1, display: int = 20, headers: dict = Depends(get_naver_api_headers)):
+async def fetch_news(keyword: str, headers: dict, start: int = 1, display: int = 20):
     url = "https://openapi.naver.com/v1/search/news.json"
     params = {"query": keyword, "display": display, "start": start, "sort": "date"}
 
@@ -184,13 +184,13 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/api/search", response_class=JSONResponse)
-async def search_api(keyword: str = Form(...), start: int = Form(default=1)):
-    items = await fetch_news(keyword, start=start, display=20)
+async def search_api(keyword: str = Form(...), start: int = Form(default=1), headers: dict = Depends(get_naver_api_headers)):
+    items = await fetch_news(keyword, headers=headers, start=start, display=20)
     return {"items": [item.dict() for item in items], "total": len(items)}
 
 @app.post("/search-results", response_class=HTMLResponse)
-async def search_results(request: Request, keyword: str = Form(...), start: int = Form(default=1)):
-    items = await fetch_news(keyword, start=start, display=20)
+async def search_results(request: Request, keyword: str = Form(...), start: int = Form(default=1), headers: dict = Depends(get_naver_api_headers)):
+    items = await fetch_news(keyword, headers=headers, start=start, display=20)
     return templates.TemplateResponse("search_results.html", {
         "request": request, "items": items, "keyword": keyword, "start": start + 20
     })
