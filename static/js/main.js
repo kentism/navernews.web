@@ -37,7 +37,54 @@ function showToast(message) {
         toast.remove();
     }, 3000); // 3초 후 사라짐
 }
-window.showToast = showToast; // 다른 스크립트에서 접근 가능하도록 전역화
+window.showToast = showToast;
+
+// --- Dark Mode Logic ---
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.body.classList.add('dark-mode');
+        updateThemeBtn('🌙'); // Moon icon
+    } else {
+        document.body.classList.remove('dark-mode');
+        updateThemeBtn('☀️'); // Sun icon
+    }
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeBtn(isDark ? '🌙' : '☀️');
+}
+
+function updateThemeBtn(icon) {
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = icon;
+}
+
+// --- Skeleton Loading ---
+function getSkeletonHTML() {
+    return `
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>
+    `;
+}
 
 function createSearchTab(keyword, htmlContent, start = 1) {
     const id = 'search-' + (++searchTabCounter) + '-' + Date.now().toString(36);
@@ -69,8 +116,11 @@ function createSearchTab(keyword, htmlContent, start = 1) {
     panel.id = id;
     panel.dataset.keyword = keyword;
     panel.dataset.start = String(start);
-    panel.innerHTML = `<div class="search-panel-content">${htmlContent}</div>`;
+
+    // Initial Skeleton
+    panel.innerHTML = `<div class="search-panel-content">${htmlContent || getSkeletonHTML()}</div>`;
     const sentinel = document.createElement('div');
+
     sentinel.className = 'panel-sentinel';
     sentinel.textContent = '로딩...';
     const innerDiv = panel.querySelector('.search-panel-content');
@@ -105,19 +155,6 @@ function removeSearchTab(id) {
 
 async function refreshSearchTab(id) {
     const panel = document.getElementById(id);
-    if (!panel) return;
-
-    const keyword = panel.dataset.keyword;
-    if (!keyword) return;
-
-    const contentArea = panel.querySelector('.search-panel-content');
-    if (contentArea) {
-        contentArea.innerHTML = '<div class="loading">새로고침 중...</div>';
-    }
-
-    const fd = new FormData();
-    fd.append('keyword', keyword);
-    fd.append('start', 1);
 
     try {
         const resp = await fetch('/search-results', { method: 'POST', body: fd });
@@ -253,21 +290,6 @@ function setupInfiniteScrollForPanel(panel) {
     console.log('[INFINITE] Observer setup for', panel.id);
 }
 
-async function handleSearch() {
-    const kw = document.getElementById('keyword').value.trim();
-    if (!kw) { alert('검색어를 입력하세요'); return; }
-    const fd = new FormData(); fd.append('keyword', kw); fd.append('start', 1);
-    try {
-        const resp = await fetch('/search-results', { method: 'POST', body: fd });
-        if (!resp.ok) { showToast('검색 실패: 서버 오류'); return; }
-        const html = await resp.text();
-        const newTabId = createSearchTab(kw, html, 21); // 다음 시작은 21 (1~20은 이미 로드됨)
-        switchTab(newTabId);
-    } catch (e) {
-        console.error('검색 오류', e);
-        showToast('검색 실패: 네트워크 오류');
-    }
-}
 window.handleSearch = handleSearch; // 기존 코드와 호환
 
 // 클리핑 탭 동적 로드
@@ -414,7 +436,11 @@ async function showArticleDetailFromEl(itemEl) {
     if (!itemEl) return;
 
     modalTitle.textContent = itemEl.dataset.title;
-    modalBody.innerHTML = '<div class="loading">기사 본문을 불러오는 중...</div>';
+
+    modalBody.innerHTML = `
+        <div class="skeleton skeleton-title" style="width: 100%; height: 30px; margin-bottom: 20px;"></div>
+        <div class="skeleton skeleton-text" style="height: 200px;"></div>
+    `;
     modal.classList.add('active');
 
     // 모달의 클리핑 버튼에 데이터 설정
@@ -507,4 +533,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const firstSearchTab = document.querySelector('.tabs-nav button[data-tab^="search-"]');
         if (firstSearchTab) switchTab(firstSearchTab.dataset.tab);
     });
+    // --- Scroll to Top ---
+    const scrollTopBtn = document.getElementById('scrollTopBtn');
+    if (scrollTopBtn) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                scrollTopBtn.classList.add('show');
+            } else {
+                scrollTopBtn.classList.remove('show');
+            }
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
+    // --- Keyboard Shortcuts ---
+    document.addEventListener('keydown', (e) => {
+        // '/' to focus search
+        if (e.key === '/' && document.activeElement !== input) {
+            e.preventDefault();
+            input.focus();
+        }
+        // 'Esc' to close modal or clear search
+        if (e.key === 'Escape') {
+            if (modal.classList.contains('active')) {
+                closeModal();
+            } else if (document.activeElement === input) {
+                input.blur();
+            }
+        }
+    });
+
+    // --- Theme Init ---
+    const themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+    initTheme();
 });

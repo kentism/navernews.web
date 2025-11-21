@@ -1,27 +1,4 @@
 <!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KCSC 네이버 뉴스 클리핑</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E%F0%9F%97%90%3C/text%3E%3C/svg%3E">
-    
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>📰 KCSC 네이버 뉴스 클리핑</h1>
-            <div class="search-box">
-                <input type="text" id="keyword" placeholder="검색어를 입력하세요...">
-                <button id="searchBtn">검색</button>
-            </div>
-        </div>
-
-        <div class="tabs-nav">
-            <button data-tab="clippings" class="tab-btn" id="clippingsBtn">📌 클리핑</button>
-            <button id="globalRefreshBtn" title="현재 탭 새로고침" style="display:none;">⟳</button>
-        </div>
 
         <div class="tabs-content">
             <div id="searchPanelsContainer" class="tab-pane active">
@@ -39,6 +16,7 @@
         </div>
     </div>
 
+    <button id="scrollTopBtn" title="맨 위로">↑</button>
     <div id="toastContainer" class="toast-container"></div>
     
     <div id="detailModal" class="modal">
