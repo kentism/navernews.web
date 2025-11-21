@@ -1,19 +1,25 @@
-// localStorage 키
+// 1. localStorage 키 설정
 const CLIPS_STORAGE_KEY = 'navernews_clips';
 const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
 
-// localStorage에서 클립 로드
-function getClipsFromStorage() {
-    const data = localStorage.getItem(CLIPS_STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
-}
+// 2. 유틸리티 함수들 (HTML 이스케이프 등)
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escapeAttr(s) { return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-// localStorage에 클립 저장
-function saveClipsToStorage(clips) {
-    localStorage.setItem(CLIPS_STORAGE_KEY, JSON.stringify(clips));
+// 토스트 알림
+function showToast(message) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => toast.remove(), 3000);
 }
+window.showToast = showToast;
 
-// --- Recent Keywords ---
+// 3. 최근 검색어 관련 함수
 function getRecentKeywords() {
     const data = localStorage.getItem(RECENT_KEYWORDS_KEY);
     return data ? JSON.parse(data) : [];
@@ -22,10 +28,8 @@ function getRecentKeywords() {
 function saveRecentKeyword(keyword) {
     if (!keyword) return;
     let keywords = getRecentKeywords();
-    // 중복 제거 및 최신 검색어를 맨 앞으로
     keywords = keywords.filter(k => k !== keyword);
     keywords.unshift(keyword);
-    // 최대 10개 유지
     if (keywords.length > 10) keywords.pop();
     localStorage.setItem(RECENT_KEYWORDS_KEY, JSON.stringify(keywords));
 }
@@ -36,23 +40,21 @@ function deleteRecentKeyword(keyword, event) {
     keywords = keywords.filter(k => k !== keyword);
     localStorage.setItem(RECENT_KEYWORDS_KEY, JSON.stringify(keywords));
     renderRecentKeywords();
-    // 목록이 비었으면 드롭다운 숨김
     if (keywords.length === 0) {
-        document.getElementById('recentKeywords').classList.remove('show');
+        const el = document.getElementById('recentKeywords');
+        if (el) el.classList.remove('show');
     }
 }
 
 function renderRecentKeywords() {
     const container = document.getElementById('recentKeywords');
     if (!container) return;
-
     const keywords = getRecentKeywords();
     if (keywords.length === 0) {
         container.innerHTML = '';
         container.classList.remove('show');
         return;
     }
-
     let html = '<div class="recent-keywords-header">최근 검색어</div>';
     keywords.forEach(kw => {
         html += `
@@ -70,39 +72,18 @@ function handleRecentKeywordClick(keyword) {
     if (input) {
         input.value = keyword;
         handleSearch();
-        // 드롭다운 숨기기
-        document.getElementById('recentKeywords').classList.remove('show');
+        const el = document.getElementById('recentKeywords');
+        if (el) el.classList.remove('show');
     }
 }
 
-function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function escapeAttr(s) { return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-
+// 4. 탭 및 검색 로직 변수
 let searchTabCounter = 0;
 const panelObservers = new Map();
 const defaultClippedText = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타 관련\n\n';
-let clippedTextContent = defaultClippedText; // 클리핑 텍스트를 저장할 전역 변수
+let clippedTextContent = defaultClippedText;
 
-// 토스트 알림 함수
-function showToast(message) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3000); // 3초 후 사라짐
-}
-window.showToast = showToast;
-
-// --- Skeleton Loading ---
+// 스켈레톤 HTML 반환
 function getSkeletonHTML() {
     return `
     <div class="skeleton-card">
@@ -115,58 +96,56 @@ function getSkeletonHTML() {
         <div class="skeleton skeleton-text"></div>
         <div class="skeleton skeleton-text short"></div>
     </div>
-    <div class="skeleton-card">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-text"></div>
-        <div class="skeleton skeleton-text short"></div>
-    </div>
-`;
+    `;
 }
 
+// 5. 탭 생성 및 관리
 function createSearchTab(keyword, htmlContent, start = 1) {
     const id = 'search-' + (++searchTabCounter) + '-' + Date.now().toString(36);
-    // 버튼
+
+    // 탭 버튼 생성
     const btn = document.createElement('button');
     btn.className = 'tab-btn';
     btn.dataset.tab = id;
     btn.textContent = keyword.length > 20 ? keyword.slice(0, 17) + '…' : keyword;
 
-    const close = document.createElement('span'); close.textContent = ' ×'; close.style.marginLeft = '8px';
+    const close = document.createElement('span');
+    close.textContent = ' ×';
+    close.style.marginLeft = '8px';
     close.onclick = (e) => {
         e.stopPropagation();
         removeSearchTab(id);
     };
     btn.appendChild(close);
 
-    // 새로고침 버튼 앞에 탭을 추가하여 항상 오른쪽 끝에 있도록 보장
+    // 탭 버튼 삽입 위치 조정
     const navContainer = document.querySelector('.tabs-nav');
     const refreshBtn = document.getElementById('globalRefreshBtn');
     if (navContainer && refreshBtn) {
         navContainer.insertBefore(btn, refreshBtn);
     } else if (navContainer) {
-        navContainer.appendChild(btn); // Fallback
+        navContainer.appendChild(btn);
     }
 
-    // 패널
+    // 탭 패널 생성
     const panel = document.createElement('div');
     panel.className = 'tab-pane';
     panel.id = id;
     panel.dataset.keyword = keyword;
     panel.dataset.start = String(start);
 
-    // Initial Skeleton
     panel.innerHTML = `<div class="search-panel-content">${htmlContent || getSkeletonHTML()}</div>`;
-    const sentinel = document.createElement('div');
 
+    const sentinel = document.createElement('div');
     sentinel.className = 'panel-sentinel';
     sentinel.textContent = '로딩...';
+
     const innerDiv = panel.querySelector('.search-panel-content');
     if (innerDiv) innerDiv.appendChild(sentinel);
 
     document.querySelector('.tabs-content').appendChild(panel);
 
     switchTab(id);
-
     setupInfiniteScrollForPanel(panel);
     return id;
 }
@@ -185,7 +164,6 @@ function removeSearchTab(id) {
     if (lastSearchTab) {
         switchTab(lastSearchTab.dataset.tab);
     } else {
-        // 남은 검색 탭이 없으면 초기 메시지 화면을 보여줍니다.
         switchTab('searchPanelsContainer');
     }
 }
@@ -227,27 +205,20 @@ async function refreshSearchTab(id) {
 
 function switchTab(tabId) {
     if (!tabId) return;
-
-    // 모든 탭 버튼 비활성화
     document.querySelectorAll('.tabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
 
-    // 선택된 탭 버튼과 패널 활성화
     const tabBtn = document.querySelector(`.tabs-nav [data-tab="${tabId}"]`);
     const panel = document.getElementById(tabId);
     if (tabBtn) tabBtn.classList.add('active');
     if (panel) panel.classList.add('active');
 
-    // 새로고침 버튼 표시/숨김 로직
     const refreshBtn = document.getElementById('globalRefreshBtn');
     if (refreshBtn) {
-        // 활성화된 탭이 검색 결과 탭일 경우에만 새로고침 버튼 표시
         const isSearchTabActive = tabBtn && tabBtn.dataset.tab.startsWith('search-');
         refreshBtn.style.display = isSearchTabActive ? 'block' : 'none';
     }
 
-
-    // 검색 결과가 하나라도 있으면 초기 메시지 숨기기
     const hasSearchResults = !!document.querySelector('.tabs-nav button[data-tab^="search-"]');
     const initialMessage = document.getElementById('initialSearchMessage');
     if (initialMessage) {
@@ -271,12 +242,8 @@ function setupInfiniteScrollForPanel(panel) {
             if (loading) return;
 
             loading = true;
-            console.log('[INFINITE] Sentinel reached for', panel.id);
-
             const keyword = panel.dataset.keyword;
             let start = parseInt(panel.dataset.start || '1', 10);
-
-            console.log('[INFINITE] Loading keyword:', keyword, 'start:', start);
 
             const fd = new FormData();
             fd.append('keyword', keyword);
@@ -284,54 +251,35 @@ function setupInfiniteScrollForPanel(panel) {
 
             try {
                 const resp = await fetch('/search-results', { method: 'POST', body: fd });
-                console.log('[INFINITE] Response status:', resp.status);
-
                 if (!resp.ok) {
-                    console.error('[INFINITE] Load failed', resp.status);
-                    sentinel.textContent = '추가 로드 실패 (상태: ' + resp.status + ')';
+                    sentinel.textContent = '추가 로드 실패';
                     observer.disconnect();
                     panelObservers.delete(panel.id);
                     loading = false;
                     return;
                 }
-
                 const html = await resp.text();
-                console.log('[INFINITE] Loaded HTML length:', html.length);
-
                 if (!html || html.trim().length === 0) {
-                    console.log('[INFINITE] No more results');
                     sentinel.textContent = '더 이상 결과가 없습니다';
                     observer.disconnect();
                     panelObservers.delete(panel.id);
                     loading = false;
                     return;
                 }
-
-                // sentinel 앞에 콘텐츠 삽입
                 sentinel.insertAdjacentHTML('beforebegin', html);
-
-                // start 업데이트
                 panel.dataset.start = String(start + 20);
-                console.log('[INFINITE] Updated start to:', start + 20);
-
                 loading = false;
-
             } catch (err) {
-                console.error('[INFINITE] Error:', err);
                 sentinel.textContent = '네트워크 오류';
                 observer.disconnect();
                 panelObservers.delete(panel.id);
                 loading = false;
             }
         }
-    }, {
-        root: null,  // viewport 기준
-        rootMargin: '200px'  // 200px 전에 미리 감지
-    });
+    }, { root: null, rootMargin: '200px' });
 
     observer.observe(sentinel);
     panelObservers.set(panel.id, observer);
-    console.log('[INFINITE] Observer setup for', panel.id);
 }
 
 async function handleSearch() {
@@ -342,14 +290,10 @@ async function handleSearch() {
         showToast('검색어를 입력하세요.');
         return;
     }
-
-    // 최근 검색어 저장
     saveRecentKeyword(keyword);
-    // 드롭다운 숨기기
-    document.getElementById('recentKeywords').classList.remove('show');
+    const el = document.getElementById('recentKeywords');
+    if (el) el.classList.remove('show');
 
-
-    // 이미 같은 키워드의 탭이 있는지 확인
     const existingTab = Array.from(document.querySelectorAll('.tab-pane')).find(p => p.dataset.keyword === keyword);
     if (existingTab) {
         switchTab(existingTab.id);
@@ -358,11 +302,9 @@ async function handleSearch() {
         return;
     }
 
-    // 새 탭 생성
-    const newTabId = createSearchTab(keyword, null); // 스켈레톤 표시
+    const newTabId = createSearchTab(keyword, null);
     input.value = '';
 
-    // 검색 요청
     const fd = new FormData();
     fd.append('keyword', keyword);
     fd.append('start', 1);
@@ -389,14 +331,13 @@ async function handleSearch() {
             removeSearchTab(newTabId);
         }
     } catch (e) {
-        console.error(e);
-        showToast('검색 요청 중 오류가 발생했습니다.');
+        showToast('검색 요청 오류');
         removeSearchTab(newTabId);
     }
 }
 window.handleSearch = handleSearch;
 
-// 클리핑 탭 동적 로드
+// 6. 클리핑 관련 로직
 async function loadClippingsTab() {
     try {
         const resp = await fetch('/clippings-tab');
@@ -404,24 +345,19 @@ async function loadClippingsTab() {
         const clippingsPane = document.getElementById('clippings');
         if (!clippingsPane) return;
 
-        // 패딩을 위한 내부 컨테이너를 찾거나 생성합니다.
         let innerContainer = clippingsPane.querySelector('.tab-content-inner');
-
-        // 1. 스크립트를 제외한 HTML을 먼저 삽입합니다.
         const template = document.createElement('template');
         template.innerHTML = html;
         const scriptEl = template.content.querySelector('script');
         if (scriptEl) { scriptEl.remove(); }
         innerContainer.innerHTML = template.innerHTML;
 
-        // 탭이 로드된 후, 전역 변수에 저장된 텍스트를 textarea에 복원합니다.
         const textArea = document.getElementById('clippingTextArea');
         if (textArea) textArea.value = clippedTextContent;
 
-        // 2. 분리했던 스크립트를 DOM에 추가하여 실행시킵니다.
         if (scriptEl) {
             const newScript = document.createElement('script');
-            newScript.textContent = scriptEl.textContent; // 스크립트 내용 복사
+            newScript.textContent = scriptEl.textContent;
             innerContainer.appendChild(newScript);
         }
     } catch (e) {
@@ -429,7 +365,6 @@ async function loadClippingsTab() {
     }
 }
 
-// 클리핑 삭제 (전역 함수 — 클리핑_tab.html의 버튼에서 호출)
 async function deleteClip(clipId) {
     if (!confirm('정말 삭제하시겠습니까?')) return;
     try {
@@ -437,41 +372,31 @@ async function deleteClip(clipId) {
         const j = await resp.json();
         if (j.success) {
             showToast('클리핑이 삭제되었습니다.');
-            loadClippingsTab(); // 재로드
+            loadClippingsTab();
         } else {
             showToast('삭제에 실패했습니다.');
         }
-    } catch (e) {
-        console.error(e);
-        showToast('삭제 요청 실패');
-    }
+    } catch (e) { showToast('삭제 요청 실패'); }
 }
 window.deleteClip = deleteClip;
 
-// 모든 클리핑 삭제
 async function deleteAllClips() {
     if (!confirm('정말 모든 클리핑을 삭제하시겠습니까?')) return;
     try {
-        // UI 즉시 반영
         clippedTextContent = defaultClippedText;
         const textArea = document.getElementById('clippingTextArea');
         if (textArea) textArea.value = defaultClippedText;
-
         const resp = await fetch('/api/clips/all', { method: 'DELETE' });
         const j = await resp.json();
         if (j.success) {
             showToast('모든 클리핑이 삭제되었습니다.');
             loadClippingsTab();
         }
-    } catch (e) {
-        console.error(e);
-        showToast('삭제 요청 실패');
-    }
+    } catch (e) { showToast('삭제 요청 실패'); }
 }
 window.deleteAllClips = deleteAllClips;
 
 async function clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl = null) {
-    console.log('[CLIP] 저장 시도:', { title, url, content, source, pubDate, originalLink });
     const fd = new FormData();
     fd.append('title', title);
     fd.append('url', url);
@@ -479,7 +404,6 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
     try {
         const r = await fetch('/api/clip', { method: 'POST', body: fd });
         const j = await r.json();
-        console.log('[CLIP] 응답:', j);
         if (j.success) {
             const date = new Date(pubDate);
             const formattedDate = !isNaN(date)
@@ -487,67 +411,47 @@ async function clipArticleFromData(title, url, content, source, pubDate, origina
                 : '';
             const textToAdd = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}\n`;
 
-            // 1. 전역 변수에 텍스트를 누적합니다.
             clippedTextContent += textToAdd;
-
-            // 2. 만약 클리핑 탭이 현재 활성화되어 있다면, textarea의 값을 즉시 업데이트합니다.
             const textArea = document.getElementById('clippingTextArea');
             if (textArea) textArea.value = clippedTextContent;
 
             showToast('클립이 저장되었습니다.');
-
-            // 버튼 상태 변경
             if (btnEl) {
                 btnEl.textContent = '✓ 클립됨';
                 btnEl.classList.add('clipped');
                 btnEl.disabled = true;
             }
-
-            // 추가: URL을 기반으로 목록에 있는 다른 버튼도 업데이트
+            // 같은 URL 가진 다른 버튼도 상태 변경
             const otherBtn = document.querySelector(`.news-item[data-link="${escapeAttr(url)}"] .btn-clip`);
             if (otherBtn && otherBtn !== btnEl) {
                 otherBtn.textContent = '✓ 클립됨';
                 otherBtn.classList.add('clipped');
                 otherBtn.disabled = true;
             }
-
         } else {
-            showToast('클립 저장에 실패했습니다: ' + (j.message || ''));
+            showToast('저장 실패: ' + (j.message || ''));
         }
-    } catch (e) {
-        console.error('[CLIP] 요청 실패:', e);
-        showToast('클립 요청 실패');
-    }
+    } catch (e) { showToast('클립 요청 실패'); }
 }
 
 window.clipArticleFromEl = function (btnEl) {
     const item = (btnEl && btnEl.closest) ? btnEl.closest('.news-item') : null;
-    const title = item?.dataset?.title || '';
-    const url = item?.dataset?.link || '';
-    const content = item?.dataset?.desc || '';
-    const source = item?.dataset?.source || item?.dataset?.domain || '';
-    const pubDate = item?.dataset?.pubdate || '';
-    const originalLink = item?.dataset?.origin || url;
-    return clipArticleFromData(title, url, content, source, pubDate, originalLink, btnEl);
+    if (!item) return;
+    const d = item.dataset;
+    return clipArticleFromData(d.title, d.link, d.desc, d.source || d.domain, d.pubdate, d.origin || d.link, btnEl);
 };
 
-// 모달 관련 함수
+// 7. 모달 관련
 const modal = document.getElementById('detailModal');
 const modalTitle = document.getElementById('modalTitle');
 const modalBody = document.getElementById('modalBody');
 
 async function showArticleDetailFromEl(itemEl) {
     if (!itemEl) return;
-
     modalTitle.textContent = itemEl.dataset.title;
-
-    modalBody.innerHTML = `
-    <div class="skeleton skeleton-title" style="width: 100%; height: 30px; margin-bottom: 20px;"></div>
-    <div class="skeleton skeleton-text" style="height: 200px;"></div>
-`;
+    modalBody.innerHTML = `<div class="skeleton skeleton-text" style="height: 200px;"></div>`;
     modal.classList.add('active');
 
-    // 모달의 클리핑 버튼에 데이터 설정
     const clipBtn = modal.querySelector('.btn-primary');
     Object.keys(itemEl.dataset).forEach(key => {
         clipBtn.dataset[key] = itemEl.dataset[key];
@@ -555,11 +459,11 @@ async function showArticleDetailFromEl(itemEl) {
 
     const fd = new FormData();
     fd.append('url', itemEl.dataset.link);
-    fd.append('title', itemEl.dataset.title); // 'title' 필드 추가
+    fd.append('title', itemEl.dataset.title);
 
     const resp = await fetch('/article-detail', { method: 'POST', body: fd });
     modalBody.innerHTML = await resp.text();
-    clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500); // 파싱된 본문 일부 저장
+    clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500);
 }
 
 function closeModal() {
@@ -575,10 +479,11 @@ function clipFromModal() {
         btn.dataset.source,
         btn.dataset.pubdate,
         btn.dataset.originallink,
-        btn // 모달의 클립 버튼도 상태 변경
+        btn
     );
 }
 
+// 8. 초기화 (DOMContentLoaded)
 document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('searchBtn');
     const input = document.getElementById('keyword');
@@ -587,20 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
     if (input) {
         input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
-
-        // 최근 검색어 드롭다운 이벤트
         input.addEventListener('focus', () => {
             renderRecentKeywords();
-            if (getRecentKeywords().length > 0) {
-                recentKeywords.classList.add('show');
-            }
+            if (getRecentKeywords().length > 0) recentKeywords.classList.add('show');
         });
-
-        // blur 시 드롭다운 숨김 (클릭 이벤트 처리를 위해 지연)
         input.addEventListener('blur', () => {
-            setTimeout(() => {
-                recentKeywords.classList.remove('show');
-            }, 200);
+            setTimeout(() => { recentKeywords.classList.remove('show'); }, 200);
         });
     }
 
@@ -610,17 +507,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = e.target.closest('button[data-tab]');
             if (!btn) return;
             const tabId = btn.dataset.tab;
-
-            if (tabId === 'clippings') {
-                loadClippingsTab(); // 클리핑 탭을 누를 때마다 목록을 새로고침하고 텍스트를 복원합니다.
-            }
-
-            // 🛑 수정완료: 탭 전환만 하고 불필요한 새로고침은 제거했습니다.
-            switchTab(tabId);
+            if (tabId === 'clippings') loadClippingsTab();
+            switchTab(tabId); // 새로고침 없이 탭 전환만 수행
         });
     }
 
-    // 전역 새로고침 버튼 이벤트 리스너 (여기에만 새로고침 기능 연결)
     const globalRefreshBtn = document.getElementById('globalRefreshBtn');
     if (globalRefreshBtn) {
         globalRefreshBtn.addEventListener('click', () => {
@@ -631,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ===== 페이지 로드 시 기본 검색 =====
+    // 페이지 로드 시 기본 검색 실행
     async function loadDefaultSearch() {
         const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
         for (const kw of keywords) {
@@ -642,36 +533,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resp = await fetch('/search-results', { method: 'POST', body: fd });
                 if (resp.ok) {
                     const html = await resp.text();
-                    createSearchTab(kw, html, 21); // 탭 생성 및 활성화는 함수 내부에서 처리
+                    createSearchTab(kw, html, 21);
                 }
             } catch (e) {
                 console.error('기본 검색 오류:', e);
             }
         }
     }
+
+    // 여기서 await 없이 호출해야 하므로 .then()을 사용합니다.
     loadDefaultSearch().then(() => {
-        // 기본 검색 로드 후, 첫 번째 검색 탭을 활성화합니다.
         const firstSearchTab = document.querySelector('.tabs-nav button[data-tab^="search-"]');
         if (firstSearchTab) switchTab(firstSearchTab.dataset.tab);
     });
-    // --- Scroll to Top ---
-    const scrollTopBtn = document.getElementById('scrollTopBtn');
-    if (scrollTopBtn) {
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 300) {
-                scrollTopBtn.classList.add('show');
-            } else {
-                scrollTopBtn.classList.remove('show');
-            }
-        });
-        scrollTopBtn.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-    }
 
-    // --- Keyboard Shortcuts ---
+    // 키보드 이벤트
     document.addEventListener('keydown', (e) => {
-        // 'Esc' to close modal or clear search
         if (e.key === 'Escape') {
             if (modal.classList.contains('active')) {
                 closeModal();
