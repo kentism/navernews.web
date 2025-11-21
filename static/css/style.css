@@ -74,7 +74,8 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    backdrop-filter: blur(10px); /* Glassmorphism effect if supported */
+    backdrop-filter: blur(10px);
+    /* Glassmorphism effect if supported */
 }
 
 .header-content {
@@ -152,16 +153,21 @@ body {
 .tabs-nav {
     display: flex;
     border-bottom: 1px solid var(--border-color);
-    background: var(--bg-color); /* Match body bg */
+    background: var(--bg-color);
+    /* Match body bg */
     padding: 10px 20px 0;
     gap: 8px;
-    overflow-x: auto; /* Horizontal scroll on mobile */
-    scrollbar-width: none; /* Hide scrollbar Firefox */
-    -ms-overflow-style: none; /* Hide scrollbar IE/Edge */
+    overflow-x: auto;
+    /* Horizontal scroll on mobile */
+    scrollbar-width: none;
+    /* Hide scrollbar Firefox */
+    -ms-overflow-style: none;
+    /* Hide scrollbar IE/Edge */
 }
 
 .tabs-nav::-webkit-scrollbar {
-    display: none; /* Hide scrollbar Chrome/Safari */
+    display: none;
+    /* Hide scrollbar Chrome/Safari */
 }
 
 .tab-btn {
@@ -251,7 +257,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    border: 1px solid transparent; /* Prevent layout shift on border change */
+    border: 1px solid transparent;
+    /* Prevent layout shift on border change */
 }
 
 .news-item:hover {
@@ -362,7 +369,8 @@ body {
     margin: 0 0 10px;
     color: var(--text-main);
     line-height: 1.4;
-    flex: 1; /* Push actions to bottom */
+    flex: 1;
+    /* Push actions to bottom */
 }
 
 .clip-card p {
@@ -428,8 +436,13 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .modal-content {
@@ -442,41 +455,6 @@ body {
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     display: flex;
-    flex-direction: column;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 15px;
-}
-
-.modal-header h2 {
-    font-size: 20px;
-    color: var(--text-main);
-    margin: 0;
-}
-
-.btn-close {
-    background: none;
-    border: none;
-    font-size: 28px;
-    cursor: pointer;
-    color: var(--text-sub);
-    transition: color 0.2s;
-}
-
-.btn-close:hover {
-    color: var(--danger-color);
-}
-
-.modal-body {
-    color: var(--text-main);
-    line-height: 1.8;
-    margin-bottom: 25px;
     font-size: 16px;
 }
 
@@ -607,8 +585,13 @@ body {
 }
 
 @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 .skeleton-card {
@@ -640,7 +623,7 @@ body {
     .container {
         height: auto;
     }
-    
+
     .header {
         padding: 15px;
     }
@@ -667,7 +650,7 @@ body {
         width: 95%;
         padding: 20px;
     }
-    
+
     #scrollTopBtn {
         bottom: 20px;
         right: 20px;

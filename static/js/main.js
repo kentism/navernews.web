@@ -39,51 +39,25 @@ function showToast(message) {
 }
 window.showToast = showToast;
 
-// --- Dark Mode Logic ---
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-        document.body.classList.add('dark-mode');
-        updateThemeBtn('🌙'); // Moon icon
-    } else {
-        document.body.classList.remove('dark-mode');
-        updateThemeBtn('☀️'); // Sun icon
-    }
-}
-
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    updateThemeBtn(isDark ? '🌙' : '☀️');
-}
-
-function updateThemeBtn(icon) {
-    const btn = document.getElementById('themeToggle');
-    if (btn) btn.textContent = icon;
-}
-
 // --- Skeleton Loading ---
 function getSkeletonHTML() {
     return `
-        <div class="skeleton-card">
-            <div class="skeleton skeleton-title"></div>
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text short"></div>
-        </div>
-        <div class="skeleton-card">
-            <div class="skeleton skeleton-title"></div>
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text short"></div>
-        </div>
-        <div class="skeleton-card">
-            <div class="skeleton skeleton-title"></div>
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-text short"></div>
-        </div>
-    `;
+    <div class="skeleton-card">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+    </div>
+    <div class="skeleton-card">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+    </div>
+    <div class="skeleton-card">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text short"></div>
+    </div>
+`;
 }
 
 function createSearchTab(keyword, htmlContent, start = 1) {
@@ -155,6 +129,13 @@ function removeSearchTab(id) {
 
 async function refreshSearchTab(id) {
     const panel = document.getElementById(id);
+    if (!panel) return;
+    const keyword = panel.dataset.keyword;
+    const contentArea = panel.querySelector('.search-panel-content');
+
+    const fd = new FormData();
+    fd.append('keyword', keyword);
+    fd.append('start', 1);
 
     try {
         const resp = await fetch('/search-results', { method: 'POST', body: fd });
@@ -290,7 +271,61 @@ function setupInfiniteScrollForPanel(panel) {
     console.log('[INFINITE] Observer setup for', panel.id);
 }
 
-window.handleSearch = handleSearch; // 기존 코드와 호환
+async function handleSearch() {
+    const input = document.getElementById('keyword');
+    if (!input) return;
+    const keyword = input.value.trim();
+    if (!keyword) {
+        showToast('검색어를 입력하세요.');
+        return;
+    }
+
+    // 이미 같은 키워드의 탭이 있는지 확인
+    const existingTab = Array.from(document.querySelectorAll('.tab-pane')).find(p => p.dataset.keyword === keyword);
+    if (existingTab) {
+        switchTab(existingTab.id);
+        showToast(`'${keyword}' 탭으로 이동했습니다.`);
+        input.value = '';
+        return;
+    }
+
+    // 새 탭 생성
+    const newTabId = createSearchTab(keyword, null); // 스켈레톤 표시
+    input.value = '';
+
+    // 검색 요청
+    const fd = new FormData();
+    fd.append('keyword', keyword);
+    fd.append('start', 1);
+
+    try {
+        const resp = await fetch('/search-results', { method: 'POST', body: fd });
+        if (resp.ok) {
+            const html = await resp.text();
+            const panel = document.getElementById(newTabId);
+            if (panel) {
+                const contentArea = panel.querySelector('.search-panel-content');
+                if (contentArea) {
+                    contentArea.innerHTML = html;
+                    const sentinel = document.createElement('div');
+                    sentinel.className = 'panel-sentinel';
+                    sentinel.textContent = '로딩...';
+                    contentArea.appendChild(sentinel);
+                }
+                panel.dataset.start = '21';
+                setupInfiniteScrollForPanel(panel);
+            }
+        } else {
+            showToast('검색 실패: ' + resp.status);
+            removeSearchTab(newTabId);
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('검색 요청 중 오류가 발생했습니다.');
+        removeSearchTab(newTabId);
+    }
+}
+window.handleSearch = handleSearch;
 
 // 클리핑 탭 동적 로드
 async function loadClippingsTab() {
@@ -438,9 +473,9 @@ async function showArticleDetailFromEl(itemEl) {
     modalTitle.textContent = itemEl.dataset.title;
 
     modalBody.innerHTML = `
-        <div class="skeleton skeleton-title" style="width: 100%; height: 30px; margin-bottom: 20px;"></div>
-        <div class="skeleton skeleton-text" style="height: 200px;"></div>
-    `;
+    <div class="skeleton skeleton-title" style="width: 100%; height: 30px; margin-bottom: 20px;"></div>
+    <div class="skeleton skeleton-text" style="height: 200px;"></div>
+`;
     modal.classList.add('active');
 
     // 모달의 클리핑 버튼에 데이터 설정
@@ -490,6 +525,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tabId === 'clippings') {
                 loadClippingsTab(); // 클리핑 탭을 누를 때마다 목록을 새로고침하고 텍스트를 복원합니다.
             }
+            // 활성화된 탭 저장
+            const activeTab = document.querySelector('.tab-pane.active');
             if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
                 refreshSearchTab(activeTab.dataset.tab);
             }
@@ -535,11 +572,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Keyboard Shortcuts ---
     document.addEventListener('keydown', (e) => {
-        // '/' to focus search
-        if (e.key === '/' && document.activeElement !== input) {
-            e.preventDefault();
-            input.focus();
-        }
         // 'Esc' to close modal or clear search
         if (e.key === 'Escape') {
             if (modal.classList.contains('active')) {
@@ -549,9 +581,4 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-    // --- Theme Init ---
-    const themeBtn = document.getElementById('themeToggle');
-    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-    initTheme();
 });
