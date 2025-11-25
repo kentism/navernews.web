@@ -228,6 +228,11 @@ function removeSearchTab(id) {
 
     if (lastSearchTab) {
         switchTab(lastSearchTab.dataset.tab);
+    } else {
+        // If no tabs left, show empty container or stay blank
+        // (Here we assume 'searchPanelsContainer' might be a fallback ID, 
+        // but usually we just leave it be or switch to clippings if available)
+        // For safety, just ensure no active class on removed elements
     }
 }
 
@@ -425,310 +430,197 @@ async function handleSearch() {
     } catch (e) {
         showToast('검색 요청 오류');
         removeSearchTab(newTabId);
-    }
-}
-window.handleSearch = handleSearch;
+        // Format the new entry
+        const newEntry = `\n- ${title}\n  ${link}\n`;
 
+        // Append
+        currentText += newEntry;
 
-// ==============================================================================
-// 7. CLIPPING LOGIC (TEXT AREA ONLY)
-// ==============================================================================
+        // Save
+        localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
 
-/**
- * Loads the clippings tab content and initializes the text area.
- */
-window.loadClippingsTab = async function () {
-    const clippingsPane = document.getElementById('clippings');
-    if (!clippingsPane) return;
-
-    let innerContainer = clippingsPane.querySelector('.tab-content-inner');
-    if (!innerContainer) {
-        innerContainer = document.createElement('div');
-        innerContainer.className = 'tab-content-inner';
-        clippingsPane.appendChild(innerContainer);
-    }
-
-    // If content is already loaded, just return
-    if (innerContainer.children.length > 0) return;
-
-    innerContainer.innerHTML = '클리핑을 로드하는 중...';
-
-    try {
-        const resp = await fetch('/clippings-tab');
-        const html = await resp.text();
-
-        // Parse and insert HTML safely
-        const template = document.createElement('template');
-        template.innerHTML = html;
-
-        // Remove script tags from the fetched HTML
-        const scriptEl = template.content.querySelector('script');
-        if (scriptEl) scriptEl.remove();
-
-        innerContainer.innerHTML = template.innerHTML;
-
-        // Initialize Text Area with saved content
-        const textArea = document.getElementById('clippingTextArea');
+        // Update UI if visible
         if (textArea) {
-            const savedText = localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT;
-            textArea.value = savedText;
+            textArea.value = currentText;
+            // Scroll to bottom
+            textArea.scrollTop = textArea.scrollHeight;
+        }
 
-            // Add auto-save listener
-            textArea.addEventListener('input', () => {
-                localStorage.setItem(CLIPPING_TEXT_KEY, textArea.value);
+        showToast('✅ 클리핑 메모에 추가되었습니다.');
+
+        // Visual feedback on button
+        if (btnEl) {
+            const originalText = btnEl.textContent;
+            btnEl.textContent = '저장됨!';
+            btnEl.disabled = true;
+            setTimeout(() => {
+                btnEl.textContent = originalText;
+                btnEl.disabled = false;
+            }, 2000);
+        }
+    }
+    // Expose globally as it might be called from inline handlers or other contexts
+    window.clipArticleFromData = clipArticleFromData;
+
+
+    // ==============================================================================
+    // 8. MODAL LOGIC
+    // ==============================================================================
+
+    const modal = document.getElementById('detailModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+
+    async function showArticleDetailFromEl(itemEl) {
+        if (!itemEl) return;
+
+        modalTitle.textContent = itemEl.dataset.title;
+        modalBody.innerHTML = `<div class="skeleton skeleton-text" style="height: 200px;"></div>`;
+        modal.classList.add('active');
+
+        // Setup 'Save' button in modal
+        const clipBtn = modal.querySelector('.btn-primary');
+        // Copy dataset attributes to button for easy access
+        Object.keys(itemEl.dataset).forEach(key => {
+            clipBtn.dataset[key] = itemEl.dataset[key];
+        });
+
+        // Fetch content
+        const fd = new FormData();
+        fd.append('url', itemEl.dataset.link);
+        fd.append('title', itemEl.dataset.title);
+
+        try {
+            const resp = await fetch('/article-detail', { method: 'POST', body: fd });
+            modalBody.innerHTML = await resp.text();
+            // Update content dataset if needed (though we mostly use link/title)
+            clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500);
+        } catch (e) {
+            modalBody.innerHTML = '<p>본문을 불러오는데 실패했습니다.</p>';
+        }
+    }
+    window.showArticleDetailFromEl = showArticleDetailFromEl;
+
+    function closeModal() {
+        modal.classList.remove('active');
+    }
+    window.closeModal = closeModal;
+
+    function clipFromModal() {
+        const btn = modal.querySelector('.btn-primary');
+        clipArticleFromData(
+            btn.dataset.title,
+            btn.dataset.link,
+            btn.dataset.content,
+            btn.dataset.source,
+            btn.dataset.pubdate,
+            btn.dataset.originallink,
+            btn
+        );
+    }
+    window.clipFromModal = clipFromModal;
+
+
+    // ==============================================================================
+    // 9. INITIALIZATION
+    // ==============================================================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Search Bar Event Listeners
+        const searchBtn = document.getElementById('searchBtn');
+        const input = document.getElementById('keyword');
+        const recentKeywords = document.getElementById('recentKeywords');
+
+        if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+
+        if (input) {
+            input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
+
+            input.addEventListener('focus', () => {
+                renderRecentKeywords();
+                if (getRecentKeywords().length > 0) recentKeywords.classList.add('show');
+            });
+
+            input.addEventListener('blur', () => {
+                // Delay hiding to allow click events on items
+                setTimeout(() => { recentKeywords.classList.remove('show'); }, 200);
             });
         }
 
-        // Setup Copy Button
-        const copyBtn = document.getElementById('copyTextBtn');
-        if (copyBtn) {
-            copyBtn.addEventListener('click', () => {
-                if (!textArea || !textArea.value) return;
+        // 2. Tab Navigation
+        const tabsNav = document.querySelector('.tabs-nav');
+        if (tabsNav) {
+            tabsNav.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-tab]');
+                if (!btn) return;
 
-                // Modern Clipboard API (HTTPS/localhost only)
-                if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(textArea.value)
-                        .then(() => showToast('📋 클리핑 텍스트가 복사되었습니다.'))
-                        .catch(err => {
-                            console.error('복사 실패:', err);
-                            showToast('복사에 실패했습니다.');
-                        });
-                } else {
-                    // Fallback for HTTP or older browsers
-                    try {
-                        textArea.select();
-                        textArea.setSelectionRange(0, 99999); // Mobile compatibility
-                        document.execCommand('copy');
-                        showToast('📋 클리핑 텍스트가 복사되었습니다.');
-                    } catch (e) {
-                        console.error('대체 복사 방식 실패:', e);
-                        alert('복사에 실패했습니다. 브라우저 설정을 확인해주세요.');
+                const tabId = btn.dataset.tab;
+                if (tabId === 'clippings') loadClippingsTab();
+                switchTab(tabId);
+            });
+        }
+
+        // 3. Global Refresh Button
+        const globalRefreshBtn = document.getElementById('globalRefreshBtn');
+        if (globalRefreshBtn) {
+            globalRefreshBtn.addEventListener('click', () => {
+                const activeTab = document.querySelector('.tab-pane.active');
+                if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
+                    refreshSearchTab(activeTab.dataset.tab);
+                }
+            });
+        }
+
+        // 4. Load Default Search Tabs
+        async function loadDefaultSearch() {
+            const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
+            for (const kw of keywords) {
+                const fd = new FormData();
+                fd.append('keyword', kw);
+                fd.append('start', 1);
+                try {
+                    const resp = await fetch('/search-results', { method: 'POST', body: fd });
+                    if (resp.ok) {
+                        const html = await resp.text();
+                        createSearchTab(kw, html, 21);
                     }
-                    // Deselect
-                    window.getSelection()?.removeAllRanges();
+                } catch (e) {
+                    console.error('기본 검색 오류:', e);
                 }
-            });
-        }
-
-        // Setup Clear Button
-        const clearBtn = document.getElementById('clearTextBtn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                if (textArea) {
-                    textArea.value = DEFAULT_CLIPPED_TEXT;
-                    localStorage.setItem(CLIPPING_TEXT_KEY, DEFAULT_CLIPPED_TEXT);
-                    showToast('✨ 텍스트를 초기화했습니다.');
-                }
-            });
-        }
-
-    } catch (e) {
-        console.error('클리핑 탭 로드 실패:', e);
-        innerContainer.innerHTML = '<div class="error-state">클리핑 탭을 불러오는데 실패했습니다.</div>';
-    }
-};
-
-/**
- * Appends article info to the clipping text area.
- * This replaces the old list-based saving mechanism.
- */
-function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl) {
-    const textArea = document.getElementById('clippingTextArea');
-
-    // If text area is not in DOM (tab not loaded), try to load it from storage, append, and save back
-    let currentText = textArea ? textArea.value : (localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT);
-
-    // Format the new entry
-    const newEntry = `\n- ${title}\n  ${link}\n`;
-
-    // Append
-    currentText += newEntry;
-
-    // Save
-    localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
-
-    // Update UI if visible
-    if (textArea) {
-        textArea.value = currentText;
-        // Scroll to bottom
-        textArea.scrollTop = textArea.scrollHeight;
-    }
-
-    showToast('✅ 클리핑 메모에 추가되었습니다.');
-
-    // Visual feedback on button
-    if (btnEl) {
-        const originalText = btnEl.textContent;
-        btnEl.textContent = '저장됨!';
-        btnEl.disabled = true;
-        setTimeout(() => {
-            btnEl.textContent = originalText;
-            btnEl.disabled = false;
-        }, 2000);
-    }
-}
-// Expose globally as it might be called from inline handlers or other contexts
-window.clipArticleFromData = clipArticleFromData;
-
-
-// ==============================================================================
-// 8. MODAL LOGIC
-// ==============================================================================
-
-const modal = document.getElementById('detailModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalBody = document.getElementById('modalBody');
-
-async function showArticleDetailFromEl(itemEl) {
-    if (!itemEl) return;
-
-    modalTitle.textContent = itemEl.dataset.title;
-    modalBody.innerHTML = `<div class="skeleton skeleton-text" style="height: 200px;"></div>`;
-    modal.classList.add('active');
-
-    // Setup 'Save' button in modal
-    const clipBtn = modal.querySelector('.btn-primary');
-    // Copy dataset attributes to button for easy access
-    Object.keys(itemEl.dataset).forEach(key => {
-        clipBtn.dataset[key] = itemEl.dataset[key];
-    });
-
-    // Fetch content
-    const fd = new FormData();
-    fd.append('url', itemEl.dataset.link);
-    fd.append('title', itemEl.dataset.title);
-
-    try {
-        const resp = await fetch('/article-detail', { method: 'POST', body: fd });
-        modalBody.innerHTML = await resp.text();
-        // Update content dataset if needed (though we mostly use link/title)
-        clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500);
-    } catch (e) {
-        modalBody.innerHTML = '<p>본문을 불러오는데 실패했습니다.</p>';
-    }
-}
-window.showArticleDetailFromEl = showArticleDetailFromEl;
-
-function closeModal() {
-    modal.classList.remove('active');
-}
-window.closeModal = closeModal;
-
-function clipFromModal() {
-    const btn = modal.querySelector('.btn-primary');
-    clipArticleFromData(
-        btn.dataset.title,
-        btn.dataset.link,
-        btn.dataset.content,
-        btn.dataset.source,
-        btn.dataset.pubdate,
-        btn.dataset.originallink,
-        btn
-    );
-}
-window.clipFromModal = clipFromModal;
-
-
-// ==============================================================================
-// 9. INITIALIZATION
-// ==============================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Search Bar Event Listeners
-    const searchBtn = document.getElementById('searchBtn');
-    const input = document.getElementById('keyword');
-    const recentKeywords = document.getElementById('recentKeywords');
-
-    if (searchBtn) searchBtn.addEventListener('click', handleSearch);
-
-    if (input) {
-        input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
-
-        input.addEventListener('focus', () => {
-            renderRecentKeywords();
-            if (getRecentKeywords().length > 0) recentKeywords.classList.add('show');
-        });
-
-        input.addEventListener('blur', () => {
-            // Delay hiding to allow click events on items
-            setTimeout(() => { recentKeywords.classList.remove('show'); }, 200);
-        });
-    }
-
-    // 2. Tab Navigation
-    const tabsNav = document.querySelector('.tabs-nav');
-    if (tabsNav) {
-        tabsNav.addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-tab]');
-            if (!btn) return;
-
-            const tabId = btn.dataset.tab;
-            if (tabId === 'clippings') loadClippingsTab();
-            switchTab(tabId);
-        });
-    }
-
-    // 3. Global Refresh Button
-    const globalRefreshBtn = document.getElementById('globalRefreshBtn');
-    if (globalRefreshBtn) {
-        globalRefreshBtn.addEventListener('click', () => {
-            const activeTab = document.querySelector('.tab-pane.active');
-            if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
-                refreshSearchTab(activeTab.dataset.tab);
-            }
-        });
-    }
-
-    // 4. Load Default Search Tabs
-    async function loadDefaultSearch() {
-        const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
-        for (const kw of keywords) {
-            const fd = new FormData();
-            fd.append('keyword', kw);
-            fd.append('start', 1);
-            try {
-                const resp = await fetch('/search-results', { method: 'POST', body: fd });
-                if (resp.ok) {
-                    const html = await resp.text();
-                    createSearchTab(kw, html, 21);
-                }
-            } catch (e) {
-                console.error('기본 검색 오류:', e);
             }
         }
-    }
 
-    loadDefaultSearch().then(() => {
-        const firstSearchTab = document.querySelector('.tabs-nav button[data-tab^="search-"]');
-        if (firstSearchTab) switchTab(firstSearchTab.dataset.tab);
-    });
+        loadDefaultSearch().then(() => {
+            const firstSearchTab = document.querySelector('.tabs-nav button[data-tab^="search-"]');
+            if (firstSearchTab) switchTab(firstSearchTab.dataset.tab);
+        });
 
-    // 5. Global Keyboard Shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (modal.classList.contains('active')) {
-                closeModal();
-            } else if (document.activeElement === input) {
-                input.blur();
+        // 5. Global Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (modal.classList.contains('active')) {
+                    closeModal();
+                } else if (document.activeElement === input) {
+                    input.blur();
+                }
             }
+        });
+
+        // 6. Theme Toggle (Dark Mode)
+        window.toggleTheme = function () {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+            const btn = document.querySelector('.theme-btn');
+            if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+        };
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            const btn = document.querySelector('.theme-btn');
+            if (btn) btn.textContent = '☀️';
         }
     });
-
-    // 6. Theme Toggle (Dark Mode)
-    window.toggleTheme = function () {
-        document.body.classList.toggle('dark-mode');
-        const isDark = document.body.classList.contains('dark-mode');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-
-        const btn = document.querySelector('.theme-btn');
-        if (btn) btn.textContent = isDark ? '☀️' : '🌙';
-    };
-
-    // Load saved theme
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-        const btn = document.querySelector('.theme-btn');
-        if (btn) btn.textContent = '☀️';
-    }
-});

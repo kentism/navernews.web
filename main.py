@@ -15,47 +15,48 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
+from markupsafe import Markup
 
-# ----------------------------
-# 1. 경로 및 앱 설정 (여기가 핵심 수정)
-# ----------------------------
-# 현재 파일(main.py)의 절대 경로를 구합니다.
+# ==============================================================================
+# 1. CONFIGURATION & SETUP
+# ==============================================================================
+
+# -- Path Configuration --
+# Resolve absolute paths to prevent errors in various deployment environments (e.g., Railway).
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-app = FastAPI()
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
-
-# static과 templates 폴더를 절대 경로로 연결합니다.
-# Railway에서 경로 오류를 방지하는 안전한 방법입니다.
 static_dir = os.path.join(BASE_DIR, "static")
 templates_dir = os.path.join(BASE_DIR, "templates")
 
-# 폴더가 실제로 있는지 확인 (디버깅용)
+# Verify essential directories exist
 if not os.path.exists(static_dir):
-    print(f"⚠️ 경고: Static 폴더를 찾을 수 없습니다: {static_dir}")
-    # 배포 환경에서 폴더가 비어있으면 git에 안 올라갈 수 있으니 주의
+    print(f"⚠️ WARNING: Static directory not found at {static_dir}")
 
+# -- App Initialization --
+app = FastAPI()
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+
+# -- Mount Static & Templates --
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=templates_dir)
 
-# ----------------------------
-# Jinja2 Custom Filters
-# ----------------------------
-from markupsafe import Markup
+
+# ==============================================================================
+# 2. TEMPLATE FILTERS
+# ==============================================================================
 
 def time_ago(value):
     """
-    datetime 객체 또는 날짜 문자열을 받아 '방금 전', 'X분 전' 등으로 변환합니다.
+    Converts a datetime object or string into a 'human-readable' time difference.
+    e.g., 'Just now', '5 minutes ago', '2 hours ago'.
     """
     try:
         if not value:
             return ""
         
+        # Handle string input (Naver API format)
         if isinstance(value, str):
             try:
-                # 네이버 API 날짜 포맷: "Thu, 21 Nov 2024 11:50:00 +0900"
                 dt = parsedate_to_datetime(value)
-                # timezone info 제거 (단순 비교를 위해)
                 if dt.tzinfo:
                     dt = dt.replace(tzinfo=None)
             except:
@@ -67,7 +68,6 @@ def time_ago(value):
 
         now = datetime.now()
         diff = now - dt
-
         seconds = diff.total_seconds()
 
         if seconds < 60:
@@ -78,27 +78,24 @@ def time_ago(value):
         elif seconds < 86400:
             hours = int(seconds / 3600)
             return f"{hours}시간 전"
-        elif seconds < 604800: # 7일
+        elif seconds < 604800: # 7 days
             days = int(seconds / 86400)
             return f"{days}일 전"
         else:
             return dt.strftime("%Y-%m-%d")
     except Exception as e:
-        print(f"time_ago filter error: {e}")
+        print(f"[Filter Error] time_ago: {e}")
         return value
 
 def highlight_keyword(text, keyword):
     """
-    텍스트에서 키워드를 찾아 <mark> 태그로 감쌉니다.
+    Wraps occurrences of 'keyword' in the text with <mark> tags for highlighting.
+    Case-insensitive.
     """
     try:
         if not keyword or not text:
             return text
         
-        # HTML 태그가 포함되어 있을 수 있으므로 unescape 후 처리하거나 주의 필요
-        # 여기서는 단순 텍스트라고 가정하고 처리
-        
-        # 대소문자 구분 없이 검색
         pattern = re.compile(re.escape(keyword), re.IGNORECASE)
         
         def replace_func(match):
@@ -107,24 +104,20 @@ def highlight_keyword(text, keyword):
         highlighted = pattern.sub(replace_func, text)
         return Markup(highlighted)
     except Exception as e:
-        print(f"highlight_keyword filter error: {e}")
+        print(f"[Filter Error] highlight_keyword: {e}")
         return text
 
+# Register filters
 templates.env.filters["time_ago"] = time_ago
 templates.env.filters["highlight"] = highlight_keyword
 
-# ----------------------------
-# 의존성 및 데이터
-# ----------------------------
-async def get_naver_api_headers():
-    client_id = os.getenv("NAVER_CLIENT_ID")
-    client_secret = os.getenv("NAVER_CLIENT_SECRET")
-    # 로컬 테스트나 배포 시 환경변수가 없을 경우를 대비해 로그만 남기고 진행하거나 예외처리
-    if not client_id or not client_secret:
-        print("⚠️ 네이버 API 키가 설정되지 않았습니다.")
-    return {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
 
-# 도메인 맵 (너무 길어서 일부 생략 가능하지만, 원본 유지)
+# ==============================================================================
+# 3. DATA MODELS & CONSTANTS
+# ==============================================================================
+
+# -- Domain Mapping --
+# Maps raw domain strings to user-friendly Korean media names.
 DOMAIN_MAP = {
     "joongang.joins.com": "중앙일보", "hani.co.kr": "한겨레", "yna.co.kr": "연합뉴스",
     "chosun.com": "조선일보", "donga.com": "동아일보", "mediatoday.co.kr": "미디어오늘",
@@ -161,8 +154,7 @@ DOMAIN_MAP = {
     "jibs.co.kr": "JIBS", "topstarnews.net": "톱스타뉴스", "kookje.co.kr": "국제신문"
 }
 
-# 메모리 저장소 (서버 재시작 시 초기화됨)
-CLIPPINGS = {} 
+# -- In-Memory Cache --
 SEARCH_CACHE = {}
 
 class NewsItem(BaseModel):
@@ -175,10 +167,26 @@ class NewsItem(BaseModel):
     domain: str = ""
     formatted_pubdate: str = ""
 
-# ----------------------------
-# 비즈니스 로직
-# ----------------------------
+
+# ==============================================================================
+# 4. CORE LOGIC (SERVICES)
+# ==============================================================================
+
+async def get_naver_api_headers():
+    """Retrieves Naver API credentials from environment variables."""
+    client_id = os.getenv("NAVER_CLIENT_ID")
+    client_secret = os.getenv("NAVER_CLIENT_SECRET")
+    
+    if not client_id or not client_secret:
+        print("⚠️ ALERT: Naver API keys are missing in environment variables.")
+        
+    return {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
+
 async def fetch_news(keyword: str, headers: dict, start: int = 1, display: int = 20):
+    """
+    Fetches news data from Naver Open API.
+    Handles HTML unescaping, date formatting, and source mapping.
+    """
     url = "https://openapi.naver.com/v1/search/news.json"
     params = {"query": keyword, "display": display, "start": start, "sort": "date"}
 
@@ -188,20 +196,25 @@ async def fetch_news(keyword: str, headers: dict, start: int = 1, display: int =
             res.raise_for_status()
             data = res.json()
     except Exception as e:
-        print(f"네이버 API 호출 오류: {e}")
+        print(f"[API Error] fetch_news: {e}")
         return []
 
     items = []
     for item in data.get("items", []):
+        # Clean HTML tags from title/description
         clean_title = html.unescape(re.sub(r"<[^>]*>", "", item.get("title", "")))
         clean_desc = html.unescape(re.sub(r"<[^>]*>", "", item.get("description", "")))
-        origin = item.get("originallink") or item.get("link") or ""
         
+        # Determine Source/Domain
+        origin = item.get("originallink") or item.get("link") or ""
         source = item.get("source", "")
         netloc = urlparse(origin).netloc or ""
         domain = netloc.replace("www.", "")
         
-        # pubDate 처리
+        if not source:
+            source = DOMAIN_MAP.get(domain, domain)
+
+        # Format Date
         raw_pub = item.get("pubDate", "")
         formatted_pub = raw_pub
         if raw_pub:
@@ -211,23 +224,31 @@ async def fetch_news(keyword: str, headers: dict, start: int = 1, display: int =
             except:
                 pass
         
-        if not source:
-            source = DOMAIN_MAP.get(domain, domain)
-
         items.append(NewsItem(
-            title=clean_title, link=item.get("link", ""), description=clean_desc,
-            originallink=item.get("originallink", ""), source=source,
-            pubDate=raw_pub, domain=domain, formatted_pubdate=formatted_pub
+            title=clean_title, 
+            link=item.get("link", ""), 
+            description=clean_desc,
+            originallink=item.get("originallink", ""), 
+            source=source,
+            pubDate=raw_pub, 
+            domain=domain, 
+            formatted_pubdate=formatted_pub
         ))
     return items
 
 async def parse_article(url: str) -> str:
+    """
+    Crawls the target URL to extract the main article content.
+    Uses a heuristic approach with common class names/IDs.
+    """
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             response = await client.get(url)
             html_content = response.text
         
         soup = BeautifulSoup(html_content, "html.parser")
+        
+        # List of common selectors for article bodies in Korean news sites
         candidates = [
             {"tag": "div", "class": "article_body"},
             {"tag": "div", "class": "newsct_article"},
@@ -243,31 +264,45 @@ async def parse_article(url: str) -> str:
                 text = section.get_text(" ", strip=True)
                 if len(text) > 50: return text
         
+        # Fallback: Open Graph description
         og_desc = soup.find("meta", property="og:description")
         if og_desc: return og_desc.get("content", "")
         
-        return soup.get_text(" ", strip=True)[:1000] + "..." # 너무 길면 자름
+        # Final Fallback: Raw text dump (truncated)
+        return soup.get_text(" ", strip=True)[:1000] + "..."
     except Exception as e:
-        return f"본문 수집 실패: {str(e)}"
+        return f"Content extraction failed: {str(e)}"
 
-# ----------------------------
-# 라우터 (Endpoints)
-# ----------------------------
+
+# ==============================================================================
+# 5. ROUTERS (ENDPOINTS)
+# ==============================================================================
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    # 여기서 index.html을 렌더링할 때 request 객체가 필수입니다.
+    """Renders the main homepage."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/api/search", response_class=JSONResponse)
-async def search_api(keyword: str = Form(...), start: int = Form(default=1), headers: dict = Depends(get_naver_api_headers)):
+async def search_api(
+    keyword: str = Form(...), 
+    start: int = Form(default=1), 
+    headers: dict = Depends(get_naver_api_headers)
+):
+    """API endpoint for JSON search results."""
     items = await fetch_news(keyword, headers=headers, start=start, display=20)
     return {"items": [item.dict() for item in items], "total": len(items)}
 
 @app.post("/search-results", response_class=HTMLResponse)
-async def search_results(request: Request, keyword: str = Form(...), start: int = Form(default=1), headers: dict = Depends(get_naver_api_headers)):
+async def search_results(
+    request: Request, 
+    keyword: str = Form(...), 
+    start: int = Form(default=1), 
+    headers: dict = Depends(get_naver_api_headers)
+):
+    """Renders search results page (Server-Side Rendering)."""
     try:
         items = await fetch_news(keyword, headers=headers, start=start, display=20)
-        
         return templates.TemplateResponse("search_results.html", {
             "request": request, "items": items, "keyword": keyword, "start": start + 20
         })
@@ -278,47 +313,24 @@ async def search_results(request: Request, keyword: str = Form(...), start: int 
         return HTMLResponse(content=f"<pre>{error_msg}</pre>", status_code=500)
 
 @app.post("/article-detail", response_class=HTMLResponse)
-async def article_detail(request: Request, url: str = Form(...), title: str = Form(...)):
+async def article_detail(
+    request: Request, 
+    url: str = Form(...), 
+    title: str = Form(...)
+):
+    """Renders the article detail view with crawled content."""
     content = await parse_article(url)
     return templates.TemplateResponse("article_detail.html", {
         "request": request, "title": title, "url": url, "content": content,
     })
 
-@app.post("/api/clip", response_class=JSONResponse)
-async def clip_article(
-    title: str = Form(...), 
-    url: str = Form(...), 
-    content: str = Form(...),
-    source: str = Form(None),
-    pubDate: str = Form(None),
-    originalLink: str = Form(None)
-):
-    clip_id = str(uuid.uuid4())
-    CLIPPINGS[clip_id] = {
-        "title": title, "url": url, "content": content,
-        "source": source, 
-        "pubDate": pubDate, 
-        "originalLink": originalLink, 
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    # 참고: CLIPPINGS는 일반적으로 전역 변수나 DB를 대체하는 딕셔너리입니다.
-    return {"success": True, "clip_id": clip_id, "message": "클리핑 저장 완료"}
+@app.get("/api/article", response_class=JSONResponse)
+async def get_article_content(url: str):
+    """API endpoint to fetch article content (for async loading if needed)."""
+    content = await parse_article(url)
+    return {"content": content}
 
 @app.get("/clippings-tab", response_class=HTMLResponse)
 async def clippings_tab(request: Request):
-    sorted_clips = dict(sorted(CLIPPINGS.items(), key=lambda x: x[1]['created_at'], reverse=True))
-    return templates.TemplateResponse("clippings_tab.html", {
-        "request": request, "clips": sorted_clips
-    })
-
-@app.delete("/api/clip/{clip_id}", response_class=JSONResponse)
-async def delete_clip(clip_id: str):
-    if clip_id in CLIPPINGS:
-        del CLIPPINGS[clip_id]
-        return {"success": True}
-    return {"success": False}
-
-@app.delete("/api/clips/all", response_class=JSONResponse)
-async def delete_all_clips():
-    CLIPPINGS.clear()
-    return {"success": True}
+    """Renders the clippings (saved news) tab."""
+    return templates.TemplateResponse("clippings_tab.html", {"request": request})

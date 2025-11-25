@@ -1,134 +1,24 @@
-<div class="clipping-text-wrapper" style="padding: 12px; border-bottom: 2px solid #eee; margin-bottom: 12px;">
-    <h3 style="margin-bottom: 10px;">클리핑 텍스트</h3>
-    <textarea id="clippingTextArea"
-        style="width: 100%; min-height: 400px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; line-height: 1.6;"
+<!-- ============================================================================ -->
+<!-- CLIPPINGS TAB CONTENT -->
+<!-- Text-based clipping functionality with textarea and control buttons -->
+<!-- All JavaScript logic is handled in main.js -->
+<!-- ============================================================================ -->
+
+<div class="clipping-text-wrapper">
+    <!-- Section Header -->
+    <h3 class="clipping-header">클리핑 텍스트</h3>
+
+    <!-- Text Area -->
+    <textarea id="clippingTextArea" class="clipping-textarea" placeholder="여기에 클리핑한 기사들이 추가됩니다..."
         title="텍스트 영역의 크기를 조정하려면 오른쪽 하단의 핸들을 드래그하세요."></textarea>
-    <div style="margin-top: 10px; display: flex; gap: 10px;">
-        <button id="copyTextBtn"
-            style="padding: 8px 16px; background: #667eea; color: #fff; border: none; border-radius: 4px; cursor: pointer;">📋
-            텍스트 복사</button>
-        <button id="clearTextBtn"
-            style="padding: 8px 16px; background: #f0f0f0; color: #333; border: none; border-radius: 4px; cursor: pointer;">✨
-            비우기</button>
+
+    <!-- Action Buttons -->
+    <div class="clipping-actions">
+        <button id="copyTextBtn" class="btn-copy">
+            📋 텍스트 복사
+        </button>
+        <button id="clearTextBtn" class="btn-clear">
+            ✨ 비우기
+        </button>
     </div>
 </div>
-
-<div class="clipping-list-wrapper" style="padding: 0 12px 12px 12px;">
-    {% if clips %}
-    <div style="padding-top:12px; margin-bottom:12px; border-bottom:2px solid #eee;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">저장된 클리핑 ({{ clips|length }}개)</h3>
-            <button onclick="deleteAllClips()"
-                style="padding:8px 16px; background:#ff6b6b; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:600;">
-                🗑️ 모두 삭제
-            </button>
-        </div>
-    </div>
-    <div class="news-list">
-        {% for clip_id, clip in clips.items() %}
-        <div class="news-item" style="cursor: default; border-left-color: #ffd700;">
-            <div class="news-content">
-                <h3>{{ clip.title }}</h3>
-                <p>{{ clip.content[:200] }}...</p>
-                <div class="news-meta">
-                    <span>클리핑 일시: {{ clip.created_at }}</span>
-                </div>
-            </div>
-            <div class="news-actions">
-                <a href="{{ clip.url }}" target="_blank" class="btn-small btn-detail">원문 보기</a>
-                <button onclick="deleteClip('{{ clip_id }}')" class="btn-small btn-delete">삭제</button>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div
-        style="padding:40px 20px; text-align:center; color:#999; min-height:200px; display:flex; align-items:center; justify-content:center;">
-        <p>저장된 클리핑이 없습니다.</p>
-    </div>
-    {% endif %}
-</div>
-
-<script>
-    // 이 스크립트 블록은 loadClippingsTab()에 의해 동적으로 삽입되므로, 전역 스코프에 함수를 다시 할당할 필요가 없습니다.
-    // 단, 이벤트 리스너는 이 시점에 바인딩해야 합니다.
-
-    // ⭐⭐⭐ 1번 문제 (클리핑 텍스트 초기화) 보완 부분 ⭐⭐⭐
-    const textArea = document.getElementById('clippingTextArea');
-    if (textArea && window.clippedTextContent !== undefined) {
-        textArea.value = window.clippedTextContent;
-    }
-    // ⭐⭐⭐ 보완 끝 ⭐⭐⭐
-
-    document.getElementById('copyTextBtn')?.addEventListener('click', () => {
-        const textArea = document.getElementById('clippingTextArea');
-        if (!textArea || !textArea.value) return;
-
-        // 최신 Clipboard API (HTTPS, localhost에서만 동작)
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(textArea.value)
-                .then(() => window.showToast('클리핑 텍스트가 복사되었습니다.'))
-                .catch(err => {
-                    console.error('복사 실패:', err);
-                    window.showToast('복사에 실패했습니다.');
-                });
-        } else {
-            // 구형 방식 (HTTP에서도 동작하는 대체 수단)
-            try {
-                textArea.select(); // 텍스트 전체 선택
-                textArea.setSelectionRange(0, 99999); // 모바일 기기 호환성
-                document.execCommand('copy'); // 복사 실행
-                window.showToast('클리핑 텍스트가 복사되었습니다.');
-            } catch (e) {
-                console.error('대체 복사 방식 실패:', e);
-                alert('복사에 실패했습니다. 브라우저 설정을 확인해주세요.');
-            }
-            // 선택 해제
-            window.getSelection()?.removeAllRanges();
-        }
-    });
-
-    document.getElementById('clearTextBtn')?.addEventListener('click', () => {
-        const textArea = document.getElementById('clippingTextArea');
-        // index.html에 정의된 기본 텍스트를 가져옵니다.
-        const defaultText = window.defaultClippedText || '';
-        if (textArea) {
-            textArea.value = defaultText;
-            if (window.clippedTextContent !== undefined) {
-                window.clippedTextContent = defaultText;
-            }
-        }
-    });
-
-    async function deleteClip(clipId) {
-        if (!confirm('정말 삭제하시겠습니까?')) return;
-        try {
-            const resp = await fetch('/api/clip/' + clipId, { method: 'DELETE' });
-            const j = await resp.json();
-            if (j.success) {
-                window.showToast('삭제됨');
-                loadClippingsTab();
-            } else {
-                window.showToast('삭제 실패');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    async function deleteAllClips() {
-        if (!confirm('정말 모든 클리핑을 삭제하시겠습니까?')) return;
-        try {
-            const resp = await fetch('/api/clips/all', { method: 'DELETE' });
-            const j = await resp.json();
-            if (j.success) {
-                window.showToast('모든 클리핑이 삭제되었습니다');
-                loadClippingsTab();
-            } else {
-                window.showToast('삭제 실패');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-</script>

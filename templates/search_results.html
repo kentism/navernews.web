@@ -1,27 +1,51 @@
+<!-- ============================================================================ -->
+<!-- NEWS RESULTS LIST -->
+<!-- This template is rendered server-side and injected into search tabs -->
+<!-- ============================================================================ -->
+
 <div class="search-results-list">
     {% for item in items %}
-    <div class="news-card" onclick="openModal('{{ item.link }}', '{{ item.title | escape }}')">
+    <!-- Single News Card -->
+    <div class="news-card" onclick="showArticleDetailFromEl(this)" data-title="{{ item.title | escape }}"
+        data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
+        data-originallink="{{ item.originallink }}" data-domain="{{ item.domain }}">
+
+        <!-- Header: Source and Date -->
         <div class="news-header">
             <span class="news-source">{{ item.source }}</span>
             <span class="news-date">{{ item.pubDate | time_ago }}</span>
         </div>
+
+        <!-- Title with Keyword Highlight -->
         <h3 class="news-title">{{ item.title | highlight(keyword) }}</h3>
+
+        <!-- Description with Keyword Highlight -->
         <p class="news-desc">{{ item.description | highlight(keyword) }}</p>
+
+        <!-- Action Buttons -->
         <div class="news-actions">
+            <!-- Clip Button: Opens modal for detailed view and clipping -->
             <button class="btn-small btn-outline"
-                onclick="event.stopPropagation(); clipArticle('{{ item.link }}', '{{ item.title | escape }}', '{{ item.source }}', '{{ item.pubDate }}', '{{ item.originallink }}')">
+                onclick="event.stopPropagation(); showArticleDetailFromEl(this.parentElement.parentElement)">
                 📌 클립
             </button>
-            <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">🔗 네이버에서
-                보기</a>
+
+            <!-- Naver Link -->
+            <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">
+                🔗 네이버에서 보기
+            </a>
+
+            <!-- Original Link (if available) -->
             {% if item.originallink %}
-            <a class="btn-small" href="{{ item.originallink }}" target="_blank" onclick="event.stopPropagation();">🌐
-                원문(외부)</a>
+            <a class="btn-small" href="{{ item.originallink }}" target="_blank" onclick="event.stopPropagation();">
+                🌐 원문(외부)
+            </a>
             {% endif %}
         </div>
     </div>
     {% endfor %}
 
+    <!-- Empty State -->
     {% if items|length == 0 %}
     <div class="empty-state">
         <p>검색 결과가 없습니다</p>

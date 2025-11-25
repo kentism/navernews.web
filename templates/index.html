@@ -5,19 +5,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KCSC 네이버 뉴스 클리핑</title>
+
+    <!-- Favicon -->
     <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E🗐%3C/text%3E%3C/svg%3E">
+
+    <!-- Fonts -->
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <!-- Styles -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 </head>
 
 <body>
+    <!-- ========================================================================== -->
+    <!-- HEADER -->
+    <!-- ========================================================================== -->
     <header class="header">
         <div class="header-content">
             <h1>KCSC 네이버 뉴스 클리핑</h1>
             <button class="theme-btn" onclick="toggleTheme()">🌙</button>
         </div>
+
+        <!-- Search Box -->
         <div class="search-box">
             <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off">
             <button id="searchBtn">🔍</button>
@@ -25,14 +36,20 @@
         </div>
     </header>
 
+    <!-- ========================================================================== -->
+    <!-- MAIN CONTAINER -->
+    <!-- ========================================================================== -->
     <div class="container">
+        <!-- Tab Navigation -->
         <div class="tabs-nav">
             <button class="tab-btn active" data-tab="searchPanelsContainer" id="homeTabBtn">🏠 홈</button>
             <button class="tab-btn" data-tab="clippings" id="clippingsBtn">📁 클리핑 모음</button>
             <button class="btn-icon" id="globalRefreshBtn" title="현재 탭 새로고침" style="display:none;">🔄</button>
         </div>
 
+        <!-- Tab Content -->
         <div class="tabs-content">
+            <!-- Home Tab (Search Results Container) -->
             <div id="searchPanelsContainer" class="tab-pane active">
                 <div class="empty-state" id="initialSearchMessage">
                     <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
@@ -40,6 +57,7 @@
                 </div>
             </div>
 
+            <!-- Clippings Tab -->
             <div id="clippings" class="tab-pane">
                 <div class="tab-content-inner" style="height: 100%;">
                     <p>클리핑 탭을 로드하는 중...</p>
@@ -48,9 +66,19 @@
         </div>
     </div>
 
+    <!-- ========================================================================== -->
+    <!-- FLOATING UI ELEMENTS -->
+    <!-- ========================================================================== -->
+
+    <!-- Scroll to Top Button -->
     <button id="scrollTopBtn" title="맨 위로">↑</button>
+
+    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- ========================================================================== -->
+    <!-- ARTICLE DETAIL MODAL -->
+    <!-- ========================================================================== -->
     <div id="detailModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -65,6 +93,9 @@
         </div>
     </div>
 
+    <!-- ========================================================================== -->
+    <!-- SCRIPTS -->
+    <!-- ========================================================================== -->
     <script src="{{ url_for('static', path='js/main.js') }}"></script>
 </body>
 

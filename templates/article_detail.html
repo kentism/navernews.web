@@ -1,14 +1,23 @@
+<!-- ============================================================================ -->
+<!-- ARTICLE DETAIL CONTENT -->
+<!-- This template is loaded into the modal body when user clicks on a news card -->
+<!-- ============================================================================ -->
+
 {% if content %}
-    <div style="line-height: 1.8; color: #555;">
-        {{ content }}
-    </div>
-    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
-        <a href="{{ url }}" target="_blank" style="color: #667eea; text-decoration: none; font-size: 12px;">
-            🔗 원본 기사 보기
-        </a>
-    </div>
+<!-- Article Content -->
+<div class="article-content">
+    {{ content }}
+</div>
+
+<!-- Source Link -->
+<div class="article-footer">
+    <a href="{{ url }}" target="_blank" class="source-link" title="원본 기사로 이동">
+        🔗 원본 기사 보기
+    </a>
+</div>
 {% else %}
-    <div style="text-align: center; color: #999; padding: 20px;">
-        <p>기사 본문을 불러올 수 없습니다</p>
-    </div>
+<!-- Error State -->
+<div class="article-error">
+    <p>기사 본문을 불러올 수 없습니다</p>
+</div>
 {% endif %}
