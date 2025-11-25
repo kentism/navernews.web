@@ -312,18 +312,6 @@ async def search_results(
         print(error_msg)
         return HTMLResponse(content=f"<pre>{error_msg}</pre>", status_code=500)
 
-@app.post("/article-detail", response_class=HTMLResponse)
-async def article_detail(
-    request: Request, 
-    url: str = Form(...), 
-    title: str = Form(...)
-):
-    """Renders the article detail view with crawled content."""
-    content = await parse_article(url)
-    return templates.TemplateResponse("article_detail.html", {
-        "request": request, "title": title, "url": url, "content": content,
-    })
-
 @app.get("/api/article", response_class=JSONResponse)
 async def get_article_content(url: str):
     """API endpoint to fetch article content (for async loading if needed)."""
