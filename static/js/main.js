@@ -645,11 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    loadDefaultSearch().then(() => {
-        const firstSearchTab = document.querySelector('.tabs-nav button[data-tab^="search-"]');
-        if (firstSearchTab) switchTab(firstSearchTab.dataset.tab);
-    });
-
     // 5. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
