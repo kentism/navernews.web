@@ -10,6 +10,7 @@
         <div class="news-actions">
             <button class="btn-small btn-outline"
                 onclick="event.stopPropagation(); clipArticle('{{ item.link }}', '{{ item.title | escape }}', '{{ item.source }}', '{{ item.pubDate }}', '{{ item.originallink }}')">
+                📌 클립
             </button>
             <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">🔗 네이버에서
                 보기</a>

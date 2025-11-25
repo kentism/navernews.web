@@ -53,15 +53,20 @@
     // 이 스크립트 블록은 loadClippingsTab()에 의해 동적으로 삽입되므로, 전역 스코프에 함수를 다시 할당할 필요가 없습니다.
     // 단, 이벤트 리스너는 이 시점에 바인딩해야 합니다.
 
-    // ⭐⭐⭐ 1번 문제 (클리핑 텍스트 초기화) 보완 부분 ⭐⭐⭐
+    // ⭐⭐⭐ 클리핑 텍스트 초기화 및 자동 저장 ⭐⭐⭐
     const textArea = document.getElementById('clippingTextArea');
     if (textArea && window.clippedTextContent !== undefined) {
         textArea.value = window.clippedTextContent;
+
+        // ⭐⭐ 텍스트 영역 변경 시 자동으로 localStorage에 저장 ⭐⭐
+        textArea.addEventListener('input', () => {
+            window.clippedTextContent = textArea.value;
+            localStorage.setItem('clippedTextContent', textArea.value);
+        });
     }
     // ⭐⭐⭐ 보완 끝 ⭐⭐⭐
 
     document.getElementById('copyTextBtn')?.addEventListener('click', () => {
-        const textArea = document.getElementById('clippingTextArea');
         if (!textArea || !textArea.value) return;
 
         // 최신 Clipboard API (HTTPS, localhost에서만 동작)
@@ -89,13 +94,13 @@
     });
 
     document.getElementById('clearTextBtn')?.addEventListener('click', () => {
-        const textArea = document.getElementById('clippingTextArea');
         // index.html에 정의된 기본 텍스트를 가져옵니다.
         const defaultText = window.defaultClippedText || '';
         if (textArea) {
             textArea.value = defaultText;
             if (window.clippedTextContent !== undefined) {
                 window.clippedTextContent = defaultText;
+                localStorage.setItem('clippedTextContent', defaultText);
             }
         }
     });
