@@ -645,6 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
     // 5. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
