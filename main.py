@@ -277,6 +277,17 @@ async def search_results(request: Request, keyword: str = Form(...), start: int 
         print(error_msg)
         return HTMLResponse(content=f"<pre>{error_msg}</pre>", status_code=500)
 
+@app.get("/api/article", response_class=JSONResponse)
+async def get_article_content(url: str):
+    try:
+        content = await parse_article(url)
+        return {"success": True, "content": content}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e), "content": ""}
+        )
+
 @app.post("/article-detail", response_class=HTMLResponse)
 async def article_detail(request: Request, url: str = Form(...), title: str = Form(...)):
     content = await parse_article(url)
