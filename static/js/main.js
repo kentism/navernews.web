@@ -530,8 +530,21 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     // If text area is not in DOM (tab not loaded), try to load it from storage, append, and save back
     let currentText = textArea ? textArea.value : (localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT);
 
-    // Format the new entry
-    const newEntry = `\n- ${title}\n  ${link}\n`;
+    // Format date: extract MM.DD. from pubDate
+    let formattedDate = '';
+    if (pubDate) {
+        try {
+            const dateObj = new Date(pubDate);
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            formattedDate = `${month}.${day}.`;
+        } catch (e) {
+            formattedDate = '';
+        }
+    }
+
+    // Format the new entry: ▷ source : title (MM.DD.)
+    const newEntry = `\n▷ ${source} : ${title} (${formattedDate})\n${link}\n`;
 
     // Append
     currentText += newEntry;
