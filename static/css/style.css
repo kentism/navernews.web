@@ -802,7 +802,7 @@ mark.highlight {
 .news-desc {
     font-size: 15px;
     color: var(--text-sub);
-    line-height: 3;
+    line-height: 1.5;
     margin: 0 0 16px 0;
 }
 
@@ -1208,4 +1208,72 @@ body.dark-mode input[type="text"] {
 .btn-outline:hover {
     background: var(--primary-color);
     color: white;
+}
+
+.home-hero {
+    background: linear-gradient(135deg, var(--primary-color), #764ba2);
+    color: #fff;
+    padding: 80px 20px;
+    text-align: center;
+    border-radius: 12px;
+    margin-bottom: 32px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+}
+
+.feature-card {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+}
+
+.howto-steps {
+    list-style: none;
+    counter-reset: step;
+}
+
+.howto-steps li {
+    counter-increment: step;
+    margin-bottom: 16px;
+}
+
+.howto-steps li::before {
+    content: counter(step);
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    margin-right: 12px;
+    text-align: center;
+}
+
+.demo-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+}
+
+.demo-gallery img,
+.demo-gallery video {
+    max-width: 100%;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.home-faq details {
+    margin-bottom: 12px;
+}
+
+.home-footer {
+    margin-top: 48px;
 }

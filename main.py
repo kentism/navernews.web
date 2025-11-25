@@ -278,10 +278,9 @@ async def parse_article(url: str) -> str:
 # 5. ROUTERS (ENDPOINTS)
 # ==============================================================================
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def home(request: Request):
-    """Renders the main homepage."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("home.html", {"request": request})
 
 @app.post("/api/search", response_class=JSONResponse)
 async def search_api(
