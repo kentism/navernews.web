@@ -162,6 +162,7 @@ DOMAIN_MAP = {
 }
 
 # 메모리 저장소 (서버 재시작 시 초기화됨)
+CLIPPINGS = {} 
 SEARCH_CACHE = {}
 
 class NewsItem(BaseModel):
@@ -276,17 +277,6 @@ async def search_results(request: Request, keyword: str = Form(...), start: int 
         print(error_msg)
         return HTMLResponse(content=f"<pre>{error_msg}</pre>", status_code=500)
 
-@app.get("/api/article", response_class=JSONResponse)
-async def get_article_content(url: str):
-    try:
-        content = await parse_article(url)
-        return {"success": True, "content": content}
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e), "content": ""}
-        )
-
 @app.post("/article-detail", response_class=HTMLResponse)
 async def article_detail(request: Request, url: str = Form(...), title: str = Form(...)):
     content = await parse_article(url)
@@ -295,3 +285,40 @@ async def article_detail(request: Request, url: str = Form(...), title: str = Fo
     })
 
 @app.post("/api/clip", response_class=JSONResponse)
+async def clip_article(
+    title: str = Form(...), 
+    url: str = Form(...), 
+    content: str = Form(...),
+    source: str = Form(None),
+    pubDate: str = Form(None),
+    originalLink: str = Form(None)
+):
+    clip_id = str(uuid.uuid4())
+    CLIPPINGS[clip_id] = {
+        "title": title, "url": url, "content": content,
+        "source": source, 
+        "pubDate": pubDate, 
+        "originalLink": originalLink, 
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    # 참고: CLIPPINGS는 일반적으로 전역 변수나 DB를 대체하는 딕셔너리입니다.
+    return {"success": True, "clip_id": clip_id, "message": "클리핑 저장 완료"}
+
+@app.get("/clippings-tab", response_class=HTMLResponse)
+async def clippings_tab(request: Request):
+    sorted_clips = dict(sorted(CLIPPINGS.items(), key=lambda x: x[1]['created_at'], reverse=True))
+    return templates.TemplateResponse("clippings_tab.html", {
+        "request": request, "clips": sorted_clips
+    })
+
+@app.delete("/api/clip/{clip_id}", response_class=JSONResponse)
+async def delete_clip(clip_id: str):
+    if clip_id in CLIPPINGS:
+        del CLIPPINGS[clip_id]
+        return {"success": True}
+    return {"success": False}
+
+@app.delete("/api/clips/all", response_class=JSONResponse)
+async def delete_all_clips():
+    CLIPPINGS.clear()
+    return {"success": True}
