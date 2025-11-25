@@ -566,71 +566,208 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
             btnEl.disabled = false;
         }, 2000);
     }
+    if (!input) return;
+
+    const keyword = input.value.trim();
+    if (!keyword) {
+        showToast('검색어를 입력하세요.');
+        return;
+    }
+
+    // Save to recent keywords
+    saveRecentKeyword(keyword);
+    const el = document.getElementById('recentKeywords');
+    if (el) el.classList.remove('show');
+
+    // Check if tab already exists
+    const existingTab = Array.from(document.querySelectorAll('.tab-pane')).find(p => p.dataset.keyword === keyword);
+    if (existingTab) {
+        switchTab(existingTab.id);
+        showToast(`'${keyword}' 탭으로 이동했습니다.`);
+        input.value = '';
+        return;
+    }
+
+    // Create new tab
+    const newTabId = createSearchTab(keyword, null);
+    input.value = '';
+
+    const fd = new FormData();
+    fd.append('keyword', keyword);
+    fd.append('start', 1);
+
+    try {
+        const resp = await fetch('/search-results', { method: 'POST', body: fd });
+        if (resp.ok) {
+            const html = await resp.text();
+            const panel = document.getElementById(newTabId);
+            if (panel) {
+                const contentArea = panel.querySelector('.search-panel-content');
+                if (contentArea) {
+                    contentArea.innerHTML = html;
+                    const sentinel = document.createElement('div');
+                    sentinel.className = 'panel-sentinel';
+                    sentinel.textContent = '로딩...';
+                    contentArea.appendChild(sentinel);
+                }
+                panel.dataset.start = '21';
+                setupInfiniteScrollForPanel(panel);
+            }
+        } else {
+            showToast('검색 실패: ' + resp.status);
+            removeSearchTab(newTabId);
+        }
+    } catch (e) {
+        showToast('검색 요청 오류');
+        removeSearchTab(newTabId);
+    }
+}
+window.handleSearch = handleSearch;
+
+
+// ==============================================================================
+// 7. CLIPPING LOGIC (TEXT AREA ONLY)
+// ==============================================================================
+
+/**
+ * Loads the clippings tab content and initializes the text area.
+ */
+window.loadClippingsTab = async function () {
+    const clippingsPane = document.getElementById('clippings');
+    if (!clippingsPane) return;
+
+    let innerContainer = clippingsPane.querySelector('.tab-content-inner');
+    if (!innerContainer) {
+        innerContainer = document.createElement('div');
+        innerContainer.className = 'tab-content-inner';
+        clippingsPane.appendChild(innerContainer);
+    }
+
+    // If content is already loaded, just return
+    if (innerContainer.children.length > 0) return;
+
+    innerContainer.innerHTML = '클리핑을 로드하는 중...';
+
+    try {
+        const resp = await fetch('/clippings-tab');
+        const html = await resp.text();
+
+        // Parse and insert HTML safely
+        const template = document.createElement('template');
+        template.innerHTML = html;
+
+        // Remove script tags from the fetched HTML
+        const scriptEl = template.content.querySelector('script');
+        if (scriptEl) scriptEl.remove();
+
+        innerContainer.innerHTML = template.innerHTML;
+
+        // Initialize Text Area with saved content
+        const textArea = document.getElementById('clippingTextArea');
+        if (textArea) {
+            const savedText = localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT;
+            textArea.value = savedText;
+
+            // Add auto-save listener
+            textArea.addEventListener('input', () => {
+                localStorage.setItem(CLIPPING_TEXT_KEY, textArea.value);
+            });
+        }
+
+        // Setup Copy Button
+        const copyBtn = document.getElementById('copyTextBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                if (!textArea || !textArea.value) return;
+
+                // Modern Clipboard API (HTTPS/localhost only)
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(textArea.value)
+                        .then(() => showToast('📋 클리핑 텍스트가 복사되었습니다.'))
+                        .catch(err => {
+                            console.error('복사 실패:', err);
+                            showToast('복사에 실패했습니다.');
+                        });
+                } else {
+                    // Fallback for HTTP or older browsers
+                    try {
+                        textArea.select();
+                        textArea.setSelectionRange(0, 99999); // Mobile compatibility
+                        document.execCommand('copy');
+                        showToast('📋 클리핑 텍스트가 복사되었습니다.');
+                    } catch (e) {
+                        console.error('대체 복사 방식 실패:', e);
+                        alert('복사에 실패했습니다. 브라우저 설정을 확인해주세요.');
+                    }
+                    // Deselect
+                    window.getSelection()?.removeAllRanges();
+                }
+            });
+        }
+
+        // Setup Clear Button
+        const clearBtn = document.getElementById('clearTextBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (textArea) {
+                    textArea.value = DEFAULT_CLIPPED_TEXT;
+                    localStorage.setItem(CLIPPING_TEXT_KEY, DEFAULT_CLIPPED_TEXT);
+                    showToast('✨ 텍스트를 초기화했습니다.');
+                }
+            });
+        }
+
+    } catch (e) {
+        console.error('클리핑 탭 로드 실패:', e);
+        innerContainer.innerHTML = '<div class="error-state">클리핑 탭을 불러오는데 실패했습니다.</div>';
+    }
+};
+
+/**
+ * Appends article info to the clipping text area.
+ * This replaces the old list-based saving mechanism.
+ */
+function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl) {
+    const textArea = document.getElementById('clippingTextArea');
+
+    // If text area is not in DOM (tab not loaded), try to load it from storage, append, and save back
+    let currentText = textArea ? textArea.value : (localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT);
+
+    // Format the new entry
+    const newEntry = `\n- ${title}\n  ${link}\n`;
+
+    // Append
+    currentText += newEntry;
+
+    // Save
+    localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
+
+    // Update UI if visible
+    if (textArea) {
+        textArea.value = currentText;
+        // Scroll to bottom
+        textArea.scrollTop = textArea.scrollHeight;
+    }
+
+    showToast('✅ 클리핑 메모에 추가되었습니다.');
+
+    // Visual feedback on button
+    if (btnEl) {
+        const originalText = btnEl.textContent;
+        btnEl.textContent = '저장됨!';
+        btnEl.disabled = true;
+        setTimeout(() => {
+            btnEl.textContent = originalText;
+            btnEl.disabled = false;
+        }, 2000);
+    }
 }
 // Expose globally as it might be called from inline handlers or other contexts
 window.clipArticleFromData = clipArticleFromData;
 
 
 // ==============================================================================
-// 8. MODAL LOGIC
-// ==============================================================================
-
-const modal = document.getElementById('detailModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalBody = document.getElementById('modalBody');
-
-async function showArticleDetailFromEl(itemEl) {
-    if (!itemEl) return;
-
-    modalTitle.textContent = itemEl.dataset.title;
-    modalBody.innerHTML = `<div class="skeleton skeleton-text" style="height: 200px;"></div>`;
-    modal.classList.add('active');
-
-    // Setup 'Save' button in modal
-    const clipBtn = modal.querySelector('.btn-primary');
-    // Copy dataset attributes to button for easy access
-    Object.keys(itemEl.dataset).forEach(key => {
-        clipBtn.dataset[key] = itemEl.dataset[key];
-    });
-
-    // Fetch content
-    const fd = new FormData();
-    fd.append('url', itemEl.dataset.link);
-    fd.append('title', itemEl.dataset.title);
-
-    try {
-        const resp = await fetch('/article-detail', { method: 'POST', body: fd });
-        modalBody.innerHTML = await resp.text();
-        // Update content dataset if needed (though we mostly use link/title)
-        clipBtn.dataset.content = modalBody.textContent.trim().slice(0, 500);
-    } catch (e) {
-        modalBody.innerHTML = '<p>본문을 불러오는데 실패했습니다.</p>';
-    }
-}
-window.showArticleDetailFromEl = showArticleDetailFromEl;
-
-function closeModal() {
-    modal.classList.remove('active');
-}
-window.closeModal = closeModal;
-
-function clipFromModal() {
-    const btn = modal.querySelector('.btn-primary');
-    clipArticleFromData(
-        btn.dataset.title,
-        btn.dataset.link,
-        btn.dataset.content,
-        btn.dataset.source,
-        btn.dataset.pubdate,
-        btn.dataset.originallink,
-        btn
-    );
-}
-window.clipFromModal = clipFromModal;
-
-
-// ==============================================================================
-// 9. INITIALIZATION
+// 8. INITIALIZATION
 // ==============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -706,9 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Global Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (modal.classList.contains('active')) {
-                closeModal();
-            } else if (document.activeElement === input) {
+            if (document.activeElement === input) {
                 input.blur();
             }
         }

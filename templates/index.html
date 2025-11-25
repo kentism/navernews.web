@@ -66,36 +66,13 @@
         </div>
     </div>
 
-    <!-- ========================================================================== -->
-    <!-- FLOATING UI ELEMENTS -->
-    <!-- ========================================================================== -->
-
     <!-- Scroll to Top Button -->
     <button id="scrollTopBtn" title="맨 위로">↑</button>
 
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- ========================================================================== -->
-    <!-- ARTICLE DETAIL MODAL -->
-    <!-- ========================================================================== -->
-    <div id="detailModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle"></h2>
-                <button class="btn-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="modalBody"></div>
-            <div class="modal-actions">
-                <button class="btn-primary" onclick="clipFromModal()">📌 클리핑</button>
-                <button class="btn-secondary" onclick="closeModal()">닫기</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================================================== -->
-    <!-- SCRIPTS -->
-    <!-- ========================================================================== -->
+    <!-- Scripts -->
     <script src="{{ url_for('static', path='js/main.js') }}"></script>
 </body>
 

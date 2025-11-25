@@ -6,9 +6,9 @@
 <div class="search-results-list">
     {% for item in items %}
     <!-- Single News Card -->
-    <div class="news-card" onclick="showArticleDetailFromEl(this)" data-title="{{ item.title | escape }}"
-        data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
-        data-originallink="{{ item.originallink }}" data-domain="{{ item.domain }}">
+    <div class="news-card" data-title="{{ item.title | escape }}" data-link="{{ item.link }}"
+        data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}" data-originallink="{{ item.originallink }}"
+        data-domain="{{ item.domain }}">
 
         <!-- Header: Source and Date -->
         <div class="news-header">
@@ -24,9 +24,9 @@
 
         <!-- Action Buttons -->
         <div class="news-actions">
-            <!-- Clip Button: Opens modal for detailed view and clipping -->
+            <!-- Clip Button: Directly clips to text area -->
             <button class="btn-small btn-outline"
-                onclick="event.stopPropagation(); showArticleDetailFromEl(this.parentElement.parentElement)">
+                onclick="event.stopPropagation(); clipArticleFromData('{{ item.title | escape }}', '{{ item.link }}', '', '{{ item.source }}', '{{ item.pubDate }}', '{{ item.originallink }}', this)">
                 📌 클립
             </button>
 
