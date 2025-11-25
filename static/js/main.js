@@ -448,8 +448,9 @@ window.loadClippingsTab = async function () {
         clippingsPane.appendChild(innerContainer);
     }
 
-    // If content is already loaded, just return
-    if (innerContainer.children.length > 0) return;
+    // Check if content already loaded by looking for more than loading message
+    const hasContent = innerContainer.querySelector('#clippingTextArea');
+    if (hasContent) return;
 
     innerContainer.innerHTML = '클리핑을 로드하는 중...';
 
@@ -457,15 +458,7 @@ window.loadClippingsTab = async function () {
         const resp = await fetch('/clippings-tab');
         const html = await resp.text();
 
-        // Parse and insert HTML safely
-        const template = document.createElement('template');
-        template.innerHTML = html;
-
-        // Remove script tags from the fetched HTML
-        const scriptEl = template.content.querySelector('script');
-        if (scriptEl) scriptEl.remove();
-
-        innerContainer.innerHTML = template.innerHTML;
+        innerContainer.innerHTML = html;
 
         // Initialize Text Area with saved content
         const textArea = document.getElementById('clippingTextArea');
@@ -530,7 +523,6 @@ window.loadClippingsTab = async function () {
 
 /**
  * Appends article info to the clipping text area.
- * This replaces the old list-based saving mechanism.
  */
 function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl) {
     const textArea = document.getElementById('clippingTextArea');
@@ -615,8 +607,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (globalRefreshBtn) {
         globalRefreshBtn.addEventListener('click', () => {
             const activeTab = document.querySelector('.tab-pane.active');
-            if (activeTab && activeTab.dataset.tab.startsWith('search-')) {
-                refreshSearchTab(activeTab.dataset.tab);
+            if (activeTab && activeTab.id && activeTab.id.startsWith('search-')) {
+                refreshSearchTab(activeTab.id);
             }
         });
     }
