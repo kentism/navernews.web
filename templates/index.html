@@ -49,21 +49,24 @@
 
         <!-- Tab Content -->
         <div class="tabs-content">
-            <!-- Home Tab (Search Results Container) -->
-            <div id="searchPanelsContainer" class="tab-pane active">
-                <div class="empty-state" id="initialSearchMessage">
-                    <h3>검색어를 입력하고 뉴스를 찾아보세요</h3>
-                    <p>최신 뉴스부터 표시됩니다</p>
-                </div>
+            <!-- Home Tab -->
+            <div id="homeTab" class="tab-pane active">
+                {% include 'home.html' %}
             </div>
 
-            <!-- Clippings Tab -->
-            <div id="clippings" class="tab-pane">
-                <div class="tab-content-inner" style="height: 100%;">
-                    <p>클리핑 탭을 로드하는 중...</p>
-                </div>
+            <!-- 기존 검색 결과 탭 (필요하면 그대로 유지) -->
+            <div id="searchPanelsContainer" class="tab-pane">
+                <!-- 검색 결과가 동적으로 삽입될 영역 -->
             </div>
         </div>
+
+        <!-- Clippings Tab -->
+        <div id="clippings" class="tab-pane">
+            <div class="tab-content-inner" style="height: 100%;">
+                <p>클리핑 탭을 로드하는 중...</p>
+            </div>
+        </div>
+    </div>
     </div>
 
     <!-- Scroll to Top Button -->
