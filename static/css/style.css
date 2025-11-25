@@ -804,8 +804,13 @@ mark.highlight {
     color: var(--text-sub);
     line-height: 1.6;
     margin: 0 0 16px 0;
+    /* 최대 3줄까지 표시하고 넘치면 ... 표시 */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-
 
 /* === 최근 검색어 드롭다운 스타일 === */
 .recent-keywords-dropdown {

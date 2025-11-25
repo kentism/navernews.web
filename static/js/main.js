@@ -544,7 +544,7 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     }
 
     // Format the new entry: ▷ source : title (MM.DD.)
-    const newEntry = `\n▷ ${source} : ${title} (${formattedDate})\n${link}\n`;
+    const newEntry = `\n▷ ${source} : ${title} (${formattedDate})\n${link}`;
 
     // Append
     currentText += newEntry;
