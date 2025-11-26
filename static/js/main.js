@@ -155,7 +155,7 @@ function getSkeletonHTML() {
 /**
  * Creates a new search result tab.
  */
-function createSearchTab(keyword, htmlContent, start = 1) {
+function createSearchTab(keyword, htmlContent, start = 1, activate = true) {
     const id = 'search-' + (++searchTabCounter) + '-' + Date.now().toString(36);
 
     // 1. Create Tab Button
@@ -203,7 +203,9 @@ function createSearchTab(keyword, htmlContent, start = 1) {
     document.querySelector('.tabs-content').appendChild(panel);
 
     // Activate and Setup
-    switchTab(id);
+    if (activate) {
+        switchTab(id);
+    }
     setupInfiniteScrollForPanel(panel);
     return id;
 }
@@ -637,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resp = await fetch('/search-results', { method: 'POST', body: fd });
                 if (resp.ok) {
                     const html = await resp.text();
-                    createSearchTab(kw, html, 21);
+                    createSearchTab(kw, html, 21, false);
                 }
             } catch (e) {
                 console.error('기본 검색 오류:', e);
@@ -672,4 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.querySelector('.theme-btn');
         if (btn) btn.textContent = '☀️';
     }
+
+    // Load default search tabs on startup
+    loadDefaultSearch();
 });
