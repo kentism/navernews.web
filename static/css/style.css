@@ -1140,6 +1140,13 @@ body.dark-mode input[type="text"] {
     margin: 0 0 16px 0;
 }
 
+.clipping-main {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0 0 16px 0;
+}
+
 .clipping-textarea {
     width: 100%;
     min-height: 500px;
