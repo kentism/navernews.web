@@ -252,6 +252,7 @@ body {
 .tab-pane.active {
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
 }
 
 /* ==============================================================================
@@ -1142,7 +1143,7 @@ body.dark-mode input[type="text"] {
 
 .clipping-main {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin: 0 0 16px 0;
 }
