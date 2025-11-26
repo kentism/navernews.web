@@ -1134,6 +1134,15 @@ body.dark-mode input[type="text"] {
     border-color: #555;
 }
 
+/* ==============================================================================
+   25. CLIPPINGS TAB
+   ============================================================================== */
+
+.clipping-text-wrapper {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
 .clipping-header {
     font-size: 20px;
     font-weight: 700;
