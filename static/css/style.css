@@ -167,19 +167,6 @@ body {
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-color);
     /* Match body bg */
-    padding: 10px 20px 0;
-    gap: 8px;
-    overflow-x: auto;
-    /* Horizontal scroll on mobile */
-    scrollbar-width: none;
-    /* Hide scrollbar Firefox */
-    -ms-overflow-style: none;
-    /* Hide scrollbar IE/Edge */
-}
-
-.tabs-nav::-webkit-scrollbar {
-    display: none;
-    /* Hide scrollbar Chrome/Safari */
 }
 
 .tab-btn {
