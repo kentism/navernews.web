@@ -166,6 +166,11 @@ body {
     display: flex;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-color);
+    position: sticky;
+    top: 135px;
+    /* 헤더 높이만큼 띄움 */
+    z-index: 99;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     /* Match body bg */
 }
 
