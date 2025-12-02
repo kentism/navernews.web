@@ -89,11 +89,6 @@ function deleteRecentKeyword(keyword, event) {
     keywords = keywords.filter(k => k !== keyword);
     localStorage.setItem(RECENT_KEYWORDS_KEY, JSON.stringify(keywords));
     renderRecentKeywords();
-
-    if (keywords.length === 0) {
-        const el = document.getElementById('recentKeywords');
-        if (el) el.classList.remove('show');
-    }
 }
 // Expose for onclick events in HTML
 window.deleteRecentKeyword = deleteRecentKeyword;
@@ -104,12 +99,21 @@ function renderRecentKeywords() {
 
     const keywords = getRecentKeywords();
     if (keywords.length === 0) {
-        container.innerHTML = '';
-        container.classList.remove('show');
+        container.innerHTML = `
+            <div class="recent-keywords-header">
+                <span>최근 검색어</span>
+            </div>
+            <div class="recent-keywords-empty">최근 검색어가 없습니다</div>
+        `;
         return;
     }
 
-    let html = '<div class="recent-keywords-header">최근 검색어</div>';
+    let html = `
+        <div class="recent-keywords-header">
+            <span>최근 검색어</span>
+            <button class="clear-all-btn" onclick="clearAllRecentKeywords(event)">모두 지우기</button>
+        </div>
+    `;
     keywords.forEach(kw => {
         html += `
             <div class="recent-keyword-item" onclick="handleRecentKeywordClick('${escapeAttr(kw)}')">
@@ -131,6 +135,20 @@ function handleRecentKeywordClick(keyword) {
     }
 }
 window.handleRecentKeywordClick = handleRecentKeywordClick;
+
+function clearAllRecentKeywords(event) {
+    if (event) event.stopPropagation();
+
+    if (!confirm('모든 최근 검색어를 삭제하시겠습니까?')) {
+        return;
+    }
+
+    localStorage.removeItem(RECENT_KEYWORDS_KEY);
+
+    const el = document.getElementById('recentKeywords');
+    if (el) el.classList.remove('show');
+}
+window.clearAllRecentKeywords = clearAllRecentKeywords;
 
 
 // ==============================================================================
