@@ -4,7 +4,7 @@ import os
 import re
 import uuid
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-from datetime import datetime
+from datetime import datetime, timezone 
 from typing import List
 from urllib.parse import urlparse
 from email.utils import parsedate_to_datetime
@@ -57,8 +57,6 @@ def time_ago(value):
         if isinstance(value, str):
             try:
                 dt = parsedate_to_datetime(value)
-                if dt.tzinfo:
-                    dt = dt.replace(tzinfo=None)
             except:
                 return value
         elif isinstance(value, datetime):
@@ -66,7 +64,11 @@ def time_ago(value):
         else:
             return value
 
-        now = datetime.now()
+        if dt.tzinfo:
+            now = datetime.now(timezone.utc)
+        else:
+            now = datetime.now()
+
         diff = now - dt
         seconds = diff.total_seconds()
 
