@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from markupsafe import Markup
 
 # ==============================================================================
-# 1. CONFIGURATION & SETUP
+# 1. CONFIGURATION & SETUP!
 # ==============================================================================
 
 # -- Path Configuration --
