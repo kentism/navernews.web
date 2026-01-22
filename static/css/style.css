@@ -1167,13 +1167,15 @@ body.dark-mode input[type="text"] {
 .clipping-text-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     padding: 24px;
     background: var(--card-bg);
     border-radius: 12px;
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
     margin: 0;
+    height: 100%;
+    /* Fill the tab pane */
 }
 
 .clipping-header {
@@ -1181,19 +1183,24 @@ body.dark-mode input[type="text"] {
     font-weight: 700;
     color: var(--text-main);
     margin: 0;
+    flex-shrink: 0;
 }
 
 .clipping-main {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--text-sub);
     margin: 0;
     line-height: 1.6;
+    flex-shrink: 0;
 }
 
 .clipping-textarea {
     width: 100%;
-    min-height: 520px;
+    flex: 1;
+    /* Automatically fill remaining space */
+    min-height: 200px;
+    /* Safe minimum */
     padding: 24px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
