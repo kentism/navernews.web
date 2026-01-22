@@ -1284,10 +1284,15 @@ body.dark-mode input[type="text"] {
 .home-hero {
     background: linear-gradient(135deg, var(--primary-color), #764ba2);
     color: #fff;
-    padding: 80px 20px;
+    padding: 50px 20px;
     text-align: center;
     border-radius: 12px;
     margin-bottom: 32px;
+}
+
+.home-features, .home-howto, .home-faq {
+    padding: 40px 0;
+    border-top: 1px solid var(--border-color);
 }
 
 .features-grid {
