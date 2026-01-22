@@ -44,8 +44,13 @@ body.dark-mode {
     --toast-text: #1a202c;
 }
 
-html {
-    overflow-y: scroll;
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    /* Prevent global scroll */
     scroll-behavior: smooth;
 }
 
@@ -65,10 +70,12 @@ body {
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    min-height: 100vh;
+    height: 100vh;
+    /* Fixed viewport height */
     display: flex;
     flex-direction: column;
     background: var(--bg-color);
+    overflow: hidden;
 }
 
 /* ==============================================================================
@@ -79,11 +86,8 @@ body {
     color: var(--header-text);
     padding: 20px;
     box-shadow: var(--shadow-md);
-    position: sticky;
-    top: 0;
+    flex-shrink: 0;
     z-index: 100;
-    backdrop-filter: blur(10px);
-    /* Glassmorphism effect if supported */
 }
 
 .header-content {
@@ -166,12 +170,9 @@ body {
     display: flex;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-color);
-    position: sticky;
-    top: 135px;
-    /* 헤더 높이만큼 띄움 */
+    flex-shrink: 0;
     z-index: 99;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    /* Match body bg */
 }
 
 .tab-btn {
@@ -232,13 +233,17 @@ body {
    ============================================================================== */
 .tabs-content {
     flex: 1;
-    padding: 20px;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
 }
 
 .tab-pane {
     display: none;
     height: 100%;
+    width: 100%;
+    overflow-y: auto;
+    /* Scoped scrolling */
+    padding: 20px;
 }
 
 .tab-pane.active {
@@ -1154,30 +1159,43 @@ body.dark-mode input[type="text"] {
    25. CLIPPINGS TAB
    ============================================================================== */
 
+.tab-content-inner {
+    padding: 0;
+    width: 100%;
+}
+
 .clipping-text-wrapper {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    margin: 0;
 }
 
 .clipping-header {
     font-size: 20px;
     font-weight: 700;
     color: var(--text-main);
-    margin: 0 0 16px 0;
+    margin: 0;
 }
 
 .clipping-main {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 400;
-    color: var(--text-main);
-    margin: 0 0 16px 0;
+    color: var(--text-sub);
+    margin: 0;
+    line-height: 1.6;
 }
 
 .clipping-textarea {
     width: 100%;
-    min-height: 500px;
+    min-height: 480px;
     padding: 16px;
-    border: 2px solid var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     font-size: 14px;
     line-height: 1.8;
@@ -1185,7 +1203,7 @@ body.dark-mode input[type="text"] {
     background: var(--bg-color);
     color: var(--text-main);
     resize: vertical;
-    transition: border-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .clipping-textarea:focus {
@@ -1290,7 +1308,9 @@ body.dark-mode input[type="text"] {
     margin-bottom: 32px;
 }
 
-.home-features, .home-howto, .home-faq {
+.home-features,
+.home-howto,
+.home-faq {
     padding: 40px 0;
     border-top: 1px solid var(--border-color);
 }

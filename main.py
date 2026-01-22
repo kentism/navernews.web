@@ -29,7 +29,7 @@ templates_dir = os.path.join(BASE_DIR, "templates")
 
 # Verify essential directories exist
 if not os.path.exists(static_dir):
-    print(f"⚠️ WARNING: Static directory not found at {static_dir}")
+    print(f"WARNING: Static directory not found at {static_dir}")
 
 # -- App Initialization --
 app = FastAPI()
@@ -180,7 +180,7 @@ async def get_naver_api_headers():
     client_secret = os.getenv("NAVER_CLIENT_SECRET")
     
     if not client_id or not client_secret:
-        print("⚠️ ALERT: Naver API keys are missing in environment variables.")
+        print("[ALERT] Naver API keys are missing in environment variables.")
         
     return {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
 
