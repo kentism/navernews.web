@@ -1231,7 +1231,21 @@ body.dark-mode input[type="text"] {
     align-items: center;
 }
 
-/* Category Selector Popup Menu */
+/* Action Buttons in News Card */
+.btn-small {
+    padding: 6px 14px;
+    font-size: 13px;
+    height: 32px;
+    /* Standardize height */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-clip-trigger {
+    font-weight: 600;
+}
+
 .clip-selector-wrapper {
     position: relative;
     display: inline-block;

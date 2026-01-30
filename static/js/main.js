@@ -13,7 +13,7 @@ const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
 const CLIPPING_TEXT_KEY = 'clippedTextContent';
 
 // Default text for the clipping memo pad
-const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타 관련\n\n';
+const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타\n\n';
 
 // Global state
 let searchTabCounter = 0;
@@ -586,21 +586,34 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         if (headerIndex !== -1) {
             // Find insertion point: after the header and any existing entries in this section
             let insertAt = headerIndex + 1;
-            while (insertAt < lines.length) {
-                const line = lines[insertAt].trim();
-                // If we hit another header or end of content, stop
-                if (line.startsWith('■')) break;
-                // Avoid getting stuck on empty lines if they are leading to a header
-                if (line === '' && insertAt + 1 < lines.length && lines[insertAt + 1].trim().startsWith('■')) break;
+
+            // Skip initial blank lines right after header
+            while (insertAt < lines.length && lines[insertAt].trim() === '') {
                 insertAt++;
             }
 
-            // Insert the entry. Ensure at least one newline after it.
-            lines.splice(insertAt, 0, newEntry + '\n');
+            // Find end of this section's content
+            while (insertAt < lines.length) {
+                const line = lines[insertAt].trim();
+                if (line.startsWith('■')) break;
+                insertAt++;
+            }
+
+            // Backtrack if we hit a header to ensure we insert after previous entry without gap
+            // But if it's the very first entry after header (insertAt was headerIndex + 1 after skipping blanks),
+            // we should stick to it.
+
+            // Refined spacing: find last non-empty line in regular content
+            let targetInsert = insertAt;
+            while (targetInsert > headerIndex + 1 && lines[targetInsert - 1].trim() === '') {
+                targetInsert--;
+            }
+
+            lines.splice(targetInsert, 0, newEntry);
             currentText = lines.join('\n');
         } else {
             // Header not found, fallback to append with a new header
-            currentText = currentText.trimEnd() + `\n\n${headerText}\n${newEntry}\n`;
+            currentText = currentText.trimEnd() + `\n\n■ ${category}\n${newEntry}\n`;
         }
     } else {
         // Fallback for uncategorized
