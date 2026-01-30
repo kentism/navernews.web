@@ -192,9 +192,68 @@ async function loadClippingsTab() {
                 }
             });
         }
+
+        initResizeHandle();
     } catch (e) {
         console.error('클리핑 탭 로드 실패:', e);
         innerContainer.innerHTML = '<div class="error-state">클리핑 탭을 불러오는데 실패했습니다.</div>';
     }
 }
 window.loadClippingsTab = loadClippingsTab;
+
+/**
+ * Initializes the custom resize handle for the clipping text area.
+ */
+function initResizeHandle() {
+    const handle = document.getElementById('clippingResizeHandle');
+    const textArea = document.getElementById('clippingTextArea');
+    if (!handle || !textArea) return;
+
+    // Restore saved height
+    const savedHeight = localStorage.getItem('clippingTextAreaHeight');
+    if (savedHeight) {
+        textArea.style.flex = 'none';
+        textArea.style.height = savedHeight;
+    }
+
+    let startY, startHeight;
+
+    const onMouseDown = (e) => {
+        startY = e.clientY;
+        startHeight = parseInt(document.defaultView.getComputedStyle(textArea).height, 10);
+
+        // Disable flex during resize to allow precise height control
+        textArea.style.flex = 'none';
+
+        document.documentElement.addEventListener('mousemove', onMouseMove);
+        document.documentElement.addEventListener('mouseup', onMouseUp);
+
+        handle.classList.add('active');
+        document.body.style.cursor = 'row-resize';
+
+        e.preventDefault(); // Prevent text selection
+    };
+
+    const onMouseMove = (e) => {
+        const dy = e.clientY - startY;
+        const newHeight = startHeight + dy;
+
+        // Min height constraint (e.g., 150px)
+        if (newHeight >= 150) {
+            textArea.style.height = `${newHeight}px`;
+        }
+    };
+
+    const onMouseUp = () => {
+        document.documentElement.removeEventListener('mousemove', onMouseMove);
+        document.documentElement.removeEventListener('mouseup', onMouseUp);
+
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+
+        // Save current height
+        localStorage.setItem('clippingTextAreaHeight', textArea.style.height);
+    };
+
+    handle.addEventListener('mousedown', onMouseDown);
+}

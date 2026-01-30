@@ -489,7 +489,7 @@ body {
 .clipping-textarea {
     width: 100%;
     flex: 1;
-    min-height: 480px;
+    min-height: 200px;
     padding: 24px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -498,7 +498,49 @@ body {
     font-family: 'JetBrains Mono', monospace;
     background: var(--bg-color);
     color: var(--text-main);
-    resize: vertical;
+    resize: none;
+}
+
+.resize-handle {
+    height: 14px;
+    width: 100%;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    border-radius: 4px;
+    margin: -8px 0 8px 0;
+    flex-shrink: 0;
+}
+
+.resize-handle:hover,
+.resize-handle.active {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.dark-mode .resize-handle:hover,
+.dark-mode .resize-handle.active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.handle-bar {
+    width: 40px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.resize-handle:hover .handle-bar,
+.resize-handle.active .handle-bar {
+    background: var(--primary-color);
+}
+
+.clipping-actions {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+    margin-top: auto;
 }
 
 /* ==============================================================================
