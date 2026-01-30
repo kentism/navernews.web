@@ -24,20 +24,27 @@
 
         <!-- Action Buttons -->
         <div class="news-actions">
-            <!-- Category Selector & Clip Button -->
-            <div class="clip-selector-group">
-                <select class="category-select" id="cat-{{ loop.index }}">
-                    <option value="위원회 관련">위원회 관련</option>
-                    <option value="방송·통신 관련">방송·통신 관련</option>
-                    <option value="유관기관 관련">유관기관 관련</option>
-                    <option value="기타 관련">기타 관련</option>
-                </select>
-                <button class="btn-small btn-primary" type="button" data-title="{{ item.title }}"
+            <!-- Clipping Action with Popup Menu -->
+            <div class="clip-selector-wrapper">
+                <button class="btn-small btn-primary btn-clip-trigger" type="button" data-title="{{ item.title }}"
                     data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
-                    data-originallink="{{ item.originallink }}"
-                    onclick="const cat=this.previousElementSibling.value; clipArticleFromData(this.dataset.title, this.dataset.link, '', this.dataset.source, this.dataset.pubdate, this.dataset.originallink, this, cat)">
+                    data-originallink="{{ item.originallink }}" onclick="toggleClipMenu(this)">
                     📌 클립
                 </button>
+                <div class="clip-popup-menu">
+                    <button type="button"
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '위원회 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">위원회
+                        관련</button>
+                    <button type="button"
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '방송·통신 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">방송·통신
+                        관련</button>
+                    <button type="button"
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '유관기관 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">유관기관
+                        관련</button>
+                    <button type="button"
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '기타 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">기타
+                        관련</button>
+                </div>
             </div>
 
             <!-- Naver Link -->

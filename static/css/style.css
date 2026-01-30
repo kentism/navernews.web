@@ -1231,54 +1231,65 @@ body.dark-mode input[type="text"] {
     align-items: center;
 }
 
-/* Category Selector Group */
-.clip-selector-group {
-    display: flex;
-    align-items: stretch;
-    border-radius: 6px;
-    overflow: hidden;
+/* Category Selector Popup Menu */
+.clip-selector-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.clip-popup-menu {
+    position: absolute;
+    bottom: 110%;
+    /* Show above the button */
+    left: 0;
+    min-width: 140px;
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
-    background: var(--bg-color);
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    padding: 6px;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    animation: fadeInScale 0.2s ease;
 }
 
-.clip-selector-group:focus-within {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+.clip-popup-menu.show {
+    display: flex;
 }
 
-.category-select {
-    border: none;
-    padding: 0 28px 0 10px;
-    font-size: 13px;
-    height: 32px;
+.clip-popup-menu button {
     background: transparent;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--text-main);
     cursor: pointer;
-    outline: none;
-    border-right: 1px solid var(--border-color);
-    font-family: inherit;
-    min-width: 140px;
-    max-width: 160px;
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 6px center;
-    background-size: 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    width: 100%;
 }
 
-.clip-selector-group .btn-primary {
-    border-radius: 0;
-    border: none;
-    height: 32px;
-    padding: 0 12px;
-    font-size: 13px;
-    font-weight: 600;
-    flex-shrink: 0;
+.clip-popup-menu button:hover {
+    background: var(--bg-color);
+    color: var(--primary-color);
+    padding-left: 16px;
 }
 
-.clip-selector-group .btn-primary:active {
-    background: var(--primary-hover);
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .btn-copy,

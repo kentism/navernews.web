@@ -545,9 +545,6 @@ window.loadClippingsTab = async function () {
 };
 
 /**
- * Appends article info to the clipping text area.
- */
-/**
  * Clips an article to the text area, categorized by section.
  */
 function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category) {
@@ -572,13 +569,15 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
 
     // Categorized Insertion Logic
     if (category) {
-        const headerText = `■ ${category}`;
+        // We match by the core name (e.g., "위원회") in case the user edited the header slightly
+        const coreCategory = category.split(' ')[0];
         const lines = currentText.split('\n');
         let headerIndex = -1;
 
         // Find the category header (case-insensitive and trimmed)
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].trim().startsWith(headerText)) {
+            const trimmedLine = lines[i].trim();
+            if (trimmedLine.startsWith('■') && trimmedLine.includes(coreCategory)) {
                 headerIndex = i;
                 break;
             }
@@ -596,7 +595,7 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
                 insertAt++;
             }
 
-            // Insert the entry. We might want to add a following newline if it's the middle of a section.
+            // Insert the entry. Ensure at least one newline after it.
             lines.splice(insertAt, 0, newEntry + '\n');
             currentText = lines.join('\n');
         } else {
@@ -608,29 +607,53 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         currentText = currentText.trimEnd() + `\n\n${newEntry}\n`;
     }
 
-    // Save
+    // Save to storage
     localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
 
-    // Update UI if visible
+    // Update UI if visible and focus it
     if (textArea) {
         textArea.value = currentText;
+        // Scroll to the modified content if possible, or just bottom for now
         textArea.scrollTop = textArea.scrollHeight;
     }
 
     showToast(`✅ [${category}]에 추가되었습니다.`);
 
-    // Visual feedback
+    // Visual feedback on button
     if (btnEl) {
         const originalText = btnEl.textContent;
         btnEl.textContent = '저장됨!';
         btnEl.disabled = true;
+        btnEl.classList.add('btn-success');
         setTimeout(() => {
             btnEl.textContent = originalText;
             btnEl.disabled = false;
+            btnEl.classList.remove('btn-success');
         }, 2000);
     }
 }
-window.clipArticleFromData = clipArticleFromData;
+/**
+ * Toggles the category selection popup menu.
+ */
+function toggleClipMenu(btn) {
+    const wrapper = btn.closest('.clip-selector-wrapper');
+    const menu = wrapper.querySelector('.clip-popup-menu');
+
+    // Close other open menus first
+    document.querySelectorAll('.clip-popup-menu.show').forEach(m => {
+        if (m !== menu) m.classList.remove('show');
+    });
+
+    menu.classList.toggle('show');
+}
+window.toggleClipMenu = toggleClipMenu;
+
+// Close menus when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.clip-selector-wrapper')) {
+        document.querySelectorAll('.clip-popup-menu.show').forEach(m => m.classList.remove('show'));
+    }
+});
 
 
 // ==============================================================================
