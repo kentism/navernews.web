@@ -555,10 +555,10 @@ body {
     display: flex;
     gap: 12px;
     flex-shrink: 0;
-    margin-top: 16px;
-    /* Space after handle */
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
+    margin-bottom: 8px;
+    /* Space before textarea */
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 /* Subtle indicator when scrolling might be needed */
