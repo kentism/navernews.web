@@ -547,10 +547,11 @@ window.loadClippingsTab = async function () {
 /**
  * Appends article info to the clipping text area.
  */
-function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl) {
+/**
+ * Clips an article to the text area, categorized by section.
+ */
+function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category) {
     const textArea = document.getElementById('clippingTextArea');
-
-    // If text area is not in DOM (tab not loaded), try to load it from storage, append, and save back
     let currentText = textArea ? textArea.value : (localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT);
 
     // Format date: extract MM.DD. from pubDate
@@ -566,11 +567,43 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         }
     }
 
-    // Format the new entry: ▷ source : title (MM.DD.)
-    const newEntry = `\n▷ ${source} : ${title} (${formattedDate})\n${originalLink}`;
+    // Format the new entry
+    const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}\n`;
 
-    // Append
-    currentText += newEntry;
+    // Categorized Insertion Logic
+    if (category) {
+        const header = `■ ${category}`;
+        const lines = currentText.split('\n');
+        let headerIndex = -1;
+
+        // Find the category header
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes(header)) {
+                headerIndex = i;
+                break;
+            }
+        }
+
+        if (headerIndex !== -1) {
+            // Find insertion point: after the header and any existing entries in this section
+            let insertAt = headerIndex + 1;
+            while (insertAt < lines.length && (lines[insertAt].trim() === '' || lines[insertAt].startsWith('▷') || lines[insertAt].startsWith('http'))) {
+                // If we hit another header, stop
+                if (lines[insertAt].startsWith('■')) break;
+                insertAt++;
+            }
+
+            // Adjust: if the line before insertion is empty, but we have content later, or if it's the very next line
+            lines.splice(insertAt, 0, newEntry);
+            currentText = lines.join('\n');
+        } else {
+            // Header not found, fallback to append
+            currentText += `\n${header}\n${newEntry}`;
+        }
+    } else {
+        // Fallback for uncategorized
+        currentText += `\n${newEntry}`;
+    }
 
     // Save
     localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
@@ -578,13 +611,13 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     // Update UI if visible
     if (textArea) {
         textArea.value = currentText;
-        // Scroll to bottom
+        // Scroll to bottom is not always ideal for middle insertion, but helps visibility
         textArea.scrollTop = textArea.scrollHeight;
     }
 
-    showToast('✅ 클리핑 메모에 추가되었습니다.');
+    showToast(`✅ [${category}]에 추가되었습니다.`);
 
-    // Visual feedback on button
+    // Visual feedback
     if (btnEl) {
         const originalText = btnEl.textContent;
         btnEl.textContent = '저장됨!';
@@ -595,7 +628,6 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         }, 2000);
     }
 }
-// Expose globally as it might be called from inline handlers or other contexts
 window.clipArticleFromData = clipArticleFromData;
 
 

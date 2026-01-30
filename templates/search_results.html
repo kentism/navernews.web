@@ -24,13 +24,21 @@
 
         <!-- Action Buttons -->
         <div class="news-actions">
-            <!-- Clip Button: Directly clips to text area -->
-            <button class="btn-small btn-outline" type="button" data-title="{{ item.title }}"
-                data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
-                data-originallink="{{ item.originallink }}"
-                onclick="event.stopPropagation(); clipArticleFromData(this.dataset.title, this.dataset.link, '', this.dataset.source, this.dataset.pubdate, this.dataset.originallink, this)">
-                📌 클립
-            </button>
+            <!-- Category Selector & Clip Button -->
+            <div class="clip-selector-group">
+                <select class="category-select" id="cat-{{ loop.index }}">
+                    <option value="위원회 관련">위원회 관련</option>
+                    <option value="방송·통신 관련">방송·통신 관련</option>
+                    <option value="유관기관 관련">유관기관 관련</option>
+                    <option value="기타 관련">기타 관련</option>
+                </select>
+                <button class="btn-small btn-primary" type="button" data-title="{{ item.title }}"
+                    data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
+                    data-originallink="{{ item.originallink }}"
+                    onclick="const cat=this.previousElementSibling.value; clipArticleFromData(this.dataset.title, this.dataset.link, '', this.dataset.source, this.dataset.pubdate, this.dataset.originallink, this, cat)">
+                    📌 클립
+                </button>
+            </div>
 
             <!-- Naver Link -->
             <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">

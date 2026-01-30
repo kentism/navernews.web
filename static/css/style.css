@@ -1229,6 +1229,47 @@ body.dark-mode input[type="text"] {
     margin-top: 16px;
 }
 
+/* Category Selector Group */
+.clip-selector-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.clip-selector-group:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-select {
+    border: none;
+    padding: 0 12px;
+    font-size: 13px;
+    height: 34px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    cursor: pointer;
+    outline: none;
+    border-right: 1px solid var(--border-color);
+    font-family: inherit;
+}
+
+.clip-selector-group .btn-primary {
+    border-radius: 0;
+    border: none;
+    height: 34px;
+    padding: 0 16px;
+    font-size: 13px;
+}
+
+.clip-selector-group .btn-primary:active {
+    transform: none;
+}
+
 .btn-copy,
 .btn-clear {
     padding: 12px 24px;
