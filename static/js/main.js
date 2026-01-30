@@ -567,8 +567,8 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         }
     }
 
-    // Format the new entry
-    const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}\n`;
+    // Format the new entry (no trailing newline here, handled by insertion)
+    const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}`;
 
     // Categorized Insertion Logic
     if (category) {
@@ -587,22 +587,24 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         if (headerIndex !== -1) {
             // Find insertion point: after the header and any existing entries in this section
             let insertAt = headerIndex + 1;
-            while (insertAt < lines.length && (lines[insertAt].trim() === '' || lines[insertAt].startsWith('▷') || lines[insertAt].startsWith('http'))) {
+            while (insertAt < lines.length) {
+                const line = lines[insertAt].trim();
                 // If we hit another header, stop
-                if (lines[insertAt].startsWith('■')) break;
+                if (line.startsWith('■')) break;
+                // If it's a blank line followed by a header, stop
+                if (line === '' && insertAt + 1 < lines.length && lines[insertAt + 1].trim().startsWith('■')) break;
                 insertAt++;
             }
 
-            // Adjust: if the line before insertion is empty, but we have content later, or if it's the very next line
             lines.splice(insertAt, 0, newEntry);
             currentText = lines.join('\n');
         } else {
             // Header not found, fallback to append
-            currentText += `\n${header}\n${newEntry}`;
+            currentText = currentText.trimEnd() + `\n\n${header}\n${newEntry}\n`;
         }
     } else {
         // Fallback for uncategorized
-        currentText += `\n${newEntry}`;
+        currentText = currentText.trimEnd() + `\n\n${newEntry}\n`;
     }
 
     // Save
@@ -611,7 +613,6 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     // Update UI if visible
     if (textArea) {
         textArea.value = currentText;
-        // Scroll to bottom is not always ideal for middle insertion, but helps visibility
         textArea.scrollTop = textArea.scrollHeight;
     }
 
