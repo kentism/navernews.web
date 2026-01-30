@@ -2,7 +2,6 @@
     /* ==============================================================================
    1. GLOBAL VARIABLES (LIGHT MODE)
    ============================================================================== */
-    /* Light Mode Colors */
     --primary-color: #667eea;
     --primary-hover: #5568d3;
     --bg-color: #f8f9fa;
@@ -25,7 +24,6 @@ body.dark-mode {
     /* ==============================================================================
    2. DARK MODE VARIABLES
    ============================================================================== */
-    /* Dark Mode Colors */
     --primary-color: #7f9cf5;
     --primary-hover: #667eea;
     --bg-color: #1a202c;
@@ -44,20 +42,20 @@ body.dark-mode {
     --toast-text: #1a202c;
 }
 
+/* ==============================================================================
+   3. BASE & RESET
+   ============================================================================== */
 html,
 body {
     height: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
-    /* Prevent global scroll */
     scroll-behavior: smooth;
 }
 
 body {
-    margin: 0;
-    padding: 0;
-    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
     background: var(--bg-color);
     color: var(--text-main);
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -71,7 +69,6 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     height: 100vh;
-    /* Fixed viewport height */
     display: flex;
     flex-direction: column;
     background: var(--bg-color);
@@ -79,7 +76,7 @@ body {
 }
 
 /* ==============================================================================
-   3. HEADER
+   4. HEADER
    ============================================================================== */
 .header {
     background: var(--header-bg);
@@ -122,11 +119,12 @@ body {
 }
 
 /* ==============================================================================
-   4. SEARCH BOX
+   5. SEARCH BOX
    ============================================================================== */
 .search-box {
     display: flex;
     gap: 10px;
+    position: relative;
 }
 
 .search-box input {
@@ -164,7 +162,7 @@ body {
 }
 
 /* ==============================================================================
-   5. TABS NAVIGATION
+   6. TABS NAVIGATION
    ============================================================================== */
 .tabs-nav {
     display: flex;
@@ -219,17 +217,10 @@ body {
     color: var(--text-sub);
     margin-left: auto;
     align-self: center;
-    display: none;
-    transition: transform 0.3s ease;
-}
-
-#globalRefreshBtn:hover {
-    color: var(--primary-color);
-    transform: rotate(180deg);
 }
 
 /* ==============================================================================
-   6. TABS CONTENT
+   7. TABS CONTENT & PANES
    ============================================================================== */
 .tabs-content {
     flex: 1;
@@ -242,297 +233,304 @@ body {
     height: 100%;
     width: 100%;
     overflow-y: auto;
-    /* Scoped scrolling */
     padding: 20px;
 }
 
 .tab-pane.active {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
 }
 
 /* ==============================================================================
-   7. NEWS LIST & ITEMS
+   8. NEWS CARD COMPONENTS
    ============================================================================== */
-.news-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.news-item {
+.news-card {
     padding: 24px;
     border-radius: 12px;
     background: var(--card-bg);
     box-shadow: var(--shadow-sm);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border: 1px solid transparent;
-    /* Prevent layout shift on border change */
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+    position: relative;
 }
 
-.news-item:hover {
-    transform: translateY(-4px);
+.news-card:hover {
+    transform: translateY(-3px);
     box-shadow: var(--shadow-lg);
     border-color: var(--primary-color);
 }
 
-.news-content {
-    flex: 1;
-    margin-right: 20px;
+.news-card.active {
+    border-left: 4px solid var(--primary-color);
+    background: linear-gradient(to right, rgba(102, 126, 234, 0.05), var(--card-bg));
 }
 
-.news-item h3 {
+.news-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.news-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.1);
+    padding: 5px 12px;
+    border-radius: 14px;
+}
+
+.news-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-sub);
+    background: var(--bg-color);
+    padding: 5px 12px;
+    border-radius: 14px;
+}
+
+.news-title {
     font-size: 18px;
     font-weight: 700;
-    margin: 0 0 10px;
     color: var(--text-main);
-    line-height: 1.4;
+    margin: 0 0 12px 0;
+    line-height: 1.5;
 }
 
-.news-item p {
+.news-desc {
     font-size: 15px;
     color: var(--text-sub);
     line-height: 1.6;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin: 0;
-}
-
-.news-meta {
-    font-size: 13px;
-    color: var(--text-sub);
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    margin: 0 0 16px 0;
 }
 
 .news-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-    flex-shrink: 0;
+    margin-top: 14px;
+    align-items: center;
 }
 
+/* ==============================================================================
+   9. BUTTON STYLES
+   ============================================================================== */
 .btn-small {
-    padding: 8px 14px;
-    border: none;
-    border-radius: 6px;
+    padding: 6px 14px;
     font-size: 13px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    font-weight: 600;
-    transition: all 0.2s ease;
     color: var(--text-main);
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
+    background: var(--card-bg);
 }
 
 .btn-small:hover {
-    background-color: var(--border-color);
+    background: var(--bg-color);
 }
 
-.btn-clip {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-}
-
-.btn-clip:hover {
-    background-color: var(--primary-hover);
-}
-
-.btn-clip.clipped {
-    background-color: var(--accent-color);
-    color: #333;
-    cursor: default;
-}
-
-/* ==============================================================================
-   8. CLIPPINGS GRID
-   ============================================================================== */
-.clips-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-    padding-bottom: 20px;
-}
-
-.clip-card {
-    padding: 20px;
-    border-radius: 12px;
-    background: var(--card-bg);
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-.clip-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-}
-
-.clip-card h3 {
-    font-size: 16px;
-    margin: 0 0 10px;
-    color: var(--text-main);
-    line-height: 1.4;
-    flex: 1;
-    /* Push actions to bottom */
-}
-
-.clip-card p {
-    font-size: 13px;
-    color: var(--text-sub);
-    margin-bottom: 15px;
-}
-
-.clip-card-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.btn-view {
-    flex: 1;
-    padding: 8px;
+.btn-clip-trigger {
     background: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.2s;
 }
 
-.btn-view:hover {
+.btn-clip-trigger:hover {
     background: var(--primary-hover);
 }
 
-.btn-delete {
-    padding: 8px 12px;
-    background: var(--danger-color);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: opacity 0.2s;
+.btn-success {
+    background: #48bb78 !important;
+    color: white !important;
+    border-color: #48bb78 !important;
 }
 
-.btn-delete:hover {
-    opacity: 0.9;
-}
-
-/* ==============================================================================
-   9. MODAL
-   ============================================================================== */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-}
-
-.modal.active {
-    display: flex;
-    animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-.modal-content {
-    background: var(--card-bg);
-    padding: 30px;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 700px;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: var(--shadow-lg);
-    display: flex;
-    font-size: 16px;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 15px;
-    margin-top: auto;
-}
-
-.btn-primary {
-    flex: 1;
-    padding: 14px;
-    background: var(--primary-color);
-    color: white;
+.btn-copy,
+.btn-clear {
+    padding: 12px 24px;
     border: none;
     border-radius: 8px;
-    cursor: pointer;
+    font-size: 14px;
     font-weight: 600;
-    font-size: 15px;
-    transition: background 0.2s;
+    cursor: pointer;
 }
 
-.btn-primary:hover {
-    background: var(--primary-hover);
-}
-
-.btn-secondary {
+.btn-copy {
+    background: var(--primary-color);
+    color: white;
     flex: 1;
-    padding: 14px;
+}
+
+.btn-clear {
     background: var(--bg-color);
     color: var(--text-main);
+    border: 2px solid var(--border-color);
+}
+
+/* ==============================================================================
+   10. POPUP & DROPDOWN MENUS
+   ============================================================================== */
+/* Category Clip Selector Popup */
+.clip-selector-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.clip-popup-menu {
+    position: absolute;
+    bottom: 110%;
+    left: 0;
+    min-width: 140px;
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    padding: 6px;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.clip-popup-menu.show {
+    display: flex;
+    animation: fadeInScale 0.2s ease;
+}
+
+.clip-popup-menu button {
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    font-weight: 600;
-    font-size: 15px;
-    transition: background 0.2s;
+    border-radius: 6px;
 }
 
-.btn-secondary:hover {
-    background: var(--border-color);
+.clip-popup-menu button:hover {
+    background: var(--bg-color);
+    color: var(--primary-color);
 }
 
-/* ==============================================================================
-   10. EMPTY STATE
-   ============================================================================== */
-.empty-state {
-    text-align: center;
-    padding: 80px 20px;
+/* Recent Keywords Dropdown */
+.recent-keywords-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    margin-top: 8px;
+    z-index: 1000;
+    display: none;
+    border: 1px solid var(--border-color);
+}
+
+.recent-keywords-dropdown.show {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+.recent-keyword-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.recent-keyword-item:hover {
+    background: var(--bg-color);
+}
+
+.recent-keywords-header {
+    padding: 8px 15px;
+    font-size: 12px;
     color: var(--text-sub);
-}
-
-.empty-state h3 {
-    font-size: 20px;
-    margin-bottom: 10px;
-    color: var(--text-main);
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
 }
 
 /* ==============================================================================
-   11. TOAST NOTIFICATIONS
+   11. CLIPPINGS TAB CONTENTS
+   ============================================================================== */
+.clipping-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    height: 100%;
+}
+
+.clipping-textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 480px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
+    line-height: 1.7;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg-color);
+    color: var(--text-main);
+    resize: vertical;
+}
+
+/* ==============================================================================
+   12. HOME TAB & FEATURES
+   ============================================================================== */
+.home-hero {
+    background: linear-gradient(135deg, var(--primary-color), #764ba2);
+    color: #fff;
+    padding: 50px 20px;
+    text-align: center;
+    border-radius: 12px;
+    margin-bottom: 32px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+    margin-top: 20px;
+}
+
+.feature-card {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+/* ==============================================================================
+   13. UI UTILITIES (TOAST, SKELETON, SHIMMER)
    ============================================================================== */
 .toast-container {
     position: fixed;
@@ -540,23 +538,18 @@ body {
     left: 50%;
     transform: translateX(-50%);
     z-index: 2000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
 }
 
 .toast {
     padding: 14px 24px;
-    background-color: var(--toast-bg);
+    background: var(--toast-bg);
     color: var(--toast-text);
     border-radius: 50px;
     font-size: 15px;
-    font-weight: 500;
+    box-shadow: var(--shadow-md);
     opacity: 0;
     transform: translateY(20px);
-    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-    box-shadow: var(--shadow-md);
+    transition: all 0.4s ease;
 }
 
 .toast.show {
@@ -564,45 +557,6 @@ body {
     transform: translateY(0);
 }
 
-/* ==============================================================================
-   12. SCROLL TO TOP BUTTON
-   ============================================================================== */
-#scrollTopBtn {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 50px;
-    height: 50px;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: var(--shadow-md);
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    z-index: 90;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#scrollTopBtn.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-#scrollTopBtn:hover {
-    background: var(--primary-hover);
-    transform: translateY(-5px);
-}
-
-/* ==============================================================================
-   13. SKELETON LOADING
-   ============================================================================== */
 .skeleton {
     background: linear-gradient(90deg, var(--bg-color) 25%, var(--border-color) 50%, var(--bg-color) 75%);
     background-size: 200% 100%;
@@ -620,680 +574,6 @@ body {
     }
 }
 
-.skeleton-card {
-    padding: 24px;
-    border-radius: 12px;
-    background: var(--card-bg);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 20px;
-}
-
-.skeleton-title {
-    height: 24px;
-    width: 70%;
-    margin-bottom: 15px;
-}
-
-.skeleton-text {
-    height: 16px;
-    width: 100%;
-    margin-bottom: 8px;
-}
-
-.skeleton-text.short {
-    width: 60%;
-}
-
-/* ==============================================================================
-   14. MOBILE RESPONSIVE
-   ============================================================================== */
-@media (max-width: 768px) {
-    .container {
-        height: auto;
-    }
-
-    .header {
-        padding: 15px;
-    }
-
-    .header h1 {
-        font-size: 20px;
-    }
-
-    .news-item {
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .news-content {
-        margin-right: 0;
-    }
-
-    .news-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    #scrollTopBtn {
-        bottom: 20px;
-        right: 20px;
-        width: 44px;
-        height: 44px;
-    }
-}
-
-/* ==============================================================================
-   15. RECENT KEYWORDS DROPDOWN
-   ============================================================================== */
-.recent-keywords-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--card-bg);
-    border-radius: 8px;
-    box-shadow: var(--shadow-lg);
-    margin-top: 8px;
-    z-index: 1000;
-    display: none;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-}
-
-.recent-keywords-dropdown.show {
-    display: block;
-    animation: fadeIn 0.2s ease;
-}
-
-.recent-keyword-item {
-    padding: 12px 15px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: var(--text-main);
-    font-size: 14px;
-    transition: background 0.2s;
-}
-
-.recent-keyword-item:hover {
-    background-color: var(--bg-color);
-}
-
-.recent-keyword-item .delete-btn {
-    color: var(--text-sub);
-    font-size: 16px;
-    padding: 4px;
-    border-radius: 4px;
-}
-
-.recent-keyword-item .delete-btn:hover {
-    color: var(--danger-color);
-    background: rgba(255, 0, 0, 0.1);
-}
-
-.recent-keywords-header {
-    padding: 8px 15px;
-    font-size: 12px;
-    color: var(--text-sub);
-    background: var(--bg-color);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.clear-all-btn {
-    font-size: 0.75rem;
-    color: #666;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 2px 6px;
-    transition: color 0.2s;
-}
-
-.clear-all-btn:hover {
-    color: var(--danger-color);
-}
-
-.recent-keywords-empty {
-    padding: 12px 16px;
-    text-align: center;
-    color: var(--text-sub);
-    font-size: 0.875rem;
-}
-
-/* ==============================================================================
-   16. KEYWORD HIGHLIGHT
-   ============================================================================== */
-mark.highlight {
-    background-color: rgba(255, 215, 0, 0.4);
-    color: inherit;
-    padding: 0 2px;
-    border-radius: 2px;
-    font-weight: 600;
-}
-
-/* Search Box Relative Positioning for Dropdown */
-.search-box {
-    position: relative;
-}
-
-/* ==============================================================================
-   17. NEWS CARD STYLES
-   ============================================================================== */
-.news-card {
-    padding: 24px;
-    border-radius: 12px;
-    background: var(--card-bg);
-    box-shadow: var(--shadow-sm);
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    border: 1px solid var(--border-color);
-    margin-bottom: 16px;
-    position: relative;
-}
-
-.news-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-color);
-}
-
-.news-card.active {
-    border-left: 4px solid var(--primary-color);
-    background: linear-gradient(to right, rgba(102, 126, 234, 0.05), var(--card-bg));
-}
-
-.news-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.news-source {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--primary-color);
-    background: rgba(102, 126, 234, 0.1);
-    padding: 5px 12px;
-    border-radius: 14px;
-}
-
-.news-source::before {
-    content: '';
-    font-size: 12px;
-}
-
-.news-date {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    color: var(--text-sub);
-    background: var(--bg-color);
-    padding: 5px 12px;
-    border-radius: 14px;
-    font-weight: 500;
-}
-
-.news-date::before {
-    content: '';
-    font-size: 12px;
-}
-
-.news-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-main);
-    margin: 0 0 12px 0;
-    line-height: 1.5;
-}
-
-.news-desc {
-    font-size: 15px;
-    color: var(--text-sub);
-    line-height: 1.5;
-    margin: 0 0 16px 0;
-}
-
-/* ==============================================================================
-   18. RECENT KEYWORDS DROPDOWN (OVERRIDES)
-   ============================================================================== */
-.recent-keywords-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    /* 검색창 너비에 맞춤 */
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    display: none;
-    /* 평소엔 숨김 */
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.recent-keywords-dropdown.show {
-    display: block;
-}
-
-.recent-keywords-header {
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #888;
-    background: #f9f9f9;
-    border-bottom: 1px solid #eee;
-}
-
-.recent-keyword-item {
-    padding: 10px 12px;
-    display: flex;
-    justify-content: space-between;
-    cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.recent-keyword-item:hover {
-    background-color: #f0f7ff;
-}
-
-.delete-btn {
-    color: #aaa;
-    font-weight: bold;
-    padding: 0 4px;
-}
-
-.delete-btn:hover {
-    color: red;
-}
-
-/* ==============================================================================
-   19. DARK MODE OVERRIDES
-   ============================================================================== */
-body.dark-mode {
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-}
-
-body.dark-mode .header,
-body.dark-mode .modal-content,
-body.dark-mode .recent-keywords-dropdown {
-    background-color: #1a1a1a;
-    color: #fff;
-    border-color: #444;
-}
-
-body.dark-mode .tabs-content,
-body.dark-mode .tab-pane {
-    background-color: #1a1a1a;
-    /* 뉴스 카드와 동일한 색상으로 설정 */
-}
-
-body.dark-mode .news-item {
-    background-color: #1a1a1a;
-    border-color: #444;
-}
-
-
-.recent-keyword-item .delete-btn {
-    color: var(--text-sub);
-    font-size: 16px;
-    padding: 4px;
-    border-radius: 4px;
-}
-
-.recent-keyword-item .delete-btn:hover {
-    color: var(--danger-color);
-    background: rgba(255, 0, 0, 0.1);
-}
-
-.recent-keywords-header {
-    padding: 8px 15px;
-    font-size: 12px;
-    color: var(--text-sub);
-    background: var(--bg-color);
-    border-bottom: 1px solid var(--border-color);
-}
-
-/* Keyword Highlight */
-mark.highlight {
-    background-color: rgba(255, 215, 0, 0.4);
-    color: inherit;
-    padding: 0 2px;
-    border-radius: 2px;
-    font-weight: 600;
-}
-
-/* Search Box Relative Positioning for Dropdown */
-.search-box {
-    position: relative;
-}
-
-/* News Card Styles */
-.news-card {
-    padding: 24px;
-    border-radius: 12px;
-    background: var(--card-bg);
-    box-shadow: var(--shadow-sm);
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    border: 1px solid var(--border-color);
-    margin-bottom: 16px;
-    position: relative;
-}
-
-.news-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-color);
-}
-
-.news-card.active {
-    border-left: 4px solid var(--primary-color);
-    background: linear-gradient(to right, rgba(102, 126, 234, 0.05), var(--card-bg));
-}
-
-.news-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.news-source {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--primary-color);
-    background: rgba(102, 126, 234, 0.1);
-    padding: 5px 12px;
-    border-radius: 14px;
-}
-
-.news-source::before {
-    content: '';
-    font-size: 12px;
-}
-
-.news-date {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    color: var(--text-sub);
-    background: var(--bg-color);
-    padding: 5px 12px;
-    border-radius: 14px;
-    font-weight: 500;
-}
-
-.news-date::before {
-    content: '';
-    font-size: 12px;
-}
-
-.news-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-main);
-    margin: 0 0 12px 0;
-    line-height: 1.5;
-}
-
-.news-desc {
-    font-size: 15px;
-    color: var(--text-sub);
-    line-height: 1.6;
-    margin: 0 0 16px 0;
-}
-
-
-/* ==============================================================================
-   23. RECENT KEYWORDS DROPDOWN (DUPLICATE)
-   ============================================================================== */
-.recent-keywords-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    /* 검색창 너비에 맞춤 */
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    display: none;
-    /* 평소엔 숨김 */
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.recent-keywords-dropdown.show {
-    display: block;
-}
-
-.recent-keywords-header {
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #888;
-    background: #f9f9f9;
-    border-bottom: 1px solid #eee;
-}
-
-.recent-keyword-item {
-    padding: 10px 12px;
-    display: flex;
-    justify-content: space-between;
-    cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.recent-keyword-item:hover {
-    background-color: #f0f7ff;
-}
-
-.delete-btn {
-    color: #aaa;
-    font-weight: bold;
-    padding: 0 4px;
-}
-
-.delete-btn:hover {
-    color: red;
-}
-
-/* ==============================================================================
-   24. DARK MODE OVERRIDES (EXTENDED)
-   ============================================================================== */
-body.dark-mode {
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-}
-
-body.dark-mode .header,
-body.dark-mode .modal-content,
-body.dark-mode .recent-keywords-dropdown {
-    background-color: #1a1a1a;
-    color: #fff;
-    border-color: #444;
-}
-
-body.dark-mode .tabs-content,
-body.dark-mode .tab-pane {
-    background-color: #1a1a1a;
-    /* 뉴스 카드와 동일한 색상으로 설정 */
-}
-
-body.dark-mode .news-item {
-    background-color: #1a1a1a;
-    border-color: #444;
-}
-
-body.dark-mode .news-item h3 {
-    color: #8ab4f8;
-    /* 링크 색상 밝게 */
-}
-
-body.dark-mode input[type="text"] {
-    background-color: #333;
-    color: #fff;
-    border-color: #555;
-}
-
-/* ==============================================================================
-   25. CLIPPINGS TAB
-   ============================================================================== */
-
-.tab-content-inner {
-    padding: 0;
-    width: 100%;
-}
-
-.clipping-text-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 24px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    margin: 0;
-    height: 100%;
-    /* Fill the tab pane */
-}
-
-.clipping-header {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-main);
-    margin: 0;
-    flex-shrink: 0;
-}
-
-.clipping-main {
-    font-size: 14px;
-    font-weight: 400;
-    color: var(--text-sub);
-    margin: 0;
-    line-height: 1.6;
-    flex-shrink: 0;
-}
-
-.clipping-textarea {
-    width: 100%;
-    flex: 1 1 auto;
-    /* Allow growth and shrink */
-    min-height: 480px;
-    /* Restored to a more generous size */
-    padding: 24px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 16px;
-    line-height: 1.7;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-    background: var(--bg-color);
-    color: var(--text-main);
-    resize: vertical;
-    /* Ensure vertical resize works well */
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    tab-size: 4;
-    white-space: pre-wrap;
-    overflow-y: auto;
-}
-
-.clipping-textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.news-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 14px;
-    align-items: center;
-}
-
-/* Action Buttons in News Card */
-.btn-small {
-    padding: 6px 14px;
-    font-size: 13px;
-    height: 32px;
-    /* Standardize height */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-clip-trigger {
-    font-weight: 600;
-}
-
-.clip-selector-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
-.clip-popup-menu {
-    position: absolute;
-    bottom: 110%;
-    /* Show above the button */
-    left: 0;
-    min-width: 140px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: var(--shadow-md);
-    padding: 6px;
-    z-index: 1000;
-    display: none;
-    flex-direction: column;
-    gap: 4px;
-    overflow: hidden;
-    animation: fadeInScale 0.2s ease;
-}
-
-.clip-popup-menu.show {
-    display: flex;
-}
-
-.clip-popup-menu button {
-    background: transparent;
-    border: none;
-    padding: 8px 12px;
-    text-align: left;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-main);
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.2s;
-    width: 100%;
-}
-
-.clip-popup-menu button:hover {
-    background: var(--bg-color);
-    color: var(--primary-color);
-    padding-left: 16px;
-}
-
 @keyframes fadeInScale {
     from {
         opacity: 0;
@@ -1306,158 +586,39 @@ body.dark-mode input[type="text"] {
     }
 }
 
-.btn-copy,
-.btn-clear {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
+/* ==============================================================================
+   14. MOBILE RESPONSIVE
+   ============================================================================== */
+@media (max-width: 768px) {
+    .container {
+        height: auto;
+    }
 
-.btn-copy {
-    background: var(--primary-color);
-    color: white;
-    flex: 1;
-}
+    .news-card {
+        flex-direction: column;
+    }
 
-.btn-copy:hover {
-    background: var(--primary-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.btn-clear {
-    background: var(--bg-color);
-    color: var(--text-main);
-    border: 2px solid var(--border-color);
-}
-
-.btn-clear:hover {
-    background: var(--border-color);
+    .news-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
 
 /* ==============================================================================
-   21. ARTICLE DETAIL STYLES
+   15. DARK MODE FIXES & COMPONENT OVERRIDES
    ============================================================================== */
-.article-content {
-    line-height: 1.8;
-    color: var(--text-sub);
-    font-size: 15px;
-}
-
-.article-footer {
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border-color);
-}
-
-.source-link {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
-    transition: color 0.2s;
-}
-
-.source-link:hover {
-    color: var(--primary-hover);
-    text-decoration: underline;
-}
-
-.article-error {
-    text-align: center;
-    color: var(--text-sub);
-    padding: 40px 20px;
-}
-
-.btn-outline {
-    background: transparent;
-    border: 2px solid var(--primary-color);
-    color: var(--primary-color);
-}
-
-.btn-outline:hover {
-    background: var(--primary-color);
-    color: white;
-}
-
-/* ==============================================================================
-   22. HOME TAB STYLES
-   ============================================================================== */
-.home-hero {
-    background: linear-gradient(135deg, var(--primary-color), #764ba2);
-    color: #fff;
-    padding: 50px 20px;
-    text-align: center;
-    border-radius: 12px;
-    margin-bottom: 32px;
-}
-
-.home-features,
-.home-howto,
-.home-faq {
-    padding: 40px 0;
-    border-top: 1px solid var(--border-color);
-}
-
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 24px;
-}
-
-.feature-card {
+body.dark-mode .recent-keywords-dropdown,
+body.dark-mode .clip-popup-menu {
     background: var(--card-bg);
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: var(--shadow-sm);
-    text-align: center;
+    border-color: var(--border-color);
 }
 
-.howto-steps {
-    list-style: none;
-    counter-reset: step;
+body.dark-mode .recent-keyword-item:hover,
+body.dark-mode .clip-popup-menu button:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
-.howto-steps li {
-    counter-increment: step;
-    margin-bottom: 16px;
-}
-
-.howto-steps li::before {
-    content: counter(step);
-    display: inline-block;
-    width: 32px;
-    height: 32px;
-    line-height: 32px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    color: #fff;
-    margin-right: 12px;
-    text-align: center;
-}
-
-.demo-gallery {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    justify-content: center;
-}
-
-.demo-gallery img,
-.demo-gallery video {
-    max-width: 100%;
-    border-radius: 12px;
-    box-shadow: var(--shadow-sm);
-}
-
-.home-faq details {
-    margin-bottom: 12px;
-}
-
-.home-footer {
-    margin-top: 48px;
+body.dark-mode mark.highlight {
+    background-color: rgba(255, 215, 0, 0.25);
+    color: #ffd700;
 }
