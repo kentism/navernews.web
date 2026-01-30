@@ -1226,9 +1226,8 @@ body.dark-mode input[type="text"] {
 .news-actions {
     display: flex;
     flex-wrap: wrap;
-    /* Added for better responsiveness */
-    gap: 10px;
-    margin-top: 16px;
+    gap: 8px;
+    margin-top: 14px;
     align-items: center;
 }
 
@@ -1236,8 +1235,7 @@ body.dark-mode input[type="text"] {
 .clip-selector-group {
     display: flex;
     align-items: stretch;
-    /* Match heights */
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
     border: 1px solid var(--border-color);
     background: var(--bg-color);
@@ -1251,9 +1249,9 @@ body.dark-mode input[type="text"] {
 
 .category-select {
     border: none;
-    padding: 0 8px 0 12px;
+    padding: 0 28px 0 10px;
     font-size: 13px;
-    height: 36px;
+    height: 32px;
     background: transparent;
     color: var(--text-main);
     cursor: pointer;
@@ -1261,27 +1259,25 @@ body.dark-mode input[type="text"] {
     border-right: 1px solid var(--border-color);
     font-family: inherit;
     min-width: 140px;
-    /* Ensure dropdown has enough width */
     max-width: 160px;
     appearance: none;
-    /* Custom arrow look */
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right 8px center;
-    background-size: 14px;
+    background-position: right 6px center;
+    background-size: 12px;
 }
 
 .clip-selector-group .btn-primary {
     border-radius: 0;
     border: none;
-    height: 36px;
-    padding: 0 16px;
+    height: 32px;
+    padding: 0 12px;
     font-size: 13px;
     font-weight: 600;
     flex-shrink: 0;
 }
 
-.clip-selector-group .btn-primary:hover {
+.clip-selector-group .btn-primary:active {
     background: var(--primary-hover);
 }
 

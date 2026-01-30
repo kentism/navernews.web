@@ -567,18 +567,18 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         }
     }
 
-    // Format the new entry (no trailing newline here, handled by insertion)
+    // Format the new entry
     const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}`;
 
     // Categorized Insertion Logic
     if (category) {
-        const header = `■ ${category}`;
+        const headerText = `■ ${category}`;
         const lines = currentText.split('\n');
         let headerIndex = -1;
 
-        // Find the category header
+        // Find the category header (case-insensitive and trimmed)
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].includes(header)) {
+            if (lines[i].trim().startsWith(headerText)) {
                 headerIndex = i;
                 break;
             }
@@ -589,18 +589,19 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
             let insertAt = headerIndex + 1;
             while (insertAt < lines.length) {
                 const line = lines[insertAt].trim();
-                // If we hit another header, stop
+                // If we hit another header or end of content, stop
                 if (line.startsWith('■')) break;
-                // If it's a blank line followed by a header, stop
+                // Avoid getting stuck on empty lines if they are leading to a header
                 if (line === '' && insertAt + 1 < lines.length && lines[insertAt + 1].trim().startsWith('■')) break;
                 insertAt++;
             }
 
-            lines.splice(insertAt, 0, newEntry);
+            // Insert the entry. We might want to add a following newline if it's the middle of a section.
+            lines.splice(insertAt, 0, newEntry + '\n');
             currentText = lines.join('\n');
         } else {
-            // Header not found, fallback to append
-            currentText = currentText.trimEnd() + `\n\n${header}\n${newEntry}\n`;
+            // Header not found, fallback to append with a new header
+            currentText = currentText.trimEnd() + `\n\n${headerText}\n${newEntry}\n`;
         }
     } else {
         // Fallback for uncategorized
