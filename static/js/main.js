@@ -541,231 +541,235 @@ window.loadClippingsTab = async function () {
     } catch (e) {
         console.error('클리핑 탭 로드 실패:', e);
         innerContainer.innerHTML = '<div class="error-state">클리핑 탭을 불러오는데 실패했습니다.</div>';
-    }
-};
-
-/**
- * Clips an article to the text area, categorized by section.
- */
-function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category) {
-    const textArea = document.getElementById('clippingTextArea');
-    let currentText = textArea ? textArea.value : (localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT);
-
-    // Format date: extract MM.DD. from pubDate
-    let formattedDate = '';
-    if (pubDate) {
-        try {
-            const dateObj = new Date(pubDate);
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            formattedDate = `${month}.${day}.`;
-        } catch (e) {
-            formattedDate = '';
-        }
-    }
-
-    // Format the new entry
-    const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}`;
-
-    // Categorized Insertion Logic
-    if (category) {
-        // We match by the core name (e.g., "위원회") in case the user edited the header slightly
-        const coreCategory = category.split(' ')[0];
-        const lines = currentText.split('\n');
-        let headerIndex = -1;
-
-        // Find the category header (case-insensitive and trimmed)
-        for (let i = 0; i < lines.length; i++) {
-            const trimmedLine = lines[i].trim();
-            if (trimmedLine.startsWith('■') && trimmedLine.includes(coreCategory)) {
-                headerIndex = i;
-                break;
-            }
+        // Migration for v1.2: Rename '■ 기타 관련' to '■ 기타'
+        const storedText = localStorage.getItem(CLIPPING_TEXT_KEY);
+        if (storedText && storedText.includes('■ 기타 관련')) {
+            const updatedText = storedText.replace(/■ 기타 관련/g, '■ 기타');
+            localStorage.setItem(CLIPPING_TEXT_KEY, updatedText);
+            const textArea = document.getElementById('clippingTextArea');
+            if (textArea) textArea.value = updatedText;
         }
 
-        if (headerIndex !== -1) {
-            // Find insertion point: after the header and any existing entries in this section
-            let insertAt = headerIndex + 1;
+        // 1. Search Bar Event Listeners
+        function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category) {
+            const textArea = document.getElementById('clippingTextArea');
+            let currentText = textArea ? textArea.value : (localStorage.getItem(CLIPPING_TEXT_KEY) || DEFAULT_CLIPPED_TEXT);
 
-            // Skip initial blank lines right after header
-            while (insertAt < lines.length && lines[insertAt].trim() === '') {
-                insertAt++;
-            }
-
-            // Find end of this section's content
-            while (insertAt < lines.length) {
-                const line = lines[insertAt].trim();
-                if (line.startsWith('■')) break;
-                insertAt++;
-            }
-
-            // Backtrack if we hit a header to ensure we insert after previous entry without gap
-            // But if it's the very first entry after header (insertAt was headerIndex + 1 after skipping blanks),
-            // we should stick to it.
-
-            // Refined spacing: find last non-empty line in regular content
-            let targetInsert = insertAt;
-            while (targetInsert > headerIndex + 1 && lines[targetInsert - 1].trim() === '') {
-                targetInsert--;
-            }
-
-            lines.splice(targetInsert, 0, newEntry);
-            currentText = lines.join('\n');
-        } else {
-            // Header not found, fallback to append with a new header
-            currentText = currentText.trimEnd() + `\n\n■ ${category}\n${newEntry}\n`;
-        }
-    } else {
-        // Fallback for uncategorized
-        currentText = currentText.trimEnd() + `\n\n${newEntry}\n`;
-    }
-
-    // Save to storage
-    localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
-
-    // Update UI if visible and focus it
-    if (textArea) {
-        textArea.value = currentText;
-        // Scroll to the modified content if possible, or just bottom for now
-        textArea.scrollTop = textArea.scrollHeight;
-    }
-
-    showToast(`✅ [${category}]에 추가되었습니다.`);
-
-    // Visual feedback on button
-    if (btnEl) {
-        const originalText = btnEl.textContent;
-        btnEl.textContent = '저장됨!';
-        btnEl.disabled = true;
-        btnEl.classList.add('btn-success');
-        setTimeout(() => {
-            btnEl.textContent = originalText;
-            btnEl.disabled = false;
-            btnEl.classList.remove('btn-success');
-        }, 2000);
-    }
-}
-/**
- * Toggles the category selection popup menu.
- */
-function toggleClipMenu(btn) {
-    const wrapper = btn.closest('.clip-selector-wrapper');
-    const menu = wrapper.querySelector('.clip-popup-menu');
-
-    // Close other open menus first
-    document.querySelectorAll('.clip-popup-menu.show').forEach(m => {
-        if (m !== menu) m.classList.remove('show');
-    });
-
-    menu.classList.toggle('show');
-}
-window.toggleClipMenu = toggleClipMenu;
-
-// Close menus when clicking outside
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.clip-selector-wrapper')) {
-        document.querySelectorAll('.clip-popup-menu.show').forEach(m => m.classList.remove('show'));
-    }
-});
-
-
-// ==============================================================================
-// 8. INITIALIZATION
-// ==============================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Search Bar Event Listeners
-    const searchBtn = document.getElementById('searchBtn');
-    const input = document.getElementById('keyword');
-    const recentKeywords = document.getElementById('recentKeywords');
-
-    if (searchBtn) searchBtn.addEventListener('click', handleSearch);
-
-    if (input) {
-        input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
-
-        input.addEventListener('focus', () => {
-            renderRecentKeywords();
-            if (getRecentKeywords().length > 0) recentKeywords.classList.add('show');
-        });
-
-        input.addEventListener('blur', () => {
-            // Delay hiding to allow click events on items
-            setTimeout(() => { recentKeywords.classList.remove('show'); }, 200);
-        });
-    }
-
-    // 2. Tab Navigation
-    const tabsNav = document.querySelector('.tabs-nav');
-    if (tabsNav) {
-        tabsNav.addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-tab]');
-            if (!btn) return;
-
-            const tabId = btn.dataset.tab;
-            if (tabId === 'clippings') loadClippingsTab();
-            switchTab(tabId);
-        });
-    }
-
-    // 3. Global Refresh Button
-    const globalRefreshBtn = document.getElementById('globalRefreshBtn');
-    if (globalRefreshBtn) {
-        globalRefreshBtn.addEventListener('click', () => {
-            const activeTab = document.querySelector('.tab-pane.active');
-            if (activeTab && activeTab.id && activeTab.id.startsWith('search-')) {
-                refreshSearchTab(activeTab.id);
-            }
-        });
-    }
-
-    // 4. Load Default Search Tabs
-    async function loadDefaultSearch() {
-        const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
-        for (const kw of keywords) {
-            const fd = new FormData();
-            fd.append('keyword', kw);
-            fd.append('start', 1);
-            try {
-                const resp = await fetch('/search-results', { method: 'POST', body: fd });
-                if (resp.ok) {
-                    const html = await resp.text();
-                    createSearchTab(kw, html, 21, false);
+            // Format date: extract MM.DD. from pubDate
+            let formattedDate = '';
+            if (pubDate) {
+                try {
+                    const dateObj = new Date(pubDate);
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    formattedDate = `${month}.${day}.`;
+                } catch (e) {
+                    formattedDate = '';
                 }
-            } catch (e) {
-                console.error('기본 검색 오류:', e);
+            }
+
+            // Format the new entry
+            const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}`;
+
+            // Categorized Insertion Logic
+            if (category) {
+                // We match by the core name (e.g., "위원회") in case the user edited the header slightly
+                const coreCategory = category.split(' ')[0];
+                const lines = currentText.split('\n');
+                let headerIndex = -1;
+
+                // Find the category header (case-insensitive and trimmed)
+                for (let i = 0; i < lines.length; i++) {
+                    const trimmedLine = lines[i].trim();
+                    if (trimmedLine.startsWith('■') && trimmedLine.includes(coreCategory)) {
+                        headerIndex = i;
+                        break;
+                    }
+                }
+
+                if (headerIndex !== -1) {
+                    // Find insertion point: after the header and any existing entries in this section
+                    let insertAt = headerIndex + 1;
+
+                    // Skip initial blank lines right after header
+                    while (insertAt < lines.length && lines[insertAt].trim() === '') {
+                        insertAt++;
+                    }
+
+                    // Find end of this section's content
+                    while (insertAt < lines.length) {
+                        const line = lines[insertAt].trim();
+                        if (line.startsWith('■')) break;
+                        insertAt++;
+                    }
+
+                    // Backtrack if we hit a header to ensure we insert after previous entry without gap
+                    // But if it's the very first entry after header (insertAt was headerIndex + 1 after skipping blanks),
+                    // we should stick to it.
+
+                    // Refined spacing: find last non-empty line in regular content
+                    let targetInsert = insertAt;
+                    while (targetInsert > headerIndex + 1 && lines[targetInsert - 1].trim() === '') {
+                        targetInsert--;
+                    }
+
+                    lines.splice(targetInsert, 0, newEntry);
+                    currentText = lines.join('\n');
+                } else {
+                    // Header not found, fallback to append with a new header
+                    currentText = currentText.trimEnd() + `\n\n■ ${category}\n${newEntry}\n`;
+                }
+            } else {
+                // Fallback for uncategorized
+                currentText = currentText.trimEnd() + `\n\n${newEntry}\n`;
+            }
+
+            // Save to storage
+            localStorage.setItem(CLIPPING_TEXT_KEY, currentText);
+
+            // Update UI if visible and focus it
+            if (textArea) {
+                textArea.value = currentText;
+                // Scroll to the modified content if possible, or just bottom for now
+                textArea.scrollTop = textArea.scrollHeight;
+            }
+
+            showToast(`✅ [${category}]에 추가되었습니다.`);
+
+            // Visual feedback on button
+            if (btnEl) {
+                const originalText = btnEl.textContent;
+                btnEl.textContent = '저장됨!';
+                btnEl.disabled = true;
+                btnEl.classList.add('btn-success');
+                setTimeout(() => {
+                    btnEl.textContent = originalText;
+                    btnEl.disabled = false;
+                    btnEl.classList.remove('btn-success');
+                }, 2000);
             }
         }
-    }
+        /**
+         * Toggles the category selection popup menu.
+         */
+        function toggleClipMenu(btn) {
+            const wrapper = btn.closest('.clip-selector-wrapper');
+            const menu = wrapper.querySelector('.clip-popup-menu');
 
+            // Close other open menus first
+            document.querySelectorAll('.clip-popup-menu.show').forEach(m => {
+                if (m !== menu) m.classList.remove('show');
+            });
 
-    // 5. Global Keyboard Shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (document.activeElement === input) {
-                input.blur();
-            }
+            menu.classList.toggle('show');
         }
-    });
+        window.toggleClipMenu = toggleClipMenu;
 
-    // 6. Theme Toggle (Dark Mode)
-    window.toggleTheme = function () {
-        document.body.classList.toggle('dark-mode');
-        const isDark = document.body.classList.contains('dark-mode');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.clip-selector-wrapper')) {
+                document.querySelectorAll('.clip-popup-menu.show').forEach(m => m.classList.remove('show'));
+            }
+        });
 
-        const btn = document.querySelector('.theme-btn');
-        if (btn) btn.textContent = isDark ? '☀️' : '🌙';
-    };
 
-    // Load saved theme
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-        const btn = document.querySelector('.theme-btn');
-        if (btn) btn.textContent = '☀️';
-    }
+        // ==============================================================================
+        // 8. INITIALIZATION
+        // ==============================================================================
 
-    // Load default search tabs on startup
-    loadDefaultSearch();
-});
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Search Bar Event Listeners
+            const searchBtn = document.getElementById('searchBtn');
+            const input = document.getElementById('keyword');
+            const recentKeywords = document.getElementById('recentKeywords');
+
+            if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+
+            if (input) {
+                input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
+
+                input.addEventListener('focus', () => {
+                    renderRecentKeywords();
+                    if (getRecentKeywords().length > 0) recentKeywords.classList.add('show');
+                });
+
+                input.addEventListener('blur', () => {
+                    // Delay hiding to allow click events on items
+                    setTimeout(() => { recentKeywords.classList.remove('show'); }, 200);
+                });
+            }
+
+            // 2. Tab Navigation
+            const tabsNav = document.querySelector('.tabs-nav');
+            if (tabsNav) {
+                tabsNav.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-tab]');
+                    if (!btn) return;
+
+                    const tabId = btn.dataset.tab;
+                    if (tabId === 'clippings') loadClippingsTab();
+                    switchTab(tabId);
+                });
+            }
+
+            // 3. Global Refresh Button
+            const globalRefreshBtn = document.getElementById('globalRefreshBtn');
+            if (globalRefreshBtn) {
+                globalRefreshBtn.addEventListener('click', () => {
+                    const activeTab = document.querySelector('.tab-pane.active');
+                    if (activeTab && activeTab.id && activeTab.id.startsWith('search-')) {
+                        refreshSearchTab(activeTab.id);
+                    }
+                });
+            }
+
+            // 4. Load Default Search Tabs
+            async function loadDefaultSearch() {
+                const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
+                for (const kw of keywords) {
+                    const fd = new FormData();
+                    fd.append('keyword', kw);
+                    fd.append('start', 1);
+                    try {
+                        const resp = await fetch('/search-results', { method: 'POST', body: fd });
+                        if (resp.ok) {
+                            const html = await resp.text();
+                            createSearchTab(kw, html, 21, false);
+                        }
+                    } catch (e) {
+                        console.error('기본 검색 오류:', e);
+                    }
+                }
+            }
+
+
+            // 5. Global Keyboard Shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (document.activeElement === input) {
+                        input.blur();
+                    }
+                }
+            });
+
+            // 6. Theme Toggle (Dark Mode)
+            window.toggleTheme = function () {
+                document.body.classList.toggle('dark-mode');
+                const isDark = document.body.classList.contains('dark-mode');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+                const btn = document.querySelector('.theme-btn');
+                if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+            };
+
+            // Load saved theme
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                const btn = document.querySelector('.theme-btn');
+                if (btn) btn.textContent = '☀️';
+            }
+
+            // Load default search tabs on startup
+            loadDefaultSearch();
+        });
