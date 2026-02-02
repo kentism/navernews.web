@@ -168,6 +168,16 @@ function getSkeletonHTML() {
 }
 
 /**
+ * Returns the inner HTML for a sentinel (loading indicator).
+ */
+function getSentinelHTML(text = '결과를 불러오는 중...') {
+    return `
+        <div class="spinner"></div>
+        <span>${text}</span>
+    `;
+}
+
+/**
  * Creates a new search result tab.
  */
 function createSearchTab(keyword, htmlContent, start = 1, activate = true) {
@@ -210,7 +220,7 @@ function createSearchTab(keyword, htmlContent, start = 1, activate = true) {
     // Add Sentinel for Infinite Scroll
     const sentinel = document.createElement('div');
     sentinel.className = 'panel-sentinel';
-    sentinel.textContent = '로딩...';
+    sentinel.innerHTML = getSentinelHTML();
 
     const innerDiv = panel.querySelector('.search-panel-content');
     if (innerDiv) innerDiv.appendChild(sentinel);
@@ -277,7 +287,7 @@ async function refreshSearchTab(id) {
             contentArea.innerHTML = html;
             const sentinel = document.createElement('div');
             sentinel.className = 'panel-sentinel';
-            sentinel.textContent = '로딩...';
+            sentinel.innerHTML = getSentinelHTML();
             contentArea.appendChild(sentinel);
         }
         panel.dataset.start = '21';
@@ -352,14 +362,14 @@ function setupInfiniteScrollForPanel(panel) {
             try {
                 const resp = await fetch('/search-results', { method: 'POST', body: fd });
                 if (!resp.ok) {
-                    sentinel.textContent = '추가 로드 실패';
+                    sentinel.innerHTML = '추가 로드 실패';
                     observer.disconnect();
                     loading = false;
                     return;
                 }
                 const html = await resp.text();
                 if (!html || html.trim().length === 0) {
-                    sentinel.textContent = '더 이상 결과가 없습니다';
+                    sentinel.innerHTML = '더 이상 결과가 없습니다';
                     observer.disconnect();
                     loading = false;
                     return;
@@ -370,7 +380,7 @@ function setupInfiniteScrollForPanel(panel) {
                 panel.dataset.start = String(start + 20);
                 loading = false;
             } catch (err) {
-                sentinel.textContent = '네트워크 오류';
+                sentinel.innerHTML = '네트워크 오류';
                 observer.disconnect();
                 loading = false;
             }
@@ -432,7 +442,7 @@ async function handleSearch() {
                     contentArea.innerHTML = html;
                     const sentinel = document.createElement('div');
                     sentinel.className = 'panel-sentinel';
-                    sentinel.textContent = '로딩...';
+                    sentinel.innerHTML = getSentinelHTML();
                     contentArea.appendChild(sentinel);
                 }
                 panel.dataset.start = '21';
