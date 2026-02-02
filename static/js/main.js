@@ -376,8 +376,8 @@ function setupInfiniteScrollForPanel(panel) {
             }
         }
     }, {
-        root: panel,
-        rootMargin: '200px'
+        root: null,
+        rootMargin: '400px'
     });
 
     observer.observe(sentinel);
