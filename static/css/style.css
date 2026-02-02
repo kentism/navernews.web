@@ -87,6 +87,13 @@ body {
     z-index: 100;
 }
 
+.header-content,
+.search-box {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .header-content {
     display: flex;
     justify-content: space-between;
@@ -162,15 +169,28 @@ body {
 }
 
 /* ==============================================================================
-   6. TABS NAVIGATION
+   6. STICKY HEADER & TABS NAVIGATION
    ============================================================================== */
-.tabs-nav {
-    display: flex;
-    border-bottom: 1px solid var(--border-color);
+.sticky-top-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
     background: var(--bg-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.tabs-nav-wrapper {
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tabs-nav {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    background: transparent;
     flex-shrink: 0;
     z-index: 99;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .tab-btn {
@@ -600,8 +620,55 @@ body {
 }
 
 /* ==============================================================================
-   13. UI UTILITIES (TOAST, SKELETON, SHIMMER)
+   13. UI UTILITIES (TOAST, SKELETON, SCROLL CONTROLS)
    ============================================================================== */
+.scroll-controls {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 1500;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    transform: translateY(20px);
+}
+
+.scroll-controls.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-controls button {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-color);
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.scroll-controls button:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-lg);
+}
+
+.scroll-controls button:active {
+    transform: scale(0.95);
+}
+
 .toast-container {
     position: fixed;
     bottom: 30px;

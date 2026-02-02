@@ -26,30 +26,35 @@
     <!-- ========================================================================== -->
     <!-- HEADER -->
     <!-- ========================================================================== -->
-    <header class="header">
-        <div class="header-content">
-            <h1>📰 KCSC 뉴스 클리핑</h1>
-            <button class="theme-btn" onclick="toggleTheme()">🌙</button>
-        </div>
+    <div class="sticky-top-wrapper">
+        <header class="header">
+            <div class="header-content">
+                <h1>📰 KCSC 뉴스 클리핑</h1>
+                <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+            </div>
 
-        <!-- Search Box -->
-        <div class="search-box">
-            <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off">
-            <button id="searchBtn">🔍</button>
-            <div id="recentKeywords" class="recent-keywords-dropdown"></div>
+            <!-- Search Box -->
+            <div class="search-box">
+                <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off">
+                <button id="searchBtn">🔍</button>
+                <div id="recentKeywords" class="recent-keywords-dropdown"></div>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="tabs-nav-wrapper">
+            <div class="tabs-nav">
+                <button class="tab-btn active" data-tab="homeTab" id="homeTabBtn">🏠 홈</button>
+                <button class="tab-btn" data-tab="clippings" id="clippingsBtn">📁 클리핑 모음</button>
+                <button class="btn-icon" id="globalRefreshBtn" title="현재 탭 새로고침" style="display:none;">🔄</button>
+            </div>
         </div>
-    </header>
+    </div>
 
     <!-- ========================================================================== -->
     <!-- MAIN CONTAINER -->
     <!-- ========================================================================== -->
     <div class="container">
-        <!-- Tab Navigation -->
-        <div class="tabs-nav">
-            <button class="tab-btn active" data-tab="homeTab" id="homeTabBtn">🏠 홈</button>
-            <button class="tab-btn" data-tab="clippings" id="clippingsBtn">📁 클리핑 모음</button>
-            <button class="btn-icon" id="globalRefreshBtn" title="현재 탭 새로고침" style="display:none;">🔄</button>
-        </div>
 
         <!-- Tab Contents -->
         <div class="tabs-content">
@@ -73,8 +78,11 @@
     </div>
     </div>
 
-    <!-- Scroll to Top Button -->
-    <button id="scrollTopBtn" title="맨 위로">↑</button>
+    <!-- Scroll Controls -->
+    <div class="scroll-controls" id="scrollControls">
+        <button id="scrollTopBtn" title="맨 위로">↑</button>
+        <button id="scrollBottomBtn" title="맨 아래로">↓</button>
+    </div>
 
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>

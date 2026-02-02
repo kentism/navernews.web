@@ -532,6 +532,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 5-1. Scroll Controls Logic
+    const scrollControls = document.getElementById('scrollControls');
+    const scrollTopBtn = document.getElementById('scrollTopBtn');
+    const scrollBottomBtn = document.getElementById('scrollBottomBtn');
+
+    if (scrollControls) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                scrollControls.classList.add('show');
+            } else {
+                scrollControls.classList.remove('show');
+            }
+        });
+    }
+
+    if (scrollTopBtn) {
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
+    if (scrollBottomBtn) {
+        scrollBottomBtn.addEventListener('click', () => {
+            window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+        });
+    }
+
     // 6. Theme Toggle (Dark Mode)
     window.toggleTheme = function () {
         document.body.classList.toggle('dark-mode');
