@@ -9,8 +9,8 @@ from typing import List
 from urllib.parse import urlparse
 from email.utils import parsedate_to_datetime
 
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, Cookie
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from bs4 import BeautifulSoup
@@ -38,6 +38,19 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 # -- Mount Static & Templates --
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=templates_dir)
+
+# -- Access Configuration --
+# Shared password for the service. Ideally set via environment variable.
+APP_ACCESS_KEY = os.getenv("APP_ACCESS_KEY", "32195114")
+
+async def verify_access(request: Request):
+    """Dependency to check if the user has the correct access token in cookies."""
+    if request.url.path in ["/login", "/static/css/style.css"]:
+        return
+        
+    access_token = request.cookies.get("access_token")
+    if access_token != APP_ACCESS_KEY:
+        return RedirectResponse(url="/login", status_code=303)
 
 
 # ==============================================================================
@@ -125,18 +138,39 @@ SEARCH_CACHE = {}
 # 5. ROUTERS (ENDPOINTS)
 # ==============================================================================
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, error: str = None):
+    """Renders the login page."""
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+
+@app.post("/login")
+async def login(password: str = Form(...)):
+    """Handles login form submission."""
+    if password == APP_ACCESS_KEY:
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie(key="access_token", value=APP_ACCESS_KEY, httponly=True)
+        return response
+    return RedirectResponse(url="/login?error=Invalid+Password", status_code=303)
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Renders the main homepage."""
+    # Check access (re-using the logic as a manual check if not using Depends globally)
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/api/search", response_class=JSONResponse)
 async def search_api(
+    request: Request,
     keyword: str = Form(...), 
     start: int = Form(default=1), 
     headers: dict = Depends(get_naver_api_headers)
 ):
     """API endpoint for JSON search results."""
+    auth_check = await verify_access(request)
+    if auth_check: return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    
     items = await fetch_news(keyword, headers=headers, start=start, display=20)
     return {"items": [item.dict() for item in items], "total": len(items)}
 
@@ -148,6 +182,9 @@ async def search_results(
     headers: dict = Depends(get_naver_api_headers)
 ):
     """Renders search results page (Server-Side Rendering)."""
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+    
     try:
         items = await fetch_news(keyword, headers=headers, start=start, display=20)
         return templates.TemplateResponse("search_results.html", {
@@ -168,4 +205,6 @@ async def get_article_content(url: str):
 @app.get("/clippings-tab", response_class=HTMLResponse)
 async def clippings_tab(request: Request):
     """Renders the clippings (saved news) tab."""
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
     return templates.TemplateResponse("clippings_tab.html", {"request": request})
