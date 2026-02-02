@@ -50,8 +50,7 @@ body {
     min-height: 100%;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    /* overflow-x: hidden removed to fix position: sticky */
     scroll-behavior: smooth;
 }
 
@@ -467,6 +466,8 @@ body {
     z-index: 1000;
     display: none;
     border: 1px solid var(--border-color);
+    color: var(--text-main);
+    /* Fix: explicitly set text color to override header-text inheritance */
 }
 
 .recent-keywords-dropdown.show {
