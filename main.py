@@ -139,10 +139,10 @@ from scraper import NewsItem, fetch_news, parse_article, get_naver_api_headers
 SEARCH_CACHE = {}
 
 # List of async queues for active SSE clients
-sse_clients: List[asyncio.Queue] = []
+sse_clients = []
 
 POLLING_KEYWORD = "방송미디어통신심의위원회"
-POLLING_INTERVAL = 300 # 5 minutes
+POLLING_INTERVAL = 120 # 2 minutes
 
 async def poll_naver_news_task():
     """Background task to poll Naver News and notify clients via SSE."""
@@ -299,6 +299,15 @@ async def sse_notifications(request: Request):
         except asyncio.CancelledError:
             pass
         finally:
-            sse_clients.remove(q)
+            if q in sse_clients:
+                sse_clients.remove(q)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.get("/api/debug/test-notify")
+async def trigger_test_notification():
+    """Debug endpoint to manually trigger a notification for testing."""
+    message = "🔔 [테스트] 실시간 알림 기능이 정상적으로 작동하고 있습니다!"
+    for q in sse_clients:
+        await q.put(message)
+    return {"status": "success", "notified_clients": len(sse_clients)}
