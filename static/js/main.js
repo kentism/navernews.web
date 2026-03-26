@@ -15,6 +15,8 @@ const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
 // Global state
 let searchTabCounter = 0;
 const panelObservers = new Map(); // Stores IntersectionObservers for infinite scroll
+window.sseConnId = null;
+window.keywordWatchSet = new Set(JSON.parse(localStorage.getItem('watchedKeywords') || '[]'));
 
 
 // ==============================================================================
@@ -58,6 +60,43 @@ function showToast(message) {
 }
 // Expose to window for inline calls if necessary
 window.showToast = showToast;
+
+window.toggleKeywordWatch = async function(el) {
+    const keyword = el.dataset.keyword;
+    const isChecked = el.checked;
+    const connId = window.sseConnId;
+
+    if (!connId) {
+        showToast('⚠️ 알림 시스템이 아직 연결되지 않았습니다.');
+        el.checked = !isChecked;
+        return;
+    }
+
+    const url = isChecked ? '/api/watch' : '/api/unwatch';
+    const formData = new FormData();
+    formData.append('keyword', keyword);
+    formData.append('conn_id', connId);
+
+    try {
+        const resp = await fetch(url, { method: 'POST', body: formData });
+        if (resp.ok) {
+            if (isChecked) {
+                window.keywordWatchSet.add(keyword);
+                showToast(`🔔 [${keyword}] 실시간 알림을 시작합니다.`);
+            } else {
+                window.keywordWatchSet.delete(keyword);
+                showToast(`🔕 [${keyword}] 실시간 알림을 중단합니다.`);
+            }
+            localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet)));
+        } else {
+            showToast('알림 설정 실패');
+            el.checked = !isChecked;
+        }
+    } catch (e) {
+        showToast('알림 서버 통신 오류');
+        el.checked = !isChecked;
+    }
+};
 
 
 // ==============================================================================
@@ -241,6 +280,20 @@ function removeSearchTab(id) {
 
     if (btn) btn.remove();
     if (panel) {
+        // Handle unwatch if it was being watched
+        const checkbox = panel.querySelector('.watch-checkbox');
+        if (checkbox && checkbox.checked) {
+            const keyword = checkbox.dataset.keyword;
+            if (window.sseConnId) {
+                const formData = new FormData();
+                formData.append('keyword', keyword);
+                formData.append('conn_id', window.sseConnId);
+                fetch('/api/unwatch', { method: 'POST', body: formData }).catch(() => {});
+            }
+            if (window.keywordWatchSet) window.keywordWatchSet.delete(keyword);
+            localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet || [])));
+        }
+
         // Clean up observer
         if (panelObservers.has(id)) {
             try { panelObservers.get(id).disconnect(); } catch (e) { }
@@ -312,7 +365,14 @@ function switchTab(tabId) {
     const panel = document.getElementById(tabId);
 
     if (tabBtn) tabBtn.classList.add('active');
-    if (panel) panel.classList.add('active');
+    if (panel) {
+        panel.classList.add('active');
+        // Sync toggle state from registry
+        const checkbox = panel.querySelector('.watch-checkbox');
+        if (checkbox && window.keywordWatchSet) {
+            checkbox.checked = window.keywordWatchSet.has(checkbox.dataset.keyword);
+        }
+    }
 
     // Toggle Global Refresh Button visibility
     const refreshBtn = document.getElementById('globalRefreshBtn');
@@ -463,6 +523,13 @@ async function handleSearch() {
                 const contentArea = panel.querySelector('.search-panel-content');
                 if (contentArea) {
                     contentArea.innerHTML = html;
+                    
+                    // Sync toggle state
+                    const checkbox = panel.querySelector('.watch-checkbox');
+                    if (checkbox && window.keywordWatchSet) {
+                        checkbox.checked = window.keywordWatchSet.has(checkbox.dataset.keyword);
+                    }
+
                     const sentinel = document.createElement('div');
                     sentinel.className = 'panel-sentinel';
                     sentinel.innerHTML = getSentinelHTML();
@@ -673,6 +740,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const eventSource = new EventSource('/api/stream/notifications');
         eventSource.onmessage = function (event) {
             if (event.data) {
+                // Check if it's the initialization message with conn_id
+                if (event.data.startsWith('conn_id:')) {
+                    window.sseConnId = event.data.split(':')[1];
+                    console.log('SSE Connected with ID:', window.sseConnId);
+                    
+                    // Re-register any existing watched keywords if the connection restarted
+                    if (window.keywordWatchSet.size > 0) {
+                        window.keywordWatchSet.forEach(kw => {
+                            const formData = new FormData();
+                            formData.append('keyword', kw);
+                            formData.append('conn_id', window.sseConnId);
+                            fetch('/api/watch', { method: 'POST', body: formData });
+                        });
+                    }
+                    return;
+                }
+
                 // 1. UI Toast
                 showToast('🔔 ' + event.data);
                 // 2. Browser Desktop Notification (for background awareness)

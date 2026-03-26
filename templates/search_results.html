@@ -4,6 +4,15 @@
 <!-- ============================================================================ -->
 
 <div class="search-results-list">
+    <!-- Notification Toggle -->
+    <div class="watch-toggle-container">
+        <label class="watch-switch">
+            <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)">
+            <span class="watch-slider"></span>
+        </label>
+        <span class="watch-label">🔔 이 키워드로 실시간 알림 받기</span>
+    </div>
+
     {% for item in items %}
     <!-- Single News Card -->
     <div class="news-card" data-title="{{ item.title | escape }}" data-link="{{ item.link }}"

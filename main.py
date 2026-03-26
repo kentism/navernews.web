@@ -138,48 +138,55 @@ from scraper import NewsItem, fetch_news, parse_article, get_naver_api_headers
 # In-Memory Cache for searches
 SEARCH_CACHE = {}
 
-# List of async queues for active SSE clients
-sse_clients = []
+# Registry for dynamic keyword watching: { "keyword": set(connection_ids) }
+WATCH_REGISTRY = {}
+# Connection to Queue mapping: { connection_id: asyncio.Queue }
+sse_connections = {}
 
-POLLING_KEYWORD = "방송미디어통신심의위원회"
 POLLING_INTERVAL = 60 # 1 minute
 
 async def poll_naver_news_task():
-    """Background task to poll Naver News and notify clients via SSE."""
-    print(f"[Polling] Started background polling for '{POLLING_KEYWORD}' every {POLLING_INTERVAL}s")
+    """Background task to poll keywords that have active watchers."""
+    print(f"[Polling] Started dynamic background polling task every {POLLING_INTERVAL}s")
     while True:
         try:
-            # Sleep first or wait? Let's check immediately on startup
+            active_keywords = list(WATCH_REGISTRY.keys())
+            if not active_keywords:
+                await asyncio.sleep(POLLING_INTERVAL)
+                continue
+            
             headers = await get_naver_api_headers()
             if not headers.get("X-Naver-Client-Id"):
                 await asyncio.sleep(POLLING_INTERVAL)
                 continue
 
-            # Fetch news (requesting 20 items once)
-            items = await fetch_news(POLLING_KEYWORD, headers=headers, start=1, display=20)
-            
-            if items:
-                latest_link = items[0].link
+            for keyword in active_keywords:
+                # Consolidate: Fetch 20 items once
+                items = await fetch_news(keyword, headers=headers, start=1, display=20)
                 
-                # Check cache for the first page
-                cache_key = f"{POLLING_KEYWORD}_1"
-                cached_data = SEARCH_CACHE.get(cache_key)
-                
-                is_new = False
-                if cached_data and len(cached_data) > 0:
-                    cached_latest_link = cached_data[0].link
-                    if latest_link != cached_latest_link:
-                        is_new = True
-                
-                # Update Cache (with the items we just fetched)
-                SEARCH_CACHE[cache_key] = items
-                
-                if is_new:
-                    print(f"[Polling] New article detected for {POLLING_KEYWORD}!")
-                    # Notify all clients
-                    message = f"[{POLLING_KEYWORD}] 관련 새로운 기사가 감지되었습니다."
-                    for q in sse_clients:
-                        await q.put(message)
+                if items:
+                    latest_link = items[0].link
+                    cache_key = f"{keyword}_1"
+                    cached_data = SEARCH_CACHE.get(cache_key)
+                    
+                    is_new = False
+                    if cached_data and len(cached_data) > 0:
+                        if latest_link != cached_data[0].link:
+                            is_new = True
+                    
+                    # Update Cache
+                    SEARCH_CACHE[cache_key] = items
+                    
+                    if is_new:
+                        print(f"[Polling] New article detected for: {keyword}")
+                        message = f"[{keyword}] 관련 새로운 기사가 감지되었습니다."
+                        
+                        # Notify only the clients watching THIS keyword
+                        watcher_ids = WATCH_REGISTRY.get(keyword, set())
+                        for conn_id in list(watcher_ids):
+                            q = sse_connections.get(conn_id)
+                            if q:
+                                await q.put(message)
                         
         except Exception as e:
             print(f"[Polling Error] {e}")
@@ -284,9 +291,11 @@ async def clippings_tab(request: Request):
 @app.get("/api/stream/notifications")
 async def sse_notifications(request: Request):
     """Server-Sent Events endpoint for real-time notifications."""
+    conn_id = str(id(request))
     async def event_generator():
+        yield f"data: conn_id:{conn_id}\n\n"
         q = asyncio.Queue()
-        sse_clients.append(q)
+        sse_connections[conn_id] = q
         try:
             while True:
                 if await request.is_disconnected():
@@ -296,7 +305,38 @@ async def sse_notifications(request: Request):
         except asyncio.CancelledError:
             pass
         finally:
-            if q in sse_clients:
-                sse_clients.remove(q)
-            
+            # Clean up connection
+            if conn_id in sse_connections:
+                del sse_connections[conn_id]
+            # Clean up all watches for this connection
+            for kw in list(WATCH_REGISTRY.keys()):
+                if conn_id in WATCH_REGISTRY[kw]:
+                    WATCH_REGISTRY[kw].remove(conn_id)
+                    if not WATCH_REGISTRY[kw]:
+                        del WATCH_REGISTRY[kw]
+                        
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.post("/api/watch")
+async def watch_keyword(request: Request, keyword: str = Form(...), conn_id: str = Form(None)):
+    """Registers a keyword for polling by a specific connection."""
+    if not conn_id or conn_id not in sse_connections:
+        # If no client ID provided or found, we can't tie it to a listener
+        return JSONResponse({"status": "error", "message": "No active SSE connection found"}, status_code=400)
+    
+    if keyword not in WATCH_REGISTRY:
+        WATCH_REGISTRY[keyword] = set()
+    WATCH_REGISTRY[keyword].add(conn_id)
+    print(f"[Watch] Client {conn_id} started watching: {keyword}")
+    return {"status": "success", "keyword": keyword}
+
+@app.post("/api/unwatch")
+async def unwatch_keyword(request: Request, keyword: str = Form(...), conn_id: str = Form(None)):
+    """Unregisters a keyword."""
+    if conn_id and keyword in WATCH_REGISTRY:
+        if conn_id in WATCH_REGISTRY[keyword]:
+            WATCH_REGISTRY[keyword].remove(conn_id)
+            if not WATCH_REGISTRY[keyword]:
+                del WATCH_REGISTRY[keyword]
+            print(f"[Unwatch] Client {conn_id} stopped watching: {keyword}")
+    return {"status": "success"}
