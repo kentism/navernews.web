@@ -653,14 +653,42 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.textContent = '☀️';
     }
 
-    // 7. SSE Notifications
+    // 7. SSE Notifications & Desktop Alerts
+    function showBrowserNotification(message) {
+        if (!("Notification" in window)) return;
+        
+        if (Notification.permission === "granted") {
+            const notification = new Notification("뉴스 클리핑 알림", {
+                body: message,
+                icon: '/static/img/logo.png' // Fallback to icon if exists, or just omit
+            });
+            notification.onclick = function() {
+                window.focus();
+                this.close();
+            };
+        }
+    }
+
     try {
         const eventSource = new EventSource('/api/stream/notifications');
         eventSource.onmessage = function (event) {
             if (event.data) {
+                // 1. UI Toast
                 showToast('🔔 ' + event.data);
+                // 2. Browser Desktop Notification (for background awareness)
+                showBrowserNotification(event.data);
             }
         };
+
+        // Request Permission on first user interaction (required by many browsers)
+        const requestPermissionOnce = () => {
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+            document.removeEventListener('click', requestPermissionOnce);
+        };
+        document.addEventListener('click', requestPermissionOnce);
+
     } catch (e) {
         console.error('SSE initialization error:', e);
     }

@@ -303,11 +303,3 @@ async def sse_notifications(request: Request):
                 sse_clients.remove(q)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-@app.get("/api/debug/test-notify")
-async def trigger_test_notification():
-    """Debug endpoint to manually trigger a notification for testing."""
-    message = "🔔 [테스트] 실시간 알림 기능이 정상적으로 작동하고 있습니다!"
-    for q in sse_clients:
-        await q.put(message)
-    return {"status": "success", "notified_clients": len(sse_clients)}
