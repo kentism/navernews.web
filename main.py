@@ -142,7 +142,7 @@ SEARCH_CACHE = {}
 sse_clients = []
 
 POLLING_KEYWORD = "방송미디어통신심의위원회"
-POLLING_INTERVAL = 120 # 2 minutes
+POLLING_INTERVAL = 60 # 1 minute
 
 async def poll_naver_news_task():
     """Background task to poll Naver News and notify clients via SSE."""
@@ -155,27 +155,24 @@ async def poll_naver_news_task():
                 await asyncio.sleep(POLLING_INTERVAL)
                 continue
 
-            items = await fetch_news(POLLING_KEYWORD, headers=headers, start=1, display=5)
+            # Fetch news (requesting 20 items once)
+            items = await fetch_news(POLLING_KEYWORD, headers=headers, start=1, display=20)
             
             if items:
                 latest_link = items[0].link
                 
-                # Check cache
+                # Check cache for the first page
                 cache_key = f"{POLLING_KEYWORD}_1"
                 cached_data = SEARCH_CACHE.get(cache_key)
                 
                 is_new = False
-                if not cached_data:
-                    # Initial populate
-                    is_new = False
-                elif cached_data and len(cached_data) > 0:
+                if cached_data and len(cached_data) > 0:
                     cached_latest_link = cached_data[0].link
                     if latest_link != cached_latest_link:
                         is_new = True
                 
-                # Update Cache (we fetch 20 for cache to serve users seamlessly)
-                full_items = await fetch_news(POLLING_KEYWORD, headers=headers, start=1, display=20)
-                SEARCH_CACHE[cache_key] = full_items
+                # Update Cache (with the items we just fetched)
+                SEARCH_CACHE[cache_key] = items
                 
                 if is_new:
                     print(f"[Polling] New article detected for {POLLING_KEYWORD}!")
