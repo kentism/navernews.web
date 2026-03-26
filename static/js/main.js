@@ -518,9 +518,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (advancedToggleBtn && advancedPanel) {
         advancedToggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
             advancedPanel.classList.toggle('show');
-            recentKeywords.classList.remove('show');
+            if (recentKeywords) recentKeywords.classList.remove('show');
+        });
+        
+        // Prevent clicks inside panel from closing the panel accidentally or bubbling up
+        advancedPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
         });
         
         // Listeners for advanced inputs enter key
@@ -532,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.search-box')) {
+        if (!e.target.closest('.search-box') && !e.target.closest('#advancedSearchPanel')) {
             if (advancedPanel) advancedPanel.classList.remove('show');
         }
     });

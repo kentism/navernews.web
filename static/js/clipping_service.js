@@ -149,10 +149,10 @@ async function loadClippingsTab() {
         clippingsPane.appendChild(innerContainer);
     }
 
-    const hasContent = innerContainer.querySelector('#clippingTextArea');
-    if (hasContent) return;
+    const hasContent = innerContainer.querySelector('#editor');
+    if (hasContent && window.clippingEditor) return;
 
-    innerContainer.innerHTML = '클리핑을 로드하는 중...';
+    innerContainer.innerHTML = '<div class="loading-state">클리핑을 로드하는 중...</div>';
 
     try {
         const resp = await fetch('/clippings-tab');
@@ -173,7 +173,7 @@ async function loadClippingsTab() {
                 height: '600px',
                 initialEditType: 'wysiwyg',
                 previewStyle: 'vertical',
-                theme: isDark ? 'dark' : 'default',
+                theme: isDark ? 'dark' : '',
                 initialValue: savedText,
                 toolbarItems: [
                     ['heading', 'bold', 'italic', 'strike'],
