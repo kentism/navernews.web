@@ -200,7 +200,7 @@ async def startup_event():
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = None):
     """Renders the login page."""
-    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": error})
 
 @app.post("/login")
 async def login(password: str = Form(...)):
@@ -217,7 +217,7 @@ async def home(request: Request):
     # Check access (re-using the logic as a manual check if not using Depends globally)
     auth_check = await verify_access(request)
     if auth_check: return auth_check
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.post("/api/search", response_class=JSONResponse)
 async def search_api(
@@ -262,8 +262,8 @@ async def search_results(
             if start == 1:
                 SEARCH_CACHE[cache_key] = items
 
-        return templates.TemplateResponse("search_results.html", {
-            "request": request, "items": items, "keyword": keyword, "start": start + 20
+        return templates.TemplateResponse(request=request, name="search_results.html", context={
+            "items": items, "keyword": keyword, "start": start + 20
         })
     except Exception as e:
         import traceback
@@ -282,7 +282,7 @@ async def clippings_tab(request: Request):
     """Renders the clippings (saved news) tab."""
     auth_check = await verify_access(request)
     if auth_check: return auth_check
-    return templates.TemplateResponse("clippings_tab.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="clippings_tab.html")
 
 @app.get("/api/stream/notifications")
 async def sse_notifications(request: Request):
