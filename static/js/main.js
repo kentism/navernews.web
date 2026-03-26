@@ -403,14 +403,37 @@ async function handleSearch() {
     const input = document.getElementById('keyword');
     if (!input) return;
 
-    const keyword = input.value.trim();
-    if (!keyword) {
+    let keyword = input.value.trim();
+    
+    // Aggregating advanced search fields
+    const advInclude = document.getElementById('advInclude');
+    const advExclude = document.getElementById('advExclude');
+    
+    let isAdvancedUsed = false;
+    
+    if (advInclude && advInclude.value.trim()) {
+        keyword += ` +"${advInclude.value.trim()}"`;
+        isAdvancedUsed = true;
+    }
+    if (advExclude && advExclude.value.trim()) {
+        const excludes = advExclude.value.trim().split(/\s+/);
+        excludes.forEach(ex => {
+            keyword += ` -${ex}`;
+        });
+        isAdvancedUsed = true;
+    }
+
+    if (!keyword.trim()) {
         showToast('검색어를 입력하세요.');
         return;
     }
 
-    // Save to recent keywords
-    saveRecentKeyword(keyword);
+    // Hide advanced search panel if it was open
+    const advancedPanel = document.getElementById('advancedSearchPanel');
+    if (advancedPanel) advancedPanel.classList.remove('show');
+
+    // Save to recent keywords (only the base search term)
+    saveRecentKeyword(input.value.trim() || keyword);
     const el = document.getElementById('recentKeywords');
     if (el) el.classList.remove('show');
 
@@ -488,6 +511,31 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { recentKeywords.classList.remove('show'); }, 200);
         });
     }
+
+    // 1-1. Advanced Search Toggle
+    const advancedToggleBtn = document.getElementById('advancedSearchToggleBtn');
+    const advancedPanel = document.getElementById('advancedSearchPanel');
+
+    if (advancedToggleBtn && advancedPanel) {
+        advancedToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            advancedPanel.classList.toggle('show');
+            recentKeywords.classList.remove('show');
+        });
+        
+        // Listeners for advanced inputs enter key
+        const advInclude = document.getElementById('advInclude');
+        const advExclude = document.getElementById('advExclude');
+        if (advInclude) advInclude.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
+        if (advExclude) advExclude.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-box')) {
+            if (advancedPanel) advancedPanel.classList.remove('show');
+        }
+    });
 
     // 2. Tab Navigation
     const tabsNav = document.querySelector('.tabs-nav');
@@ -577,6 +625,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btn = document.querySelector('.theme-btn');
         if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+
+        // Toggle Toast UI Editor theme class if it exists
+        if (window.clippingEditor) {
+            const editorUI = document.querySelector('.toastui-editor-defaultUI');
+            if (editorUI) {
+                if (isDark) {
+                    editorUI.classList.add('toastui-editor-dark');
+                } else {
+                    editorUI.classList.remove('toastui-editor-dark');
+                }
+            }
+        }
     };
 
     // Load saved theme
@@ -585,6 +645,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('dark-mode');
         const btn = document.querySelector('.theme-btn');
         if (btn) btn.textContent = '☀️';
+    }
+
+    // 7. SSE Notifications
+    try {
+        const eventSource = new EventSource('/api/stream/notifications');
+        eventSource.onmessage = function (event) {
+            if (event.data) {
+                showToast('🔔 ' + event.data);
+            }
+        };
+    } catch (e) {
+        console.error('SSE initialization error:', e);
     }
 
     // Load default search tabs on startup

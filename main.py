@@ -10,12 +10,13 @@ from urllib.parse import urlparse
 from email.utils import parsedate_to_datetime
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, Cookie
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
 from markupsafe import Markup
+import asyncio
 
 # ==============================================================================
 # 1. CONFIGURATION & SETUP!
@@ -130,9 +131,67 @@ templates.env.filters["highlight"] = highlight_keyword
 # -- Scraper Logic Import --
 from scraper import NewsItem, fetch_news, parse_article, get_naver_api_headers
 
-# -- In-Memory Cache (Legacy) --
+# ==============================================================================
+# 3. CACHING & BACKGROUND POLLING (SSE)
+# ==============================================================================
+
+# In-Memory Cache for searches
 SEARCH_CACHE = {}
 
+# List of async queues for active SSE clients
+sse_clients: List[asyncio.Queue] = []
+
+POLLING_KEYWORD = "방송미디어통신심의위원회"
+POLLING_INTERVAL = 300 # 5 minutes
+
+async def poll_naver_news_task():
+    """Background task to poll Naver News and notify clients via SSE."""
+    print(f"[Polling] Started background polling for '{POLLING_KEYWORD}' every {POLLING_INTERVAL}s")
+    while True:
+        try:
+            # Sleep first or wait? Let's check immediately on startup
+            headers = await get_naver_api_headers()
+            if not headers.get("X-Naver-Client-Id"):
+                await asyncio.sleep(POLLING_INTERVAL)
+                continue
+
+            items = await fetch_news(POLLING_KEYWORD, headers=headers, start=1, display=5)
+            
+            if items:
+                latest_link = items[0].link
+                
+                # Check cache
+                cache_key = f"{POLLING_KEYWORD}_1"
+                cached_data = SEARCH_CACHE.get(cache_key)
+                
+                is_new = False
+                if not cached_data:
+                    # Initial populate
+                    is_new = False
+                elif cached_data and len(cached_data) > 0:
+                    cached_latest_link = cached_data[0].link
+                    if latest_link != cached_latest_link:
+                        is_new = True
+                
+                # Update Cache (we fetch 20 for cache to serve users seamlessly)
+                full_items = await fetch_news(POLLING_KEYWORD, headers=headers, start=1, display=20)
+                SEARCH_CACHE[cache_key] = full_items
+                
+                if is_new:
+                    print(f"[Polling] New article detected for {POLLING_KEYWORD}!")
+                    # Notify all clients
+                    message = f"[{POLLING_KEYWORD}] 관련 새로운 기사가 감지되었습니다."
+                    for q in sse_clients:
+                        await q.put(message)
+                        
+        except Exception as e:
+            print(f"[Polling Error] {e}")
+            
+        await asyncio.sleep(POLLING_INTERVAL)
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(poll_naver_news_task())
 
 # ==============================================================================
 # 5. ROUTERS (ENDPOINTS)
@@ -171,7 +230,16 @@ async def search_api(
     auth_check = await verify_access(request)
     if auth_check: return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
     
-    items = await fetch_news(keyword, headers=headers, start=start, display=20)
+    # Simple explicit string matching to bypass complicated parsing
+    cache_key = f"{keyword}_{start}"
+    if cache_key in SEARCH_CACHE:
+        items = SEARCH_CACHE[cache_key]
+    else:
+        items = await fetch_news(keyword, headers=headers, start=start, display=20)
+        # Store in cache only for the first page
+        if start == 1:
+            SEARCH_CACHE[cache_key] = items
+            
     return {"items": [item.dict() for item in items], "total": len(items)}
 
 @app.post("/search-results", response_class=HTMLResponse)
@@ -186,7 +254,14 @@ async def search_results(
     if auth_check: return auth_check
     
     try:
-        items = await fetch_news(keyword, headers=headers, start=start, display=20)
+        cache_key = f"{keyword}_{start}"
+        if cache_key in SEARCH_CACHE:
+            items = SEARCH_CACHE[cache_key]
+        else:
+            items = await fetch_news(keyword, headers=headers, start=start, display=20)
+            if start == 1:
+                SEARCH_CACHE[cache_key] = items
+
         return templates.TemplateResponse("search_results.html", {
             "request": request, "items": items, "keyword": keyword, "start": start + 20
         })
@@ -208,3 +283,22 @@ async def clippings_tab(request: Request):
     auth_check = await verify_access(request)
     if auth_check: return auth_check
     return templates.TemplateResponse("clippings_tab.html", {"request": request})
+
+@app.get("/api/stream/notifications")
+async def sse_notifications(request: Request):
+    """Server-Sent Events endpoint for real-time notifications."""
+    async def event_generator():
+        q = asyncio.Queue()
+        sse_clients.append(q)
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                message = await q.get()
+                yield f"data: {message}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            sse_clients.remove(q)
+            
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

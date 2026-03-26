@@ -10,8 +10,9 @@
 
     <!-- Section Main -->
     <p class="clipping-main">검색결과 탭에서 클리핑한 뉴스들이 카테고리에 따라 아래에 추가됩니다.<br>
-        텍스트 영역에서는 자유롭게 텍스트 편집이 가능하며, 아래 📋 텍스트 복사 버튼을 통해 일괄 복사가 가능합니다.<br>
-        클리핑 텍스트 영역을 비우고 싶다면 ✨ 비우기 버튼을 클릭하세요.</p>
+        텍스트 영역 하단 핸들을 조정할 경우 텍스트 영역의 높이가 변경됩니다.<br>
+        텍스트 영역에서는 자유롭게 텍스트 편집이 가능하며 📋 텍스트 복사 버튼을 통해 일괄 복사가 가능합니다.<br>
+        클리핑 텍스트 영역을 비우고 싶다면 ✨ 비우기 버튼을 누르시고, 비우기 버튼을 누르지 않으면 이전 클리핑 내역이 저장됩니다. </p>
 
     <!-- Action Buttons -->
     <div class="clipping-actions">
@@ -23,12 +24,6 @@
         </button>
     </div>
 
-    <!-- Text Area -->
-    <textarea id="clippingTextArea" class="clipping-textarea" placeholder="여기에 클리핑한 기사들이 추가됩니다..."
-        title="텍스트 영역의 높이를 조정하려면 아래 핸들을 드래그하세요."></textarea>
-
-    <!-- Resize Handle -->
-    <div id="clippingResizeHandle" class="resize-handle" title="드래그하여 높이 조절">
-        <div class="handle-bar"></div>
-    </div>
+    <!-- Text Area (Replaced by TOAST UI Editor) -->
+    <div id="editor" class="clipping-editor-container"></div>
 </div>

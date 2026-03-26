@@ -167,6 +167,82 @@ body {
     box-shadow: var(--shadow-md);
 }
 
+.search-box #advancedSearchToggleBtn {
+    padding: 12px 16px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--header-text);
+    box-shadow: none;
+}
+.search-box #advancedSearchToggleBtn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.advanced-search-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 300px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--text-main);
+}
+
+.advanced-search-dropdown.show {
+    display: flex;
+    animation: fadeInScale 0.2s ease;
+}
+
+.advanced-search-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    background: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-sub);
+}
+
+.advanced-search-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.form-group input {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    width: 100%;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
 /* ==============================================================================
    6. STICKY HEADER & TABS NAVIGATION
    ============================================================================== */
@@ -790,4 +866,18 @@ body.dark-mode .clip-popup-menu button:hover {
 body.dark-mode mark.highlight {
     background-color: rgba(255, 215, 0, 0.25);
     color: #ffd700;
+}
+
+body.dark-mode .advanced-search-dropdown {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+}
+body.dark-mode .advanced-search-header {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: var(--border-color);
+}
+body.dark-mode .form-group input {
+    background: var(--bg-color);
+    border-color: var(--border-color);
+    color: var(--text-main);
 }

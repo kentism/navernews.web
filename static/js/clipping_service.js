@@ -11,11 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (storedText && storedText.includes('■ 기타 관련')) {
         const updatedText = storedText.replace(/■ 기타 관련/g, '■ 기타');
         localStorage.setItem('clippedTextContent', updatedText);
-        // If textArea is already on page
+        // If textArea is already on page (legacy fallback)
         const textArea = document.getElementById('clippingTextArea');
         if (textArea) textArea.value = updatedText;
+        if (window.clippingEditor) window.clippingEditor.setMarkdown(updatedText);
     }
 });
+
+// Global reference to the editor instance
+window.clippingEditor = null;
 
 // Default text for the clipping memo pad
 const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타\n\n';
@@ -24,8 +28,9 @@ const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\
  * Clips an article to the text area, categorized by section.
  */
 function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category) {
-    const textArea = document.getElementById('clippingTextArea');
-    let currentText = textArea ? textArea.value : (localStorage.getItem('clippedTextContent') || DEFAULT_CLIPPED_TEXT);
+    let currentText = window.clippingEditor 
+        ? window.clippingEditor.getMarkdown() 
+        : (localStorage.getItem('clippedTextContent') || DEFAULT_CLIPPED_TEXT);
 
     // Format date: extract MM.DD. from pubDate
     let formattedDate = '';
@@ -83,9 +88,15 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
 
     localStorage.setItem('clippedTextContent', currentText);
 
-    if (textArea) {
-        textArea.value = currentText;
-        textArea.scrollTop = textArea.scrollHeight;
+    if (window.clippingEditor) {
+        window.clippingEditor.setMarkdown(currentText);
+        // Optionally scroll to bottom but usually editor takes care of itself or requires explicit UI DOM manipulation
+    } else {
+        const textArea = document.getElementById('clippingTextArea');
+        if (textArea) {
+            textArea.value = currentText;
+            textArea.scrollTop = textArea.scrollHeight;
+        }
     }
 
     if (window.showToast) window.showToast(`✅ [${category}]에 추가되었습니다.`);
@@ -148,36 +159,62 @@ async function loadClippingsTab() {
         const html = await resp.text();
         innerContainer.innerHTML = html;
 
-        const textArea = document.getElementById('clippingTextArea');
-        if (textArea) {
+        const editorContainer = document.getElementById('editor');
+        if (editorContainer) {
             const savedText = localStorage.getItem('clippedTextContent') || DEFAULT_CLIPPED_TEXT;
-            textArea.value = savedText;
-            textArea.addEventListener('input', () => {
-                localStorage.setItem('clippedTextContent', textArea.value);
+            const isDark = document.body.classList.contains('dark-mode');
+            
+            // Fix container overflow so dropdowns aren't clipped
+            const wrapper = document.querySelector('.clipping-text-wrapper');
+            if (wrapper) wrapper.style.overflow = 'visible';
+
+            window.clippingEditor = new toastui.Editor({
+                el: editorContainer,
+                height: '600px',
+                initialEditType: 'wysiwyg',
+                previewStyle: 'vertical',
+                theme: isDark ? 'dark' : 'default',
+                initialValue: savedText,
+                toolbarItems: [
+                    ['heading', 'bold', 'italic', 'strike'],
+                    ['hr', 'quote'],
+                    ['ul', 'ol', 'task', 'indent', 'outdent'],
+                    ['table', 'image', 'link'],
+                    ['code', 'codeblock']
+                ],
+                events: {
+                    change: () => {
+                        localStorage.setItem('clippedTextContent', window.clippingEditor.getMarkdown());
+                    }
+                }
             });
         }
 
         const copyBtn = document.getElementById('copyTextBtn');
         if (copyBtn) {
             copyBtn.addEventListener('click', () => {
-                if (!textArea || !textArea.value) return;
+                const textToCopy = window.clippingEditor ? window.clippingEditor.getMarkdown() : '';
+                if (!textToCopy) return;
                 if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(textArea.value)
+                    navigator.clipboard.writeText(textToCopy)
                         .then(() => window.showToast('📋 클리핑 텍스트가 복사되었습니다.'))
                         .catch(err => {
                             console.error('복사 실패:', err);
                             window.showToast('복사에 실패했습니다.');
                         });
                 } else {
+                    // Fallback using older method if needed
+                    const temp = document.createElement('textarea');
+                    temp.value = textToCopy;
+                    document.body.appendChild(temp);
+                    temp.select();
                     try {
-                        textArea.select();
-                        textArea.setSelectionRange(0, 99999);
                         document.execCommand('copy');
                         window.showToast('📋 클리핑 텍스트가 복사되었습니다.');
                     } catch (e) {
                         alert('복사에 실패했습니다.');
                     }
-                    window.getSelection()?.removeAllRanges();
+                    document.body.removeChild(temp);
                 }
             });
         }
@@ -185,15 +222,15 @@ async function loadClippingsTab() {
         const clearBtn = document.getElementById('clearTextBtn');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
-                if (textArea) {
-                    textArea.value = DEFAULT_CLIPPED_TEXT;
+                if (window.clippingEditor) {
+                    window.clippingEditor.setMarkdown(DEFAULT_CLIPPED_TEXT);
                     localStorage.setItem('clippedTextContent', DEFAULT_CLIPPED_TEXT);
                     window.showToast('✨ 텍스트를 초기화했습니다.');
                 }
             });
         }
 
-        initResizeHandle();
+        // Removed initResizeHandle() since TOAST UI has its own sizing logic
     } catch (e) {
         console.error('클리핑 탭 로드 실패:', e);
         innerContainer.innerHTML = '<div class="error-state">클리핑 탭을 불러오는데 실패했습니다.</div>';
@@ -202,58 +239,5 @@ async function loadClippingsTab() {
 window.loadClippingsTab = loadClippingsTab;
 
 /**
- * Initializes the custom resize handle for the clipping text area.
+ * Legacy resize logic removed for TOAST UI Integration
  */
-function initResizeHandle() {
-    const handle = document.getElementById('clippingResizeHandle');
-    const textArea = document.getElementById('clippingTextArea');
-    if (!handle || !textArea) return;
-
-    // Restore saved height
-    const savedHeight = localStorage.getItem('clippingTextAreaHeight');
-    if (savedHeight) {
-        textArea.style.flex = 'none';
-        textArea.style.height = savedHeight;
-    }
-
-    let startY, startHeight;
-
-    const onMouseDown = (e) => {
-        startY = e.clientY;
-        startHeight = parseInt(document.defaultView.getComputedStyle(textArea).height, 10);
-
-        // Disable flex during resize to allow precise height control
-        textArea.style.flex = 'none';
-
-        document.documentElement.addEventListener('mousemove', onMouseMove);
-        document.documentElement.addEventListener('mouseup', onMouseUp);
-
-        handle.classList.add('active');
-        document.body.style.cursor = 'row-resize';
-
-        e.preventDefault(); // Prevent text selection
-    };
-
-    const onMouseMove = (e) => {
-        const dy = e.clientY - startY;
-        const newHeight = startHeight + dy;
-
-        // Min height constraint (e.g., 150px)
-        if (newHeight >= 150) {
-            textArea.style.height = `${newHeight}px`;
-        }
-    };
-
-    const onMouseUp = () => {
-        document.documentElement.removeEventListener('mousemove', onMouseMove);
-        document.documentElement.removeEventListener('mouseup', onMouseUp);
-
-        handle.classList.remove('active');
-        document.body.style.cursor = '';
-
-        // Save current height
-        localStorage.setItem('clippingTextAreaHeight', textArea.style.height);
-    };
-
-    handle.addEventListener('mousedown', onMouseDown);
-}
