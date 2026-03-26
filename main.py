@@ -259,7 +259,9 @@ async def search_results(
     
     try:
         cache_key = f"{keyword}_{start}"
-        if cache_key in SEARCH_CACHE:
+        is_refresh = (await request.form()).get("refresh") == "true"
+        
+        if cache_key in SEARCH_CACHE and not is_refresh:
             items = SEARCH_CACHE[cache_key]
         else:
             items = await fetch_news(keyword, headers=headers, start=start, display=20)

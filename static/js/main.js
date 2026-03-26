@@ -326,6 +326,7 @@ async function refreshSearchTab(id) {
     const fd = new FormData();
     fd.append('keyword', keyword);
     fd.append('start', 1);
+    fd.append('refresh', 'true');
 
     try {
         const resp = await fetch('/search-results', { method: 'POST', body: fd });
