@@ -138,12 +138,12 @@ from scraper import NewsItem, fetch_news, parse_article, get_naver_api_headers
 # In-Memory Cache for searches
 SEARCH_CACHE = {}
 
-# Registry for dynamic keyword watching: { "keyword": set(connection_ids) }
+# Registry for dynamic keyword watching: { "keyword": set(client_ids) }
 WATCH_REGISTRY = {}
-# Connection to Queue mapping: { connection_id: asyncio.Queue }
+# Connection to Queue mapping: { client_id: asyncio.Queue }
 sse_connections = {}
 
-POLLING_INTERVAL = 60 # 1 minute
+POLLING_INTERVAL = 30 # 30 seconds
 
 async def poll_naver_news_task():
     """Background task to poll keywords that have active watchers."""
@@ -183,8 +183,8 @@ async def poll_naver_news_task():
                         
                         # Notify only the clients watching THIS keyword
                         watcher_ids = WATCH_REGISTRY.get(keyword, set())
-                        for conn_id in list(watcher_ids):
-                            q = sse_connections.get(conn_id)
+                        for client_id in list(watcher_ids):
+                            q = sse_connections.get(client_id)
                             if q:
                                 await q.put(message)
                         
@@ -291,54 +291,70 @@ async def clippings_tab(request: Request):
     return templates.TemplateResponse(request=request, name="clippings_tab.html")
 
 @app.get("/api/stream/notifications")
-async def sse_notifications(request: Request):
+async def sse_notifications(request: Request, client_id: str = None):
     """Server-Sent Events endpoint for real-time notifications."""
-    conn_id = str(id(request))
+    if not client_id:
+        return JSONResponse(content={"error": "client_id is required"}, status_code=400)
+        
     async def event_generator():
-        yield f"data: conn_id:{conn_id}\n\n"
+        # Clean up any existing connection for this same client_id
+        if client_id in sse_connections:
+            # We don't delete from WATCH_REGISTRY here because they are re-connecting
+            pass
+            
         q = asyncio.Queue()
-        sse_connections[conn_id] = q
+        sse_connections[client_id] = q
+        
         try:
+            # Send initial confirmation
+            yield f"data: connected:{client_id}\n\n"
+            
             while True:
                 if await request.is_disconnected():
                     break
-                message = await q.get()
-                yield f"data: {message}\n\n"
+                
+                try:
+                    # Wait for a message or timeout for heartbeat
+                    # We wait 30s which is shorter than most load balancer timeouts
+                    message = await asyncio.wait_for(q.get(), timeout=30.0)
+                    yield f"data: {message}\n\n"
+                except asyncio.TimeoutError:
+                    # Send a heartbeat (comment line in SSE)
+                    yield ": ping\n\n"
         except asyncio.CancelledError:
             pass
         finally:
             # Clean up connection
-            if conn_id in sse_connections:
-                del sse_connections[conn_id]
-            # Clean up all watches for this connection
-            for kw in list(WATCH_REGISTRY.keys()):
-                if conn_id in WATCH_REGISTRY[kw]:
-                    WATCH_REGISTRY[kw].remove(conn_id)
-                    if not WATCH_REGISTRY[kw]:
-                        del WATCH_REGISTRY[kw]
+            if client_id in sse_connections:
+                del sse_connections[client_id]
+            
+            # Note: We keep WATCH_REGISTRY entries so that reconnections don't 
+            # lose their watch status immediately. They are cleaned up on unwatch or 
+            # we could add a stale cleanup task if needed.
                         
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/api/watch")
-async def watch_keyword(request: Request, keyword: str = Form(...), conn_id: str = Form(None)):
-    """Registers a keyword for polling by a specific connection."""
-    if not conn_id or conn_id not in sse_connections:
-        # If no client ID provided or found, we can't tie it to a listener
-        return JSONResponse({"status": "error", "message": "No active SSE connection found"}, status_code=400)
+async def watch_keyword(request: Request, keyword: str = Form(...), client_id: str = Form(None)):
+    """Registers a keyword for polling by a specific client."""
+    if not client_id:
+        return JSONResponse({"status": "error", "message": "No client_id provided"}, status_code=400)
     
+    # We allow watching even if SSE is temporarily disconnected, 
+    # as long as we have the client_id
     if keyword not in WATCH_REGISTRY:
         WATCH_REGISTRY[keyword] = set()
-    WATCH_REGISTRY[keyword].add(conn_id)
-    print(f"[Watch] Client {conn_id} started watching: {keyword}")
+    WATCH_REGISTRY[keyword].add(client_id)
+    print(f"[Watch] Client {client_id} started watching: {keyword}")
     return {"status": "success", "keyword": keyword}
 
 @app.post("/api/unwatch")
-async def unwatch_keyword(request: Request, keyword: str = Form(...), conn_id: str = Form(None)):
+async def unwatch_keyword(request: Request, keyword: str = Form(...), client_id: str = Form(None)):
     """Unregisters a keyword."""
-    if conn_id and keyword in WATCH_REGISTRY:
-        if conn_id in WATCH_REGISTRY[keyword]:
-            WATCH_REGISTRY[keyword].remove(conn_id)
+    if client_id and keyword in WATCH_REGISTRY:
+        if client_id in WATCH_REGISTRY[keyword]:
+            WATCH_REGISTRY[keyword].remove(client_id)
             if not WATCH_REGISTRY[keyword]:
                 del WATCH_REGISTRY[keyword]
-            print(f"[Unwatch] Client {conn_id} stopped watching: {keyword}")
+            print(f"[Unwatch] Client {client_id} stopped watching: {keyword}")
     return {"status": "success"}

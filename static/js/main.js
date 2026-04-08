@@ -15,7 +15,10 @@ const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
 // Global state
 let searchTabCounter = 0;
 const panelObservers = new Map(); // Stores IntersectionObservers for infinite scroll
-window.sseConnId = null;
+// Get or Create Persistent Client ID
+window.sseClientId = localStorage.getItem('navernews_client_id') || 
+                     'client_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+localStorage.setItem('navernews_client_id', window.sseClientId);
 window.keywordWatchSet = new Set(JSON.parse(localStorage.getItem('watchedKeywords') || '[]'));
 
 
@@ -64,18 +67,12 @@ window.showToast = showToast;
 window.toggleKeywordWatch = async function(el) {
     const keyword = el.dataset.keyword;
     const isChecked = el.checked;
-    const connId = window.sseConnId;
-
-    if (!connId) {
-        showToast('⚠️ 알림 시스템이 아직 연결되지 않았습니다.');
-        el.checked = !isChecked;
-        return;
-    }
+    const clientId = window.sseClientId;
 
     const url = isChecked ? '/api/watch' : '/api/unwatch';
     const formData = new FormData();
     formData.append('keyword', keyword);
-    formData.append('conn_id', connId);
+    formData.append('client_id', clientId);
 
     try {
         const resp = await fetch(url, { method: 'POST', body: formData });
@@ -89,10 +86,12 @@ window.toggleKeywordWatch = async function(el) {
             }
             localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet)));
         } else {
+            console.error('Failed to update watch status:', resp.status);
             showToast('알림 설정 실패');
             el.checked = !isChecked;
         }
     } catch (e) {
+        console.error('Watch toggle error:', e);
         showToast('알림 서버 통신 오류');
         el.checked = !isChecked;
     }
@@ -284,12 +283,11 @@ function removeSearchTab(id) {
         const checkbox = panel.querySelector('.watch-checkbox');
         if (checkbox && checkbox.checked) {
             const keyword = checkbox.dataset.keyword;
-            if (window.sseConnId) {
-                const formData = new FormData();
-                formData.append('keyword', keyword);
-                formData.append('conn_id', window.sseConnId);
-                fetch('/api/unwatch', { method: 'POST', body: formData }).catch(() => {});
-            }
+            const formData = new FormData();
+            formData.append('keyword', keyword);
+            formData.append('client_id', window.sseClientId);
+            fetch('/api/unwatch', { method: 'POST', body: formData }).catch(() => {});
+            
             if (window.keywordWatchSet) window.keywordWatchSet.delete(keyword);
             localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet || [])));
         }
@@ -728,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Notification.permission === "granted") {
             const notification = new Notification("뉴스 클리핑 알림", {
                 body: message,
-                icon: '/static/img/logo.png' // Fallback to icon if exists, or just omit
+                icon: '/static/img/logo.png' 
             });
             notification.onclick = function() {
                 window.focus();
@@ -737,35 +735,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    try {
-        const eventSource = new EventSource('/api/stream/notifications');
+    function initSSE() {
+        const url = `/api/stream/notifications?client_id=${encodeURIComponent(window.sseClientId)}`;
+        const eventSource = new EventSource(url);
+        
+        eventSource.onopen = () => {
+            console.log('SSE connection opened');
+        };
+
         eventSource.onmessage = function (event) {
             if (event.data) {
-                // Check if it's the initialization message with conn_id
-                if (event.data.startsWith('conn_id:')) {
-                    window.sseConnId = event.data.split(':')[1];
-                    console.log('SSE Connected with ID:', window.sseConnId);
-                    
-                    // Re-register any existing watched keywords if the connection restarted
-                    if (window.keywordWatchSet.size > 0) {
-                        window.keywordWatchSet.forEach(kw => {
-                            const formData = new FormData();
-                            formData.append('keyword', kw);
-                            formData.append('conn_id', window.sseConnId);
-                            fetch('/api/watch', { method: 'POST', body: formData });
-                        });
-                    }
+                // Heartbeat check (skip ": ping")
+                if (event.data === 'ping') return;
+
+                // Client ID Confirmation
+                if (event.data.startsWith('connected:')) {
+                    console.log('SSE Connected as:', event.data.split(':')[1]);
                     return;
                 }
 
                 // 1. UI Toast
                 showToast('🔔 ' + event.data);
-                // 2. Browser Desktop Notification (for background awareness)
+                
+                // 2. Browser Desktop Notification
                 showBrowserNotification(event.data);
+
+                // 3. Auto-Refresh Logic
+                // Message format: "[keyword] 관련 새로운 기사가 감지되었습니다."
+                const match = event.data.match(/\[(.*?)\]/);
+                if (match && match[1]) {
+                    const notifyKeyword = match[1];
+                    // Find all tabs with this keyword and refresh them
+                    document.querySelectorAll('.tab-pane').forEach(panel => {
+                        if (panel.dataset.keyword === notifyKeyword) {
+                            console.log(`Auto-refreshing tab ${panel.id} for keyword: ${notifyKeyword}`);
+                            refreshSearchTab(panel.id);
+                        }
+                    });
+                }
             }
         };
 
-        // Request Permission on first user interaction (required by many browsers)
+        eventSource.onerror = (e) => {
+            console.warn('SSE connection error, will retry...', e);
+            eventSource.close();
+            // EventSource will automatically retry, but we can manually restart 
+            // after a delay if it gets stuck.
+            setTimeout(initSSE, 5000); 
+        };
+    }
+
+    try {
+        initSSE();
+
+        // Request Permission on first user interaction
         const requestPermissionOnce = () => {
             if ("Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission();
