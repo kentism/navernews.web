@@ -1,4 +1,24 @@
 <!-- ============================================================================ -->
+<!-- 🔔 NOTIFICATION MANAGEMENT -->
+<!-- ============================================================================ -->
+<div class="alert-management-wrapper" id="alertManagerSection">
+    <h3 class="clipping-header">🔔 실시간 알림 관리</h3>
+    <p class="clipping-main">현재 백그라운드에서 감시 중인 검색어 목록입니다. 탭을 닫았더라도 아래에서 알림을 중단할 수 있습니다.</p>
+    
+    <div id="activeAlertList" class="active-alert-list">
+        <!-- List will be populated dynamically -->
+        <p class="empty-msg">활성화된 알림이 없습니다.</p>
+    </div>
+    
+    <div class="clipping-actions" style="margin-top: 10px;">
+        <button id="clearAllAlertsBtn" class="btn-clear" style="font-size: 0.85rem;">
+            🗑️ 모든 알림 초기화
+        </button>
+    </div>
+    <hr class="section-divider">
+</div>
+
+<!-- ============================================================================ -->
 <!-- CLIPPINGS TAB CONTENTS -->
 <!-- Text-based clipping functionality with textarea and control buttons -->
 <!-- All JavaScript logic is handled in main.js -->

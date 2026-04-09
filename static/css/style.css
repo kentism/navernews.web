@@ -965,3 +965,74 @@ input:checked + .watch-slider:before {
 .dark-mode .watch-slider {
     background-color: #444;
 }
+
+/* ==============================================================================
+   18. ALERT MANAGEMENT UI
+   ============================================================================== */
+.alert-management-wrapper {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow-sm);
+}
+
+.active-alert-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 15px 0;
+    min-height: 40px;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.alert-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-item .btn-remove-alert {
+    margin-left: 8px;
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+}
+
+.alert-item .btn-remove-alert:hover {
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.empty-msg {
+    color: var(--text-sub);
+    font-style: italic;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.section-divider {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 25px 0;
+    opacity: 0.5;
+}

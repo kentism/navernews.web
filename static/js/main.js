@@ -85,6 +85,9 @@ window.toggleKeywordWatch = async function(el) {
                 showToast(`🔕 [${keyword}] 실시간 알림을 중단합니다.`);
             }
             localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet)));
+            
+            // 🔄 Update manager UI if it exists
+            renderActiveAlerts();
         } else {
             console.error('Failed to update watch status:', resp.status);
             showToast('알림 설정 실패');
@@ -96,6 +99,93 @@ window.toggleKeywordWatch = async function(el) {
         el.checked = !isChecked;
     }
 };
+
+/**
+ * Renders the active alerts list in the Clippings tab.
+ */
+function renderActiveAlerts() {
+    const listContainer = document.getElementById('activeAlertList');
+    if (!listContainer) return;
+
+    if (!window.keywordWatchSet || window.keywordWatchSet.size === 0) {
+        listContainer.innerHTML = '<p class="empty-msg">활성화된 알림이 없습니다.</p>';
+        return;
+    }
+
+    listContainer.innerHTML = '';
+    window.keywordWatchSet.forEach(keyword => {
+        const item = document.createElement('div');
+        item.className = 'alert-item';
+        item.innerHTML = `
+            <span>${escapeHtml(keyword)}</span>
+            <button class="btn-remove-alert" onclick="removeAlertFromManager('${escapeAttr(keyword)}')" title="알림 끄기">×</button>
+        `;
+        listContainer.appendChild(item);
+    });
+}
+
+/**
+ * Removes an alert from the central manager.
+ */
+window.removeAlertFromManager = async function(keyword) {
+    if (!confirm(`[${keyword}] 알림을 중단하시겠습니까?`)) return;
+
+    window.keywordWatchSet.delete(keyword);
+    localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet)));
+
+    // Sync with server (Absolute Sync)
+    syncAlertsWithServer();
+
+    // Update UI
+    renderActiveAlerts();
+    
+    // Sync any visible checkboxes in search tabs
+    document.querySelectorAll(`.watch-checkbox[data-keyword="${keyword}"]`).forEach(cb => {
+        cb.checked = false;
+    });
+
+    showToast(`🔕 [${keyword}] 알림이 중단되었습니다.`);
+};
+
+/**
+ * Clears all active alerts.
+ */
+async function clearAllAlerts() {
+    if (window.keywordWatchSet.size === 0) return;
+    if (!confirm('정말로 모든 실시간 알림을 초기화하시겠습니까?')) return;
+
+    window.keywordWatchSet.clear();
+    localStorage.setItem('watchedKeywords', JSON.stringify([]));
+
+    // Sync with server (Absolute Sync)
+    syncAlertsWithServer();
+
+    // Update UI
+    renderActiveAlerts();
+
+    // Sync all visible checkboxes
+    document.querySelectorAll('.watch-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+
+    showToast('🗑️ 모든 실시간 알림이 초기화되었습니다.');
+}
+
+/**
+ * Authoritative sync with server
+ */
+function syncAlertsWithServer() {
+    const keywords = Array.from(window.keywordWatchSet || []);
+    fetch('/api/sync-watch', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            client_id: window.sseClientId,
+            keywords: keywords
+        })
+    }).catch(e => console.error('Sync error:', e));
+}
+
 
 
 // ==============================================================================
@@ -774,15 +864,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 🔄 Absolute Sync: Send the ENTIRE current watch list to the server
                     // This ensures any ghost keywords are removed on the server side
                     if (window.keywordWatchSet) {
-                        const keywords = Array.from(window.keywordWatchSet);
-                        fetch('/api/sync-watch', { 
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                client_id: window.sseClientId,
-                                keywords: keywords
-                            })
-                        }).catch(e => console.error('Sync error:', e));
+                        syncAlertsWithServer();
+                        renderActiveAlerts();
                     }
                     return;
                 }
