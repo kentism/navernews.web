@@ -771,14 +771,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cid = event.data.split(':')[1];
                     console.log('SSE Connected as:', cid);
                     
-                    // Sync: Re-register current watch list to the server
-                    if (window.keywordWatchSet && window.keywordWatchSet.size > 0) {
-                        window.keywordWatchSet.forEach(kw => {
-                            const fd = new FormData();
-                            fd.append('keyword', kw);
-                            fd.append('client_id', window.sseClientId);
-                            fetch('/api/watch', { method: 'POST', body: fd }).catch(() => {});
-                        });
+                    // 🔄 Absolute Sync: Send the ENTIRE current watch list to the server
+                    // This ensures any ghost keywords are removed on the server side
+                    if (window.keywordWatchSet) {
+                        const keywords = Array.from(window.keywordWatchSet);
+                        fetch('/api/sync-watch', { 
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                client_id: window.sseClientId,
+                                keywords: keywords
+                            })
+                        }).catch(e => console.error('Sync error:', e));
                     }
                     return;
                 }

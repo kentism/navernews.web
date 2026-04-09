@@ -399,3 +399,29 @@ async def unwatch_keyword(request: Request, keyword: str = Form(...), client_id:
                 del WATCH_REGISTRY[keyword]
             print(f"[Unwatch] Client {client_id} stopped watching: {keyword}")
     return {"status": "success"}
+
+class SyncWatchRequest(BaseModel):
+    client_id: str
+    keywords: List[str]
+
+@app.post("/api/sync-watch")
+async def sync_watch(request: Request, data: SyncWatchRequest):
+    """Absolutely synchronizes the watch list for a specific client."""
+    client_id = data.client_id
+    keywords = data.keywords
+    
+    # 1. Remove this client from all existing watches
+    for kw in list(WATCH_REGISTRY.keys()):
+        if client_id in WATCH_REGISTRY[kw]:
+            WATCH_REGISTRY[kw].remove(client_id)
+            if not WATCH_REGISTRY[kw]:
+                del WATCH_REGISTRY[kw]
+    
+    # 2. Add the client back to ONLY the requested keywords
+    for kw in keywords:
+        if kw not in WATCH_REGISTRY:
+            WATCH_REGISTRY[kw] = set()
+        WATCH_REGISTRY[kw].add(client_id)
+    
+    print(f"[Sync] Client {client_id} synced {len(keywords)} keywords: {keywords}")
+    return {"status": "success", "count": len(keywords)}
