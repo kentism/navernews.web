@@ -750,28 +750,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Client ID Confirmation
                 if (event.data.startsWith('connected:')) {
-                    console.log('SSE Connected as:', event.data.split(':')[1]);
+                    const cid = event.data.split(':')[1];
+                    console.log('SSE Connected as:', cid);
+                    
+                    // Sync: Re-register current watch list to the server
+                    if (window.keywordWatchSet && window.keywordWatchSet.size > 0) {
+                        window.keywordWatchSet.forEach(kw => {
+                            const fd = new FormData();
+                            fd.append('keyword', kw);
+                            fd.append('client_id', window.sseClientId);
+                            fetch('/api/watch', { method: 'POST', body: fd }).catch(() => {});
+                        });
+                    }
                     return;
                 }
 
-                // 1. UI Toast
-                showToast('🔔 ' + event.data);
-                
-                // 2. Browser Desktop Notification
-                showBrowserNotification(event.data);
-
                 // 3. Auto-Refresh Logic
-                // Message format: "[keyword] 관련 새로운 기사가 감지되었습니다."
                 const match = event.data.match(/\[(.*?)\]/);
                 if (match && match[1]) {
                     const notifyKeyword = match[1];
-                    // Find all tabs with this keyword and refresh them
-                    document.querySelectorAll('.tab-pane').forEach(panel => {
-                        if (panel.dataset.keyword === notifyKeyword) {
-                            console.log(`Auto-refreshing tab ${panel.id} for keyword: ${notifyKeyword}`);
-                            refreshSearchTab(panel.id);
-                        }
-                    });
+                    
+                    // Only show notifications and refresh if the user HAS enabled alerts for this keyword
+                    if (window.keywordWatchSet && window.keywordWatchSet.has(notifyKeyword)) {
+                        // 1. UI Toast
+                        showToast('🔔 ' + event.data);
+                        
+                        // 2. Browser Desktop Notification
+                        showBrowserNotification(event.data);
+
+                        // 3. Auto-Refresh matching tabs
+                        document.querySelectorAll('.tab-pane').forEach(panel => {
+                            if (panel.dataset.keyword === notifyKeyword) {
+                                console.log(`Auto-refreshing tab ${panel.id} for keyword: ${notifyKeyword}`);
+                                refreshSearchTab(panel.id);
+                            }
+                        });
+                    }
                 }
             }
         };

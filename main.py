@@ -161,7 +161,18 @@ async def poll_naver_news_task():
                 continue
 
             for keyword in active_keywords:
-                # Consolidate: Fetch 20 items once
+                # 🛡️ Pruning Logic: Only poll if there's at least one online watcher
+                watcher_ids = WATCH_REGISTRY.get(keyword, set())
+                online_watchers = [cid for cid in watcher_ids if cid in sse_connections]
+                
+                if not online_watchers:
+                    print(f"[Polling] Pruning keyword with no online watchers: {keyword}")
+                    # Remove this keyword from the registry to stop further polling
+                    if keyword in WATCH_REGISTRY:
+                        del WATCH_REGISTRY[keyword]
+                    continue
+
+                # Fetch news only if we have active, online watchers
                 items = await fetch_news(keyword, headers=headers, start=1, display=20)
                 
                 if items:
