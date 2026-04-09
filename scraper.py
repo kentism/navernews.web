@@ -84,8 +84,10 @@ async def fetch_news(keyword: str, headers: dict, start: int = 1, display: int =
     items = []
     for item in data.get("items", []):
         # Clean HTML tags from title/description
-        clean_title = html.unescape(re.sub(r"<[^>]*>", "", item.get("title", "")))
-        clean_desc = html.unescape(re.sub(r"<[^>]*>", "", item.get("description", "")))
+        raw_title = item.get("title", "")
+        raw_desc = item.get("description", "")
+        clean_title = html.unescape(re.sub(r"<[^>]*>", "", raw_title))
+        clean_desc = html.unescape(re.sub(r"<[^>]*>", "", raw_desc))
         
         # Determine Source/Domain
         origin = item.get("originallink") or item.get("link") or ""
@@ -116,7 +118,43 @@ async def fetch_news(keyword: str, headers: dict, start: int = 1, display: int =
             domain=domain, 
             formatted_pubdate=formatted_pub
         ))
-    return items
+
+    # --- 🔍 Server-Side Strict Filtering (2nd layer) ---
+    # Extract includes and excludes from keyword
+    includes = re.findall(r'\+"([^"]+)"', keyword) + re.findall(r'\+([^\s"]+)', keyword)
+    excludes = re.findall(r'-([^\s"]+)', keyword)
+    
+    if not includes and not excludes:
+        return items
+        
+    filtered_items = []
+    for item in items:
+        # Check both title and description for matches
+        search_text = (item.title + " " + item.description).lower()
+        
+        # 🟢 Must Include ALL
+        all_included = True
+        for inc in includes:
+            if inc.lower() not in search_text:
+                all_included = False
+                break
+        
+        if not all_included:
+            continue
+            
+        # 🔴 Must NOT include ANY
+        contains_exclude = False
+        for ex in excludes:
+            if ex.lower() in search_text:
+                contains_exclude = True
+                break
+        
+        if contains_exclude:
+            continue
+            
+        filtered_items.append(item)
+        
+    return filtered_items
 
 async def parse_article(url: str) -> str:
     """
