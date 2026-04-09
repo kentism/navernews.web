@@ -735,15 +735,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let sseWatchdog = null;
+    const RECENT_NOTIF_CACHE = new Set(); // To prevent duplicate toasts during catch-up
+
     function initSSE() {
+        if (window.eventSource) {
+            window.eventSource.close();
+        }
+
         const url = `/api/stream/notifications?client_id=${encodeURIComponent(window.sseClientId)}`;
         const eventSource = new EventSource(url);
+        window.eventSource = eventSource;
         
+        const resetWatchdog = () => {
+            if (sseWatchdog) clearTimeout(sseWatchdog);
+            sseWatchdog = setTimeout(() => {
+                console.warn('SSE Watchdog: No activity for 45s, reconnecting...');
+                initSSE();
+            }, 45000);
+        };
+
         eventSource.onopen = () => {
             console.log('SSE connection opened');
+            resetWatchdog();
         };
 
         eventSource.onmessage = function (event) {
+            resetWatchdog();
             if (event.data) {
                 // Heartbeat check (skip ": ping")
                 if (event.data === 'ping') return;
@@ -772,6 +790,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Only show notifications and refresh if the user HAS enabled alerts for this keyword
                     if (window.keywordWatchSet && window.keywordWatchSet.has(notifyKeyword)) {
+                        
+                        // Prevent duplicate toasts (especially during catch-up)
+                        const notifKey = `${notifyKeyword}:${event.data}`;
+                        if (RECENT_NOTIF_CACHE.has(notifKey)) return;
+                        
+                        RECENT_NOTIF_CACHE.add(notifKey);
+                        setTimeout(() => RECENT_NOTIF_CACHE.delete(notifKey), 10000); // 10s expiry
+
                         // 1. UI Toast
                         showToast('🔔 ' + event.data);
                         
@@ -792,9 +818,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         eventSource.onerror = (e) => {
             console.warn('SSE connection error, will retry...', e);
+            if (sseWatchdog) clearTimeout(sseWatchdog);
             eventSource.close();
-            // EventSource will automatically retry, but we can manually restart 
-            // after a delay if it gets stuck.
             setTimeout(initSSE, 5000); 
         };
     }

@@ -142,6 +142,10 @@ SEARCH_CACHE = {}
 WATCH_REGISTRY = {}
 # Connection to Queue mapping: { client_id: asyncio.Queue }
 sse_connections = {}
+# Last activity timestamp per client: { client_id: float_timestamp }
+LAST_SEEN_CLIENTS = {}
+# Recent notification buffer: [ (timestamp, keyword, message) ]
+NOTIFICATION_HISTORY = []
 
 POLLING_INTERVAL = 30 # 30 seconds
 
@@ -166,13 +170,21 @@ async def poll_naver_news_task():
                 online_watchers = [cid for cid in watcher_ids if cid in sse_connections]
                 
                 if not online_watchers:
-                    print(f"[Polling] Pruning keyword with no online watchers: {keyword}")
-                    # Remove this keyword from the registry to stop further polling
-                    if keyword in WATCH_REGISTRY:
-                        del WATCH_REGISTRY[keyword]
+                    # 🕒 Grace Period: Check if all watchers have been inactive for > 120s
+                    all_stale = True
+                    for cid in watcher_ids:
+                        last_seen = LAST_SEEN_CLIENTS.get(cid, 0)
+                        if (asyncio.get_event_loop().time() - last_seen) < 120:
+                            all_stale = False
+                            break
+                    
+                    if all_stale:
+                        print(f"[Polling] Pruning keyword with no active watchers for 120s: {keyword}")
+                        if keyword in WATCH_REGISTRY:
+                            del WATCH_REGISTRY[keyword]
                     continue
 
-                # Fetch news only if we have active, online watchers
+                # Fetch news only if we have active, potentially offline-reconnecting watchers
                 items = await fetch_news(keyword, headers=headers, start=1, display=20)
                 
                 if items:
@@ -189,11 +201,16 @@ async def poll_naver_news_task():
                     SEARCH_CACHE[cache_key] = items
                     
                     if is_new:
+                        current_time = asyncio.get_event_loop().time()
                         print(f"[Polling] New article detected for: {keyword}")
                         message = f"[{keyword}] 관련 새로운 기사가 감지되었습니다."
                         
+                        # Store in history buffer (keep last 50)
+                        NOTIFICATION_HISTORY.append((current_time, keyword, message))
+                        if len(NOTIFICATION_HISTORY) > 50:
+                            NOTIFICATION_HISTORY.pop(0)
+                        
                         # Notify only the clients watching THIS keyword
-                        watcher_ids = WATCH_REGISTRY.get(keyword, set())
                         for client_id in list(watcher_ids):
                             q = sse_connections.get(client_id)
                             if q:
@@ -308,9 +325,12 @@ async def sse_notifications(request: Request, client_id: str = None):
         return JSONResponse(content={"error": "client_id is required"}, status_code=400)
         
     async def event_generator():
-        # Clean up any existing connection for this same client_id
+        # Update last seen
+        current_time = asyncio.get_event_loop().time()
+        LAST_SEEN_CLIENTS[client_id] = current_time
+        
+        # Clean up any existing connection
         if client_id in sse_connections:
-            # We don't delete from WATCH_REGISTRY here because they are re-connecting
             pass
             
         q = asyncio.Queue()
@@ -320,28 +340,38 @@ async def sse_notifications(request: Request, client_id: str = None):
             # Send initial confirmation
             yield f"data: connected:{client_id}\n\n"
             
+            # 🚀 Catch-up: Replay missed notifications for this client's keywords
+            # Check notifications from the last 2 minutes
+            client_keywords = []
+            for kw, watchers in WATCH_REGISTRY.items():
+                if client_id in watchers:
+                    client_keywords.append(kw)
+            
+            if client_keywords:
+                for ts, kw, msg in NOTIFICATION_HISTORY:
+                    if kw in client_keywords and (current_time - ts) < 120:
+                        yield f"data: {msg}\n\n"
+            
             while True:
                 if await request.is_disconnected():
                     break
                 
                 try:
-                    # Wait for a message or timeout for heartbeat
-                    # We wait 30s which is shorter than most load balancer timeouts
                     message = await asyncio.wait_for(q.get(), timeout=30.0)
                     yield f"data: {message}\n\n"
+                    # Update last seen on activity
+                    LAST_SEEN_CLIENTS[client_id] = asyncio.get_event_loop().time()
                 except asyncio.TimeoutError:
-                    # Send a heartbeat (comment line in SSE)
+                    # Heartbeat
                     yield ": ping\n\n"
+                    LAST_SEEN_CLIENTS[client_id] = asyncio.get_event_loop().time()
         except asyncio.CancelledError:
             pass
         finally:
-            # Clean up connection
             if client_id in sse_connections:
                 del sse_connections[client_id]
-            
-            # Note: We keep WATCH_REGISTRY entries so that reconnections don't 
-            # lose their watch status immediately. They are cleaned up on unwatch or 
-            # we could add a stale cleanup task if needed.
+            # Pruning is handled by the background task grace period now
+            LAST_SEEN_CLIENTS[client_id] = asyncio.get_event_loop().time()
                         
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
