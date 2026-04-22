@@ -74,6 +74,21 @@ body {
     background: var(--bg-color);
 }
 
+.storage-notice {
+    margin: 16px 20px 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text-sub);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.storage-notice-inline {
+    margin: 0;
+}
+
 /* ==============================================================================
    4. HEADER
    ============================================================================== */
@@ -266,6 +281,8 @@ body {
     background: transparent;
     flex-shrink: 0;
     z-index: 99;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .tab-btn {
@@ -1056,7 +1073,7 @@ body.dark-mode .form-group input {
 .watch-label {
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-color);
+    color: var(--text-main);
 }
 
 .watch-switch {

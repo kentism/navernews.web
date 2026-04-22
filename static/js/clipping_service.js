@@ -158,6 +158,7 @@ async function loadClippingsTab() {
         const resp = await fetch('/clippings-tab');
         const html = await resp.text();
         innerContainer.innerHTML = html;
+        if (typeof renderActiveAlerts === 'function') renderActiveAlerts();
 
         const editorContainer = document.getElementById('editor');
         if (editorContainer) {
@@ -228,6 +229,11 @@ async function loadClippingsTab() {
                     window.showToast('✨ 텍스트를 초기화했습니다.');
                 }
             });
+        }
+
+        const clearAllAlertsBtn = document.getElementById('clearAllAlertsBtn');
+        if (clearAllAlertsBtn && typeof window.clearAllAlerts === 'function') {
+            clearAllAlertsBtn.addEventListener('click', window.clearAllAlerts);
         }
 
         // Removed initResizeHandle() since TOAST UI has its own sizing logic

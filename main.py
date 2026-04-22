@@ -1,427 +1,380 @@
-import httpx
-import html
-import os
-import re
-import uuid
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-from datetime import datetime, timezone 
-from typing import List
-from urllib.parse import urlparse
-from email.utils import parsedate_to_datetime
-
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, Cookie
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from bs4 import BeautifulSoup
-from pydantic import BaseModel
-from markupsafe import Markup
 import asyncio
+import re
+from typing import List
 
-# ==============================================================================
-# 1. CONFIGURATION & SETUP!
-# ==============================================================================
+from fastapi import Depends, FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
+from pydantic import BaseModel
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-# -- Path Configuration --
-# Resolve absolute paths to prevent errors in various deployment environments (e.g., Railway).
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(BASE_DIR, "static")
-templates_dir = os.path.join(BASE_DIR, "templates")
+from app_config import (
+    APP_ACCESS_KEY,
+    DEFAULT_KEYWORDS,
+    MAX_NOTIFICATION_HISTORY,
+    NOTIFICATION_HISTORY_TTL_SECONDS,
+    POLLING_INTERVAL,
+    STATIC_DIR,
+    TEMPLATES_DIR,
+    WATCHER_STALE_SECONDS,
+)
+from app_logging import configure_logging, get_logger
+from services.monitoring import state
+from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
+from utils.template_filters import extract_highlight_keyword, time_ago
 
-# Verify essential directories exist
-if not os.path.exists(static_dir):
-    print(f"WARNING: Static directory not found at {static_dir}")
 
-# -- App Initialization --
+configure_logging()
+logger = get_logger("main")
+
 app = FastAPI()
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# -- Mount Static & Templates --
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
-templates = Jinja2Templates(directory=templates_dir)
-
-# -- Access Configuration --
-# Shared password for the service. Ideally set via environment variable.
-APP_ACCESS_KEY = os.getenv("APP_ACCESS_KEY", "32195114")
 
 async def verify_access(request: Request):
-    """Dependency to check if the user has the correct access token in cookies."""
     if request.url.path in ["/login", "/static/css/style.css"]:
-        return
-        
+        return None
+
     access_token = request.cookies.get("access_token")
     if access_token != APP_ACCESS_KEY:
         return RedirectResponse(url="/login", status_code=303)
 
+    return None
 
-# ==============================================================================
-# 2. TEMPLATE FILTERS
-# ==============================================================================
-
-def time_ago(value):
-    """
-    Converts a datetime object or string into a 'human-readable' time difference.
-    e.g., 'Just now', '5 minutes ago', '2 hours ago'.
-    """
-    try:
-        if not value:
-            return ""
-        
-        # Handle string input (Naver API format)
-        if isinstance(value, str):
-            try:
-                dt = parsedate_to_datetime(value)
-            except:
-                return value
-        elif isinstance(value, datetime):
-            dt = value
-        else:
-            return value
-
-        if dt.tzinfo:
-            now = datetime.now(timezone.utc)
-        else:
-            now = datetime.now()
-
-        diff = now - dt
-        seconds = diff.total_seconds()
-
-        if seconds < 60:
-            return "방금 전"
-        elif seconds < 3600:
-            minutes = int(seconds / 60)
-            return f"{minutes}분 전"
-        elif seconds < 86400:
-            hours = int(seconds / 3600)
-            return f"{hours}시간 전"
-        elif seconds < 604800: # 7 days
-            days = int(seconds / 86400)
-            return f"{days}일 전"
-        else:
-            return dt.strftime("%Y-%m-%d")
-    except Exception as e:
-        print(f"[Filter Error] time_ago: {e}")
-        return value
 
 def highlight_keyword(text, keyword):
-    """
-    Wraps occurrences of 'keyword' in the text with <mark> tags for highlighting.
-    Case-insensitive.
-    """
     try:
         if not keyword or not text:
             return text
-        
-        pattern = re.compile(re.escape(keyword), re.IGNORECASE)
-        
-        def replace_func(match):
-            return f'<mark class="highlight">{match.group(0)}</mark>'
-        
-        highlighted = pattern.sub(replace_func, text)
+
+        cleaned_keyword = extract_highlight_keyword(keyword)
+        if not cleaned_keyword:
+            return text
+
+        pattern = re.compile(re.escape(cleaned_keyword), re.IGNORECASE)
+        highlighted = pattern.sub(
+            lambda match: f'<mark class="highlight">{match.group(0)}</mark>',
+            text,
+        )
         return Markup(highlighted)
-    except Exception as e:
-        print(f"[Filter Error] highlight_keyword: {e}")
+    except Exception as exc:
+        logger.warning("highlight filter failed", extra={"error": str(exc)})
         return text
 
-# Register filters
+
 templates.env.filters["time_ago"] = time_ago
 templates.env.filters["highlight"] = highlight_keyword
 
 
-# -- Scraper Logic Import --
-from scraper import NewsItem, fetch_news, parse_article, get_naver_api_headers
+def _current_loop_time() -> float:
+    return asyncio.get_running_loop().time()
 
-# ==============================================================================
-# 3. CACHING & BACKGROUND POLLING (SSE)
-# ==============================================================================
 
-# In-Memory Cache for searches
-SEARCH_CACHE = {}
+def _prune_notification_history(now: float) -> None:
+    state.notification_history[:] = [
+        entry
+        for entry in state.notification_history
+        if (now - entry[0]) < NOTIFICATION_HISTORY_TTL_SECONDS
+    ]
 
-# Registry for dynamic keyword watching: { "keyword": set(client_ids) }
-WATCH_REGISTRY = {}
-# Connection to Queue mapping: { client_id: asyncio.Queue }
-sse_connections = {}
-# Last activity timestamp per client: { client_id: float_timestamp }
-LAST_SEEN_CLIENTS = {}
-# Recent notification buffer: [ (timestamp, keyword, message) ]
-NOTIFICATION_HISTORY = []
-
-POLLING_INTERVAL = 30 # 30 seconds
 
 async def poll_naver_news_task():
-    """Background task to poll keywords that have active watchers."""
-    print(f"[Polling] Started dynamic background polling task every {POLLING_INTERVAL}s")
+    logger.info("Starting polling task", extra={"interval_seconds": POLLING_INTERVAL})
+
     while True:
         try:
-            active_keywords = list(WATCH_REGISTRY.keys())
+            active_keywords = list(state.watch_registry.keys())
             if not active_keywords:
                 await asyncio.sleep(POLLING_INTERVAL)
                 continue
-            
+
             headers = await get_naver_api_headers()
             if not headers.get("X-Naver-Client-Id"):
                 await asyncio.sleep(POLLING_INTERVAL)
                 continue
 
+            now = _current_loop_time()
+            _prune_notification_history(now)
+
             for keyword in active_keywords:
-                # 🛡️ Pruning Logic: Only poll if there's at least one online watcher
-                watcher_ids = WATCH_REGISTRY.get(keyword, set())
-                online_watchers = [cid for cid in watcher_ids if cid in sse_connections]
-                
+                watcher_ids = state.watch_registry.get(keyword, set())
+                online_watchers = [cid for cid in watcher_ids if cid in state.sse_connections]
+
                 if not online_watchers:
-                    # 🕒 Grace Period: Check if all watchers have been inactive for > 120s
-                    all_stale = True
-                    for cid in watcher_ids:
-                        last_seen = LAST_SEEN_CLIENTS.get(cid, 0)
-                        if (asyncio.get_event_loop().time() - last_seen) < 120:
-                            all_stale = False
-                            break
-                    
+                    all_stale = all(
+                        (now - state.last_seen_clients.get(cid, 0)) >= WATCHER_STALE_SECONDS
+                        for cid in watcher_ids
+                    )
                     if all_stale:
-                        print(f"[Polling] Pruning keyword with no active watchers for 120s: {keyword}")
-                        if keyword in WATCH_REGISTRY:
-                            del WATCH_REGISTRY[keyword]
+                        state.watch_registry.pop(keyword, None)
+                        logger.info("Pruned stale keyword watcher", extra={"keyword": keyword})
                     continue
 
-                # Fetch news only if we have active, potentially offline-reconnecting watchers
                 items = await fetch_news(keyword, headers=headers, start=1, display=20)
-                
-                if items:
-                    latest_link = items[0].link
-                    cache_key = f"{keyword}_1"
-                    cached_data = SEARCH_CACHE.get(cache_key)
-                    
-                    is_new = False
-                    if cached_data and len(cached_data) > 0:
-                        if latest_link != cached_data[0].link:
-                            is_new = True
-                    
-                    # Update Cache
-                    SEARCH_CACHE[cache_key] = items
-                    
-                    if is_new:
-                        current_time = asyncio.get_event_loop().time()
-                        print(f"[Polling] New article detected for: {keyword}")
-                        message = f"[{keyword}] 관련 새로운 기사가 감지되었습니다."
-                        
-                        # Store in history buffer (keep last 50)
-                        NOTIFICATION_HISTORY.append((current_time, keyword, message))
-                        if len(NOTIFICATION_HISTORY) > 50:
-                            NOTIFICATION_HISTORY.pop(0)
-                        
-                        # Notify only the clients watching THIS keyword
-                        for client_id in list(watcher_ids):
-                            q = sse_connections.get(client_id)
-                            if q:
-                                await q.put(message)
-                        
-        except Exception as e:
-            print(f"[Polling Error] {e}")
-            
+                if not items:
+                    continue
+
+                latest_link = items[0].link
+                cache_key = f"{keyword}_1"
+                cached_items = state.search_cache.get(cache_key, [])
+                is_new = bool(cached_items) and latest_link != cached_items[0].link
+
+                state.search_cache[cache_key] = items
+
+                if not is_new:
+                    continue
+
+                message = f"[{keyword}] 관련 새로운 기사가 감지되었습니다."
+                state.notification_history.append((now, keyword, message))
+                if len(state.notification_history) > MAX_NOTIFICATION_HISTORY:
+                    state.notification_history.pop(0)
+
+                logger.info("Detected new article", extra={"keyword": keyword, "latest_link": latest_link})
+                for client_id in list(watcher_ids):
+                    queue = state.sse_connections.get(client_id)
+                    if queue:
+                        await queue.put(message)
+
+        except Exception as exc:
+            logger.exception("Polling loop failed", extra={"error": str(exc)})
+
         await asyncio.sleep(POLLING_INTERVAL)
+
 
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(poll_naver_news_task())
 
-# ==============================================================================
-# 5. ROUTERS (ENDPOINTS)
-# ==============================================================================
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception(
+        "Unhandled application error",
+        extra={"path": request.url.path, "method": request.method, "error": str(exc)},
+    )
+
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            content={"error": "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요."},
+            status_code=500,
+        )
+
+    return HTMLResponse(
+        content="<h2>서버 오류가 발생했습니다.</h2><p>잠시 후 다시 시도해주세요.</p>",
+        status_code=500,
+    )
+
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = None):
-    """Renders the login page."""
     return templates.TemplateResponse(request=request, name="login.html", context={"error": error})
+
 
 @app.post("/login")
 async def login(password: str = Form(...)):
-    """Handles login form submission."""
     if password == APP_ACCESS_KEY:
         response = RedirectResponse(url="/", status_code=303)
-        response.set_cookie(key="access_token", value=APP_ACCESS_KEY, httponly=True)
+        response.set_cookie(
+            key="access_token",
+            value=APP_ACCESS_KEY,
+            httponly=True,
+            samesite="lax",
+        )
         return response
+
     return RedirectResponse(url="/login?error=Invalid+Password", status_code=303)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Renders the main homepage."""
-    # Check access (re-using the logic as a manual check if not using Depends globally)
     auth_check = await verify_access(request)
-    if auth_check: return auth_check
-    return templates.TemplateResponse(request=request, name="index.html")
+    if auth_check:
+        return auth_check
+
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "default_keywords": DEFAULT_KEYWORDS,
+            "storage_notice": "클리핑 메모, 최근 검색어, 알림 상태는 현재 사용 중인 브라우저에 저장됩니다.",
+        },
+    )
+
 
 @app.post("/api/search", response_class=JSONResponse)
 async def search_api(
     request: Request,
-    keyword: str = Form(...), 
-    start: int = Form(default=1), 
-    headers: dict = Depends(get_naver_api_headers)
+    keyword: str = Form(...),
+    start: int = Form(default=1),
+    headers: dict = Depends(get_naver_api_headers),
 ):
-    """API endpoint for JSON search results."""
     auth_check = await verify_access(request)
-    if auth_check: return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
-    
-    # Simple explicit string matching to bypass complicated parsing
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
     cache_key = f"{keyword}_{start}"
-    if cache_key in SEARCH_CACHE:
-        items = SEARCH_CACHE[cache_key]
-    else:
+    items = state.search_cache.get(cache_key)
+    if items is None:
         items = await fetch_news(keyword, headers=headers, start=start, display=20)
-        # Store in cache only for the first page
         if start == 1:
-            SEARCH_CACHE[cache_key] = items
-            
-    return {"items": [item.dict() for item in items], "total": len(items)}
+            state.search_cache[cache_key] = items
+
+    return {"items": [item.model_dump() for item in items], "total": len(items)}
+
 
 @app.post("/search-results", response_class=HTMLResponse)
 async def search_results(
-    request: Request, 
-    keyword: str = Form(...), 
-    start: int = Form(default=1), 
-    headers: dict = Depends(get_naver_api_headers)
+    request: Request,
+    keyword: str = Form(...),
+    start: int = Form(default=1),
+    headers: dict = Depends(get_naver_api_headers),
 ):
-    """Renders search results page (Server-Side Rendering)."""
     auth_check = await verify_access(request)
-    if auth_check: return auth_check
-    
-    try:
-        cache_key = f"{keyword}_{start}"
-        is_refresh = (await request.form()).get("refresh") == "true"
-        
-        if cache_key in SEARCH_CACHE and not is_refresh:
-            items = SEARCH_CACHE[cache_key]
-        else:
-            items = await fetch_news(keyword, headers=headers, start=start, display=20)
-            if start == 1:
-                SEARCH_CACHE[cache_key] = items
+    if auth_check:
+        return auth_check
 
-        return templates.TemplateResponse(request=request, name="search_results.html", context={
-            "items": items, "keyword": keyword, "start": start + 20
-        })
-    except Exception as e:
-        import traceback
-        error_msg = f"Server Error: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg)
-        return HTMLResponse(content=f"<pre>{error_msg}</pre>", status_code=500)
+    cache_key = f"{keyword}_{start}"
+    form = await request.form()
+    is_refresh = form.get("refresh") == "true"
+
+    items = state.search_cache.get(cache_key)
+    if items is None or is_refresh:
+        items = await fetch_news(keyword, headers=headers, start=start, display=20)
+        if start == 1:
+            state.search_cache[cache_key] = items
+
+    return templates.TemplateResponse(
+        request=request,
+        name="search_results.html",
+        context={"items": items, "keyword": keyword, "start": start + 20},
+    )
+
 
 @app.get("/api/article", response_class=JSONResponse)
 async def get_article_content(url: str):
-    """API endpoint to fetch article content (for async loading if needed)."""
     content = await parse_article(url)
     return {"content": content}
 
+
 @app.get("/clippings-tab", response_class=HTMLResponse)
 async def clippings_tab(request: Request):
-    """Renders the clippings (saved news) tab."""
     auth_check = await verify_access(request)
-    if auth_check: return auth_check
-    return templates.TemplateResponse(request=request, name="clippings_tab.html")
+    if auth_check:
+        return auth_check
+
+    return templates.TemplateResponse(
+        request=request,
+        name="clippings_tab.html",
+        context={
+            "storage_notice": "이 탭의 메모와 알림 설정은 브라우저 로컬 저장소를 사용합니다.",
+        },
+    )
+
 
 @app.get("/api/stream/notifications")
 async def sse_notifications(request: Request, client_id: str = None):
-    """Server-Sent Events endpoint for real-time notifications."""
     if not client_id:
         return JSONResponse(content={"error": "client_id is required"}, status_code=400)
-        
+
     async def event_generator():
-        # Update last seen
-        current_time = asyncio.get_event_loop().time()
-        LAST_SEEN_CLIENTS[client_id] = current_time
-        
-        # Clean up any existing connection
-        if client_id in sse_connections:
-            pass
-            
-        q = asyncio.Queue()
-        sse_connections[client_id] = q
-        
+        current_time = _current_loop_time()
+        state.last_seen_clients[client_id] = current_time
+
+        queue = asyncio.Queue()
+        state.sse_connections[client_id] = queue
+
         try:
-            # Send initial confirmation
             yield f"data: connected:{client_id}\n\n"
-            
-            # 🚀 Catch-up: Replay missed notifications for this client's keywords
-            # Check notifications from the last 2 minutes
-            client_keywords = []
-            for kw, watchers in WATCH_REGISTRY.items():
-                if client_id in watchers:
-                    client_keywords.append(kw)
-            
-            if client_keywords:
-                for ts, kw, msg in NOTIFICATION_HISTORY:
-                    if kw in client_keywords and (current_time - ts) < 120:
-                        yield f"data: {msg}\n\n"
-            
+
+            client_keywords = [
+                keyword
+                for keyword, watchers in state.watch_registry.items()
+                if client_id in watchers
+            ]
+
+            for ts, keyword, message in state.notification_history:
+                if keyword in client_keywords and (current_time - ts) < NOTIFICATION_HISTORY_TTL_SECONDS:
+                    yield f"data: {message}\n\n"
+
             while True:
                 if await request.is_disconnected():
                     break
-                
+
                 try:
-                    message = await asyncio.wait_for(q.get(), timeout=30.0)
+                    message = await asyncio.wait_for(queue.get(), timeout=30.0)
                     yield f"data: {message}\n\n"
-                    # Update last seen on activity
-                    LAST_SEEN_CLIENTS[client_id] = asyncio.get_event_loop().time()
+                    state.last_seen_clients[client_id] = _current_loop_time()
                 except asyncio.TimeoutError:
-                    # Heartbeat
                     yield ": ping\n\n"
-                    LAST_SEEN_CLIENTS[client_id] = asyncio.get_event_loop().time()
+                    state.last_seen_clients[client_id] = _current_loop_time()
         except asyncio.CancelledError:
-            pass
+            logger.info("SSE connection cancelled", extra={"client_id": client_id})
         finally:
-            if client_id in sse_connections:
-                del sse_connections[client_id]
-            # Pruning is handled by the background task grace period now
-            LAST_SEEN_CLIENTS[client_id] = asyncio.get_event_loop().time()
-                        
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+            state.sse_connections.pop(client_id, None)
+            state.last_seen_clients[client_id] = _current_loop_time()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
 
 @app.post("/api/watch")
 async def watch_keyword(request: Request, keyword: str = Form(...), client_id: str = Form(None)):
-    """Registers a keyword for polling by a specific client."""
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
     if not client_id:
         return JSONResponse({"status": "error", "message": "No client_id provided"}, status_code=400)
-    
-    # We allow watching even if SSE is temporarily disconnected, 
-    # as long as we have the client_id
-    if keyword not in WATCH_REGISTRY:
-        WATCH_REGISTRY[keyword] = set()
-    WATCH_REGISTRY[keyword].add(client_id)
-    print(f"[Watch] Client {client_id} started watching: {keyword}")
+
+    state.watch_registry.setdefault(keyword, set()).add(client_id)
+    logger.info("Registered keyword watch", extra={"client_id": client_id, "keyword": keyword})
     return {"status": "success", "keyword": keyword}
+
 
 @app.post("/api/unwatch")
 async def unwatch_keyword(request: Request, keyword: str = Form(...), client_id: str = Form(None)):
-    """Unregisters a keyword."""
-    if client_id and keyword in WATCH_REGISTRY:
-        if client_id in WATCH_REGISTRY[keyword]:
-            WATCH_REGISTRY[keyword].remove(client_id)
-            if not WATCH_REGISTRY[keyword]:
-                del WATCH_REGISTRY[keyword]
-            print(f"[Unwatch] Client {client_id} stopped watching: {keyword}")
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    if client_id and keyword in state.watch_registry:
+        state.watch_registry[keyword].discard(client_id)
+        if not state.watch_registry[keyword]:
+            del state.watch_registry[keyword]
+        logger.info("Unregistered keyword watch", extra={"client_id": client_id, "keyword": keyword})
+
     return {"status": "success"}
+
 
 class SyncWatchRequest(BaseModel):
     client_id: str
     keywords: List[str]
 
+
 @app.post("/api/sync-watch")
 async def sync_watch(request: Request, data: SyncWatchRequest):
-    """Absolutely synchronizes the watch list for a specific client."""
-    client_id = data.client_id
-    keywords = data.keywords
-    
-    # 1. Remove this client from all existing watches
-    for kw in list(WATCH_REGISTRY.keys()):
-        if client_id in WATCH_REGISTRY[kw]:
-            WATCH_REGISTRY[kw].remove(client_id)
-            if not WATCH_REGISTRY[kw]:
-                del WATCH_REGISTRY[kw]
-    
-    # 2. Add the client back to ONLY the requested keywords
-    for kw in keywords:
-        if kw not in WATCH_REGISTRY:
-            WATCH_REGISTRY[kw] = set()
-        WATCH_REGISTRY[kw].add(client_id)
-    
-    print(f"[Sync] Client {client_id} synced {len(keywords)} keywords: {keywords}")
-    return {"status": "success", "count": len(keywords)}
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    for keyword in list(state.watch_registry.keys()):
+        if data.client_id in state.watch_registry[keyword]:
+            state.watch_registry[keyword].remove(data.client_id)
+            if not state.watch_registry[keyword]:
+                del state.watch_registry[keyword]
+
+    for keyword in data.keywords:
+        state.watch_registry.setdefault(keyword, set()).add(data.client_id)
+
+    logger.info(
+        "Synchronized keyword watches",
+        extra={"client_id": data.client_id, "keyword_count": len(data.keywords)},
+    )
+    return {"status": "success", "count": len(data.keywords)}

@@ -7,7 +7,7 @@
     <!-- Notification Toggle -->
     <div class="watch-toggle-container">
         <label class="watch-switch">
-            <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)">
+            <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)" aria-label="{{ keyword }} 실시간 알림 토글">
             <span class="watch-slider"></span>
         </label>
         <span class="watch-label">🔔 이 키워드로 실시간 알림 받기</span>
@@ -56,13 +56,13 @@
             </div>
 
             <!-- Naver Link -->
-            <a class="btn-small" href="{{ item.link }}" target="_blank" onclick="event.stopPropagation();">
+            <a class="btn-small" href="{{ item.link }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
                 🔗 네이버에서 보기
             </a>
 
             <!-- Original Link (if available) -->
             {% if item.originallink %}
-            <a class="btn-small" href="{{ item.originallink }}" target="_blank" onclick="event.stopPropagation();">
+            <a class="btn-small" href="{{ item.originallink }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
                 🌐 언론사에서 보기
             </a>
             {% endif %}

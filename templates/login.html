@@ -91,8 +91,8 @@
         <div class="error-msg">{{ error }}</div>
         {% endif %}
         <form class="login-form" action="/login" method="POST">
-            <input type="password" name="password" placeholder="비밀번호를 입력하세요" required autofocus>
-            <button type="submit" class="login-btn">접속하기</button>
+            <input type="password" name="password" placeholder="비밀번호를 입력하세요" required autofocus aria-label="비밀번호 입력">
+            <button type="submit" class="login-btn" aria-label="로그인">접속하기</button>
         </form>
     </div>
 </body>

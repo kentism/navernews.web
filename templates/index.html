@@ -24,6 +24,9 @@
 
     <!-- Styles -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <script>
+        window.defaultSearchKeywords = {{ default_keywords|tojson }};
+    </script>
 </head>
 
 <body>
@@ -34,14 +37,14 @@
         <header class="header">
             <div class="header-content">
                 <h1>📰 뉴스 클리핑</h1>
-                <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+                <button class="theme-btn" onclick="toggleTheme()" aria-label="다크 모드 전환">🌙</button>
             </div>
 
             <!-- Search Box -->
             <div class="search-box">
-                <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off">
-                <button id="searchBtn">🔍</button>
-                <button id="advancedSearchToggleBtn" title="고급 검색" class="btn-icon">⚙️</button>
+                <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off" aria-label="뉴스 검색어 입력">
+                <button id="searchBtn" aria-label="검색 실행">🔍</button>
+                <button id="advancedSearchToggleBtn" title="고급 검색" class="btn-icon" aria-label="고급 검색 열기">⚙️</button>
                 
                 <div id="recentKeywords" class="recent-keywords-dropdown"></div>
 
@@ -76,6 +79,7 @@
     <!-- MAIN CONTAINER -->
     <!-- ========================================================================== -->
     <div class="container">
+        <div class="storage-notice" role="status">{{ storage_notice }}</div>
 
         <!-- Tab Contents -->
         <div class="tabs-content">
@@ -100,8 +104,8 @@
 
     <!-- Scroll Controls -->
     <div class="scroll-controls" id="scrollControls">
-        <button id="scrollTopBtn" title="맨 위로">↑</button>
-        <button id="scrollBottomBtn" title="맨 아래로">↓</button>
+        <button id="scrollTopBtn" title="맨 위로" aria-label="맨 위로 이동">↑</button>
+        <button id="scrollBottomBtn" title="맨 아래로" aria-label="맨 아래로 이동">↓</button>
     </div>
 
     <!-- Toast Container -->

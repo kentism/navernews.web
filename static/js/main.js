@@ -170,6 +170,7 @@ async function clearAllAlerts() {
 
     showToast('🗑️ 모든 실시간 알림이 초기화되었습니다.');
 }
+window.clearAllAlerts = clearAllAlerts;
 
 /**
  * Authoritative sync with server
@@ -558,18 +559,14 @@ async function handleSearch() {
     const advInclude = document.getElementById('advInclude');
     const advExclude = document.getElementById('advExclude');
     
-    let isAdvancedUsed = false;
-    
     if (advInclude && advInclude.value.trim()) {
         keyword += ` +"${advInclude.value.trim()}"`;
-        isAdvancedUsed = true;
     }
     if (advExclude && advExclude.value.trim()) {
         const excludes = advExclude.value.trim().split(/\s+/);
         excludes.forEach(ex => {
             keyword += ` -${ex}`;
         });
-        isAdvancedUsed = true;
     }
 
     if (!keyword.trim()) {
@@ -725,7 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Load Default Search Tabs
     async function loadDefaultSearch() {
-        const keywords = ['방송미디어통신심의위원회', '방송미디어통신위원회', '과방위'];
+        const keywords = Array.isArray(window.defaultSearchKeywords) ? window.defaultSearchKeywords : [];
         for (const kw of keywords) {
             const fd = new FormData();
             fd.append('keyword', kw);
@@ -925,6 +922,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (e) {
         console.error('SSE initialization error:', e);
+    }
+
+    const clearAllAlertsBtn = document.getElementById('clearAllAlertsBtn');
+    if (clearAllAlertsBtn) {
+        clearAllAlertsBtn.addEventListener('click', clearAllAlerts);
     }
 
     // Load default search tabs on startup
