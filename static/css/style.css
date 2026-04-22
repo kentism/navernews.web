@@ -710,152 +710,275 @@ body {
    12. HOME TAB & FEATURES
    ============================================================================== */
 .home-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 28%),
+        linear-gradient(135deg, #0f766e 0%, #155e75 46%, #1d4ed8 100%);
     color: #fff;
-    padding: 80px 20px;
-    text-align: center;
-    border-radius: 20px;
-    margin-bottom: 40px;
+    padding: 56px;
+    border-radius: 28px;
+    margin-bottom: 28px;
     box-shadow: var(--shadow-lg);
     animation: fadeIn 0.8s ease-out;
 }
 
+.hero-content {
+    max-width: 760px;
+}
+
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 .hero-content h1 {
-    font-size: 3rem;
-    margin-bottom: 15px;
+    font-size: clamp(2.2rem, 4vw, 3.8rem);
+    margin: 0 0 16px;
     font-weight: 800;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.04em;
+    line-height: 1.08;
 }
 
 .hero-sub {
-    font-size: 1.2rem;
+    font-size: 1.08rem;
     line-height: 1.6;
-    opacity: 0.9;
-    max-width: 600px;
-    margin: 0 auto 30px;
+    opacity: 0.95;
+    max-width: 640px;
+    margin: 0 0 28px;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.btn-hero-cta,
+.btn-hero-secondary {
+    border: none;
+    padding: 14px 24px;
+    border-radius: 999px;
+    font-size: 0.98rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .btn-hero-cta {
     background: #fff;
-    color: var(--primary-color);
-    border: none;
-    padding: 14px 32px;
-    border-radius: 50px;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    color: #0f766e;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
-.btn-hero-cta:hover {
+.btn-hero-secondary {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.btn-hero-cta:hover,
+.btn-hero-secondary:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-    background: #f8f9fa;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.22);
 }
 
-.home-features {
-    margin-bottom: 60px;
-}
-
-.home-features h2 {
-    text-align: center;
-    margin-bottom: 30px;
-    font-size: 1.75rem;
-    font-weight: 700;
-}
-
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 25px;
-}
-
-.feature-card {
-    background: var(--card-bg);
-    padding: 30px;
-    border-radius: 16px;
-    text-align: center;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.feature-card:hover {
-    transform: translateY(-10px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--primary-color);
-}
-
-.feature-icon {
-    font-size: 2.5rem;
-    margin-bottom: 15px;
-}
-
-.feature-card h3 {
-    font-size: 1.2rem;
-    margin-bottom: 12px;
-    font-weight: 700;
-}
-
-.feature-card p {
-    font-size: 0.95rem;
-    color: var(--text-sub);
-    line-height: 1.5;
-}
-
-.home-howto, .home-faq {
-    margin-bottom: 60px;
-}
-
-.howto-steps {
-    list-style: none;
-    padding: 0;
+.hero-chips {
     display: flex;
-    flex-direction: column;
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
 }
 
-.howto-steps li {
-    padding: 20px;
+.hero-chip {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.hero-chip:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.hero-points {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.55;
+}
+
+.hero-points code {
+    background: rgba(15, 23, 42, 0.26);
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+.home-section {
+    margin-bottom: 28px;
+    padding: 32px;
+    border-radius: 24px;
     background: var(--card-bg);
-    border-radius: 12px;
-    border-left: 5px solid var(--primary-color);
+    border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
 }
 
-.howto-steps strong {
-    display: block;
-    font-size: 1.1rem;
-    margin-bottom: 8px;
+.section-heading {
+    margin-bottom: 24px;
+    max-width: 720px;
+}
+
+.section-kicker {
+    display: inline-block;
+    margin-bottom: 10px;
     color: var(--primary-color);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
-.home-faq details {
-    background: var(--card-bg);
-    border-radius: 8px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border-color);
-    overflow: hidden;
+.section-heading h2 {
+    margin: 0 0 10px;
+    font-size: clamp(1.6rem, 3vw, 2.3rem);
+    line-height: 1.15;
 }
 
-.home-faq summary {
-    padding: 15px 20px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background 0.2s;
-}
-
-.home-faq summary:hover {
-    background: var(--bg-color);
-}
-
-.home-faq p {
-    padding: 0 20px 20px;
+.section-heading p {
+    margin: 0;
     color: var(--text-sub);
     line-height: 1.6;
+}
+
+.capability-grid,
+.preview-grid,
+.note-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+}
+
+.capability-card,
+.note-card {
+    padding: 24px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(102, 126, 234, 0.05), transparent 100%), var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.capability-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+    background: rgba(102, 126, 234, 0.12);
+}
+
+.capability-card h3,
+.workflow-step h3,
+.note-card h3 {
+    margin: 0 0 10px;
+    font-size: 1.15rem;
+}
+
+.capability-card p,
+.workflow-step p,
+.note-card p,
+.preview-list {
+    margin: 0;
+    color: var(--text-sub);
+    line-height: 1.6;
+}
+
+.workflow-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 16px;
+}
+
+.workflow-step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 18px;
+    padding: 22px;
+    border-radius: 18px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+}
+
+.workflow-number {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+
+.preview-card {
+    border-radius: 20px;
+    padding: 24px;
+    min-height: 100%;
+}
+
+.preview-card-dark {
+    background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+    color: #e5eefc;
+}
+
+.preview-card-light {
+    background: linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(29, 78, 216, 0.04));
+    border: 1px solid var(--border-color);
+}
+
+.preview-label {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    opacity: 0.8;
+}
+
+.preview-code {
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.92rem;
+    line-height: 1.75;
+}
+
+.preview-list {
+    padding-left: 18px;
+}
+
+.preview-list li + li {
+    margin-top: 10px;
 }
 
 .home-footer {
@@ -1013,6 +1136,27 @@ body {
         height: auto;
     }
 
+    .home-hero,
+    .home-section {
+        padding: 24px;
+        border-radius: 20px;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+    }
+
+    .btn-hero-cta,
+    .btn-hero-secondary,
+    .hero-chip {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .workflow-step {
+        grid-template-columns: 1fr;
+    }
+
     .news-card {
         flex-direction: column;
     }
@@ -1020,6 +1164,12 @@ body {
     .news-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+
+    .preview-grid,
+    .capability-grid,
+    .note-grid {
+        grid-template-columns: 1fr;
     }
 }
 

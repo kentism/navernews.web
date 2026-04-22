@@ -1,84 +1,140 @@
 <section class="home-hero">
     <div class="hero-content">
-        <h1>📰 뉴스 클리핑</h1>
-        <p class="hero-sub">뉴스 모니터링은 이제 서비스에 맡기고 업무에만 집중하세요.<br>
-            원하는 뉴스를 실시간으로 챙겨주고, 보고서 양식으로 깔끔하게 정리해드립니다.</p>
+        <span class="hero-eyebrow">Internal News Monitoring Workspace</span>
+        <h1>중요한 뉴스만 빠르게 확인하고 바로 클리핑하세요</h1>
+        <p class="hero-sub">키워드별 검색, 실시간 알림, 카테고리별 정리를 한 화면에서 처리할 수 있는 내부 업무용 뉴스 모니터링 도구입니다.</p>
+
         <div class="hero-actions">
-            <button class="btn-hero-cta" onclick="document.getElementById('keyword').focus()">지금 시작하기</button>
+            <button class="btn-hero-cta" onclick="document.getElementById('keyword').value = '방송미디어통신심의위원회'; handleSearch();">추천 키워드로 시작</button>
+            <button class="btn-hero-secondary" onclick="document.getElementById('workflowSection').scrollIntoView({ behavior: 'smooth' });">3단계 사용법 보기</button>
         </div>
+
+        <div class="hero-chips" aria-label="추천 키워드">
+            <button type="button" class="hero-chip" onclick="document.getElementById('keyword').value = '방송미디어통신심의위원회'; handleSearch();">방송미디어통신심의위원회</button>
+            <button type="button" class="hero-chip" onclick="document.getElementById('keyword').value = '방송미디어통신위원회'; handleSearch();">방송미디어통신위원회</button>
+            <button type="button" class="hero-chip" onclick="document.getElementById('keyword').value = '과방위'; handleSearch();">과방위</button>
+        </div>
+
+        <ul class="hero-points">
+            <li>관심 키워드를 탭 단위로 나눠 동시에 모니터링할 수 있습니다.</li>
+            <li><code>+포함어</code>, <code>-제외어</code> 조합으로 결과를 더 정확하게 좁힐 수 있습니다.</li>
+            <li>필요한 기사만 클리핑 모음에 쌓아 보고용 텍스트로 정리할 수 있습니다.</li>
+        </ul>
     </div>
 </section>
 
-<section class="home-features">
-    <h2>든든한 주요 기능</h2>
-    <div class="features-grid">
-        <div class="feature-card">
-            <div class="feature-icon">🔔</div>
+<section class="home-section home-capabilities">
+    <div class="section-heading">
+        <span class="section-kicker">핵심 기능</span>
+        <h2>이 화면에서 바로 할 수 있는 일</h2>
+        <p>핵심 기능만 먼저 보이도록 정리했습니다. 설명보다 바로 써보는 흐름에 집중하세요.</p>
+    </div>
+
+    <div class="capability-grid">
+        <article class="capability-card">
+            <div class="capability-icon">🔔</div>
             <h3>실시간 알림</h3>
-            <p>화면을 보고 있지 않아도 중요한 소식을 놓치지 않게 챙겨드려요.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">🔍</div>
-            <h3>꼼꼼한 필터링</h3>
-            <p>설정한 조건에 딱 맞는 기사만 쏙쏙 골라내어 보여드립니다.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📋</div>
-            <h3>통합 관리자</h3>
-            <p>특정 검색어 알림을 한눈에 확인하고 언제든 자유롭게 관리하세요.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">🛡️</div>
-            <h3>안정적인 수신</h3>
-            <p>잠시 자리를 비우거나 연결이 끊겨도 놓친 소식을 다시 전달해요.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📜</div>
-            <h3>스마트 클리핑</h3>
-            <p>클릭 한 번으로 언론동향 보고 양식에 맞춰 자동 정리됩니다.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📑</div>
-            <h3>맞춤형 탭 검색</h3>
-            <p>여러 주제를 동시에 띄워두고 효율적으로 뉴스를 검토하세요.</p>
-        </div>
+            <p>중요 키워드에 새 기사가 뜨면 바로 감지하고, 열려 있는 탭도 자동 새로고침할 수 있습니다.</p>
+        </article>
+        <article class="capability-card">
+            <div class="capability-icon">🎯</div>
+            <h3>정밀 검색</h3>
+            <p>포함어와 제외어를 조합해 원하는 기사만 빠르게 추리고, 탭별로 다른 주제를 동시에 검토할 수 있습니다.</p>
+        </article>
+        <article class="capability-card">
+            <div class="capability-icon">📌</div>
+            <h3>클리핑 정리</h3>
+            <p>필요한 기사만 골라 위원회·방송·유관기관·기타 카테고리로 정리하고 바로 복사할 수 있습니다.</p>
+        </article>
     </div>
 </section>
 
-<section class="home-howto">
-    <h2>시작하기</h2>
-    <ol class="howto-steps">
-        <li>
-            <strong>🔎 뉴스 검색</strong>
-            <p>상단 검색창에 키워드를 입력하세요. 검색어별로 전용 탭이 생성됩니다.</p>
+<section class="home-section home-workflow" id="workflowSection">
+    <div class="section-heading">
+        <span class="section-kicker">사용 흐름</span>
+        <h2>처음엔 이렇게 시작하면 됩니다</h2>
+        <p>첫 방문이라면 검색, 알림, 클리핑 세 단계만 익혀도 대부분의 사용 흐름을 바로 이해할 수 있습니다.</p>
+    </div>
+
+    <ol class="workflow-steps">
+        <li class="workflow-step">
+            <span class="workflow-number">1</span>
+            <div>
+                <h3>검색어를 입력해 탭을 엽니다</h3>
+                <p>주제별로 탭을 분리해 두면 여러 검색 결과를 오가며 비교하기 쉽습니다.</p>
+            </div>
         </li>
-        <li>
-            <strong>🔔 알림 설정</strong>
-            <p>중요한 키워드는 <strong>실시간 알림 받기</strong>를 켜보세요. 기사가 뜨면 즉시 알려드립니다.</p>
+        <li class="workflow-step">
+            <span class="workflow-number">2</span>
+            <div>
+                <h3>중요 키워드에 알림을 켭니다</h3>
+                <p>필요한 키워드는 실시간 감시 대상으로 등록하고, 알림 관리 탭에서 언제든 다시 끌 수 있습니다.</p>
+            </div>
         </li>
-        <li>
-            <strong>📌 기사 클립</strong>
-            <p>원하는 기사의 📌 버튼을 클릭하면 '클리핑 모음' 탭에 자동 정리됩니다.</p>
+        <li class="workflow-step">
+            <span class="workflow-number">3</span>
+            <div>
+                <h3>필요한 기사만 클리핑 모음에 저장합니다</h3>
+                <p>기사 링크와 제목을 카테고리별로 모아두고, 보고서 초안 작성에 바로 활용할 수 있습니다.</p>
+            </div>
         </li>
     </ol>
 </section>
 
-<section class="home-faq">
-    <h2>자주 묻는 질문</h2>
-    <details open>
-        <summary><strong>🙋 창을 닫아두어도 알림이 오나요?</strong></summary>
-        <p>네, 서비스 창이 켜져 있는 동안에는 다른 업무를 하시거나 창을 최소화해 두어도 데스크탑 알림과 소리로 소식을 전해드립니다.</p>
-    </details>
-    <details open>
-        <summary><strong>🙋 필터가 얼마나 정확한가요?</strong></summary>
-        <p>단순히 검색 결과만 보여주는 게 아니라, 서버에서 기사의 제목과 내용을 한 번 더 꼼꼼하게 검사하여 사용자가 설정한 단어만 정확히 골라냅니다.</p>
-    </details>
-    <details open>
-        <summary><strong>🙋 네트워크가 불안정해서 연결이 끊기면 어쩌죠?</strong></summary>
-        <p>연결이 끊기면 시스템이 자동으로 재연결을 시도하며, 오프라인 상태였던 동안 놓친 알림이 있다면 다시 챙겨서 보여드립니다.</p>
-    </details>
+<section class="home-section home-preview">
+    <div class="section-heading">
+        <span class="section-kicker">정리 결과 예시</span>
+        <h2>클리핑 결과는 이런 형태로 쌓입니다</h2>
+        <p>검색만 끝나는 도구가 아니라, 필요한 기사만 모아 바로 붙여넣기 좋은 형태로 관리하는 데 초점을 맞췄습니다.</p>
+    </div>
+
+    <div class="preview-grid">
+        <div class="preview-card preview-card-dark">
+            <div class="preview-label">클리핑 메모 예시</div>
+            <pre class="preview-code">■ 위원회 관련
+
+▷ 미디어오늘 : 방통심의 관련 기사 제목 예시 (04.22.)
+https://example.com/article-1
+
+■ 방송·통신 관련
+
+▷ 전자신문 : 플랫폼 정책 관련 기사 제목 예시 (04.22.)
+https://example.com/article-2</pre>
+        </div>
+        <div class="preview-card preview-card-light">
+            <div class="preview-label">추천 사용 패턴</div>
+            <ul class="preview-list">
+                <li>핵심 키워드는 고정 탭으로 열어두기</li>
+                <li>포함어·제외어를 함께 써서 잡음 줄이기</li>
+                <li>중요 기사만 클리핑 탭으로 모아두기</li>
+                <li>알림 관리에서 감시 키워드 수시로 정리하기</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="home-section home-notes">
+    <div class="section-heading">
+        <span class="section-kicker">사용 전 참고</span>
+        <h2>운영 방식과 저장 위치를 먼저 확인하세요</h2>
+    </div>
+
+    <div class="note-grid">
+        <article class="note-card">
+            <h3>브라우저 저장</h3>
+            <p>클리핑 메모, 최근 검색어, 알림 상태는 현재 사용 중인 브라우저 로컬 저장소에 저장됩니다.</p>
+        </article>
+        <article class="note-card">
+            <h3>알림 동작 조건</h3>
+            <p>실시간 알림은 브라우저 탭이 열려 있고 연결이 유지될 때 가장 안정적으로 동작합니다.</p>
+        </article>
+        <article class="note-card">
+            <h3>내부 업무용 도구</h3>
+            <p>이 서비스는 Naver News API 기반의 내부 모니터링 워크플로우를 빠르게 처리하기 위한 도구입니다.</p>
+        </article>
+    </div>
 </section>
 
 <footer class="home-footer">
-    <p>© 2026 kentism | For Internal Use Only | 해당 서비스는 Naver News API를 사용하여 실질적인 업무 효율을 위해 개발되었습니다.</p>
+    <p>© 2026 kentism | For Internal Use Only | 뉴스 검색과 클리핑을 더 빠르게 연결하는 내부용 워크스페이스</p>
 </footer>
