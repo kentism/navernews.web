@@ -69,8 +69,8 @@
         <div class="tabs-nav-wrapper">
             <div class="tabs-nav">
                 <button class="tab-btn active" data-tab="homeTab" id="homeTabBtn">🏠 홈</button>
+                <button class="tab-btn" data-tab="alerts" id="alertsBtn">🔔 알림 센터</button>
                 <button class="tab-btn" data-tab="clippings" id="clippingsBtn">📁 클리핑 모음</button>
-                <button class="btn-icon" id="globalRefreshBtn" title="현재 탭 새로고침" style="display:none;">🔄</button>
             </div>
         </div>
     </div>
@@ -91,6 +91,13 @@
             <!-- 기존 검색 결과 탭 (필요하면 그대로 유지) -->
             <div id="searchPanelsContainer" class="tab-pane">
                 <!-- 검색 결과가 동적으로 삽입될 영역 -->
+            </div>
+
+            <!-- Alerts Tab -->
+            <div id="alerts" class="tab-pane">
+                <div class="tab-content-inner">
+                    <p>알림 센터를 로드하는 중...</p>
+                </div>
             </div>
 
             <!-- Clippings Tab -->

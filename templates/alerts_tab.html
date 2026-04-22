@@ -1,0 +1,20 @@
+<div class="alert-management-wrapper" id="alertManagerSection">
+    <div class="alert-header-row">
+        <div>
+            <h2 class="clipping-header">🔔 알림 센터</h2>
+            <p class="clipping-main">현재 감시 중인 키워드를 한곳에서 보고, 바로 중단하거나 전체 초기화를 할 수 있습니다.</p>
+        </div>
+        <div class="alert-summary-badge" id="alertSummaryBadge">0개 활성</div>
+    </div>
+    <p class="storage-notice storage-notice-inline">{{ storage_notice }}</p>
+
+    <div id="activeAlertList" class="active-alert-list">
+        <p class="empty-msg">활성화된 알림이 없습니다.</p>
+    </div>
+
+    <div class="alert-actions-row">
+        <button id="clearAllAlertsBtn" class="btn-clear btn-alert-clear">
+            모든 알림 초기화
+        </button>
+    </div>
+</div>

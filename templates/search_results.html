@@ -5,12 +5,24 @@
 
 <div class="search-results-list">
     <!-- Notification Toggle -->
-    <div class="watch-toggle-container">
-        <label class="watch-switch">
-            <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)" aria-label="{{ keyword }} 실시간 알림 토글">
-            <span class="watch-slider"></span>
-        </label>
-        <span class="watch-label">🔔 이 키워드로 실시간 알림 받기</span>
+    <div class="results-toolbar">
+        <div class="results-toolbar-copy">
+            <span class="results-toolbar-label">현재 검색어</span>
+            <h2>{{ keyword }}</h2>
+            <p>필요한 기사만 추리고, 실시간 감시와 새로고침을 이 영역에서 바로 관리하세요.</p>
+        </div>
+        <div class="results-toolbar-actions">
+            <div class="watch-toggle-container">
+                <label class="watch-switch">
+                    <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)" aria-label="{{ keyword }} 실시간 알림 토글">
+                    <span class="watch-slider"></span>
+                </label>
+                <span class="watch-label">실시간 알림</span>
+            </div>
+            <button type="button" class="btn-panel-refresh" onclick="refreshSearchTab(this.closest('.tab-pane').id)">
+                새로고침
+            </button>
+        </div>
     </div>
 
     {% for item in items %}

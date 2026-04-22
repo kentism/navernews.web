@@ -275,6 +275,21 @@ async def clippings_tab(request: Request):
     )
 
 
+@app.get("/alerts-tab", response_class=HTMLResponse)
+async def alerts_tab(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return auth_check
+
+    return templates.TemplateResponse(
+        request=request,
+        name="alerts_tab.html",
+        context={
+            "storage_notice": "알림 상태는 현재 브라우저 로컬 저장소와 실시간 연결 상태를 기준으로 동작합니다.",
+        },
+    )
+
+
 @app.get("/api/stream/notifications")
 async def sse_notifications(request: Request, client_id: str = None):
     if not client_id:

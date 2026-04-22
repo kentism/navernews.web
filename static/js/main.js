@@ -106,13 +106,16 @@ window.toggleKeywordWatch = async function(el) {
 function renderActiveAlerts() {
     const listContainer = document.getElementById('activeAlertList');
     if (!listContainer) return;
+    const summaryBadge = document.getElementById('alertSummaryBadge');
 
     if (!window.keywordWatchSet || window.keywordWatchSet.size === 0) {
         listContainer.innerHTML = '<p class="empty-msg">활성화된 알림이 없습니다.</p>';
+        if (summaryBadge) summaryBadge.textContent = '0개 활성';
         return;
     }
 
     listContainer.innerHTML = '';
+    if (summaryBadge) summaryBadge.textContent = `${window.keywordWatchSet.size}개 활성`;
     window.keywordWatchSet.forEach(keyword => {
         const item = document.createElement('div');
         item.className = 'alert-item';
@@ -306,6 +309,16 @@ function getSentinelHTML(text = '결과를 불러오는 중...') {
     `;
 }
 
+function extractSearchContent(html, stripToolbar = false) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    if (stripToolbar) {
+        const toolbar = wrapper.querySelector('.results-toolbar');
+        if (toolbar) toolbar.remove();
+    }
+    return wrapper.innerHTML;
+}
+
 /**
  * Creates a new search result tab.
  */
@@ -316,24 +329,24 @@ function createSearchTab(keyword, htmlContent, start = 1, activate = true) {
     const btn = document.createElement('button');
     btn.className = 'tab-btn';
     btn.dataset.tab = id;
-    // Truncate long keywords
-    btn.textContent = keyword.length > 20 ? keyword.slice(0, 17) + '…' : keyword;
+    btn.title = keyword;
+
+    const label = document.createElement('span');
+    label.className = 'tab-btn-label';
+    label.textContent = keyword;
 
     const close = document.createElement('span');
+    close.className = 'tab-btn-close';
     close.textContent = ' ×';
-    close.style.marginLeft = '8px';
     close.onclick = (e) => {
         e.stopPropagation();
         removeSearchTab(id);
     };
+    btn.appendChild(label);
     btn.appendChild(close);
 
-    // Insert button before the refresh button
     const navContainer = document.querySelector('.tabs-nav');
-    const refreshBtn = document.getElementById('globalRefreshBtn');
-    if (navContainer && refreshBtn) {
-        navContainer.insertBefore(btn, refreshBtn);
-    } else if (navContainer) {
+    if (navContainer) {
         navContainer.appendChild(btn);
     }
 
@@ -344,7 +357,11 @@ function createSearchTab(keyword, htmlContent, start = 1, activate = true) {
     panel.dataset.keyword = keyword;
     panel.dataset.start = String(start);
 
-    panel.innerHTML = `<div class="search-panel-content">${htmlContent || getSkeletonHTML()}</div>`;
+    panel.innerHTML = `
+        <div class="search-panel-shell">
+            <div class="search-panel-content">${htmlContent || getSkeletonHTML()}</div>
+        </div>
+    `;
 
     // Add Sentinel for Infinite Scroll
     const sentinel = document.createElement('div');
@@ -393,10 +410,12 @@ function removeSearchTab(id) {
 
     // Switch to the last remaining tab
     const remainingTabs = document.querySelectorAll('.tabs-nav .tab-btn');
-    const lastSearchTab = Array.from(remainingTabs).filter(t => t.id !== 'clippingsBtn').pop();
+    const lastSearchTab = Array.from(remainingTabs).filter(t => t.dataset.tab && t.dataset.tab.startsWith('search-')).pop();
 
     if (lastSearchTab) {
         switchTab(lastSearchTab.dataset.tab);
+    } else {
+        switchTab('homeTab');
     }
 }
 
@@ -427,7 +446,7 @@ async function refreshSearchTab(id) {
         const html = await resp.text();
 
         if (contentArea) {
-            contentArea.innerHTML = html;
+            contentArea.innerHTML = extractSearchContent(html);
             const sentinel = document.createElement('div');
             sentinel.className = 'panel-sentinel';
             sentinel.innerHTML = getSentinelHTML();
@@ -464,14 +483,6 @@ function switchTab(tabId) {
         }
     }
 
-    // Toggle Global Refresh Button visibility
-    const refreshBtn = document.getElementById('globalRefreshBtn');
-    if (refreshBtn) {
-        // Only show refresh button for search tabs (not clippings)
-        const isSearchTabActive = tabBtn && tabBtn.dataset.tab.startsWith('search-');
-        refreshBtn.style.display = isSearchTabActive ? 'block' : 'none';
-    }
-
     // Toggle Initial Message
     const hasSearchResults = !!document.querySelector('.tabs-nav button[data-tab^="search-"]');
     const initialMessage = document.getElementById('initialSearchMessage');
@@ -479,6 +490,42 @@ function switchTab(tabId) {
         initialMessage.style.display = hasSearchResults ? 'none' : 'block';
     }
 }
+
+async function loadAlertsTab() {
+    const alertsPane = document.getElementById('alerts');
+    if (!alertsPane) return;
+
+    let innerContainer = alertsPane.querySelector('.tab-content-inner');
+    if (!innerContainer) {
+        innerContainer = document.createElement('div');
+        innerContainer.className = 'tab-content-inner';
+        alertsPane.appendChild(innerContainer);
+    }
+
+    const hasContent = innerContainer.querySelector('#alertManagerSection');
+    if (hasContent) {
+        renderActiveAlerts();
+        return;
+    }
+
+    innerContainer.innerHTML = '<div class="loading-state">알림 센터를 로드하는 중...</div>';
+
+    try {
+        const resp = await fetch('/alerts-tab');
+        const html = await resp.text();
+        innerContainer.innerHTML = html;
+        renderActiveAlerts();
+
+        const clearAllAlertsBtn = document.getElementById('clearAllAlertsBtn');
+        if (clearAllAlertsBtn) {
+            clearAllAlertsBtn.addEventListener('click', clearAllAlerts);
+        }
+    } catch (e) {
+        console.error('알림 센터 로드 실패:', e);
+        innerContainer.innerHTML = '<div class="error-state">알림 센터를 불러오는데 실패했습니다.</div>';
+    }
+}
+window.loadAlertsTab = loadAlertsTab;
 
 
 // ==============================================================================
@@ -526,7 +573,7 @@ function setupInfiniteScrollForPanel(panel) {
                 }
 
                 // Insert new items before the sentinel
-                sentinel.insertAdjacentHTML('beforebegin', html);
+                sentinel.insertAdjacentHTML('beforebegin', extractSearchContent(html, true));
                 panel.dataset.start = String(start + 20);
                 loading = false;
             } catch (err) {
@@ -608,7 +655,7 @@ async function handleSearch() {
             if (panel) {
                 const contentArea = panel.querySelector('.search-panel-content');
                 if (contentArea) {
-                    contentArea.innerHTML = html;
+                    contentArea.innerHTML = extractSearchContent(html);
                     
                     // Sync toggle state
                     const checkbox = panel.querySelector('.watch-checkbox');
@@ -704,19 +751,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!btn) return;
 
             const tabId = btn.dataset.tab;
+            if (tabId === 'alerts') loadAlertsTab();
             if (tabId === 'clippings') loadClippingsTab();
             switchTab(tabId);
-        });
-    }
-
-    // 3. Global Refresh Button
-    const globalRefreshBtn = document.getElementById('globalRefreshBtn');
-    if (globalRefreshBtn) {
-        globalRefreshBtn.addEventListener('click', () => {
-            const activeTab = document.querySelector('.tab-pane.active');
-            if (activeTab && activeTab.id && activeTab.id.startsWith('search-')) {
-                refreshSearchTab(activeTab.id);
-            }
         });
     }
 
