@@ -12,6 +12,10 @@
             <p>필요한 기사만 추리고, 실시간 감시와 새로고침을 이 영역에서 바로 관리하세요.</p>
         </div>
         <div class="results-toolbar-actions">
+            <div class="results-layout-toggle" aria-label="검색결과 보기 방식">
+                <button type="button" class="layout-toggle-btn active" data-layout="list" onclick="setSearchLayout('list')">1열</button>
+                <button type="button" class="layout-toggle-btn" data-layout="grid" onclick="setSearchLayout('grid')">2열</button>
+            </div>
             <div class="watch-toggle-container">
                 <label class="watch-switch">
                     <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)" aria-label="{{ keyword }} 실시간 알림 토글">

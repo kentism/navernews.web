@@ -10,6 +10,7 @@
 // ==============================================================================
 
 const RECENT_KEYWORDS_KEY = 'navernews_recent_keywords';
+const SEARCH_LAYOUT_KEY = 'navernews_search_layout';
 // CLIPPING_TEXT_KEY is now managed globally or in clipping_service.js
 
 // Global state
@@ -309,6 +310,27 @@ function getSentinelHTML(text = '결과를 불러오는 중...') {
     `;
 }
 
+function getSearchLayout() {
+    const saved = localStorage.getItem(SEARCH_LAYOUT_KEY);
+    return saved === 'grid' ? 'grid' : 'list';
+}
+
+function applySearchLayout() {
+    const layout = getSearchLayout();
+    document.querySelectorAll('.search-results-list').forEach((list) => {
+        list.classList.toggle('layout-grid', layout === 'grid');
+    });
+    document.querySelectorAll('.layout-toggle-btn').forEach((button) => {
+        button.classList.toggle('active', button.dataset.layout === layout);
+    });
+}
+
+window.setSearchLayout = function(layout) {
+    const nextLayout = layout === 'grid' ? 'grid' : 'list';
+    localStorage.setItem(SEARCH_LAYOUT_KEY, nextLayout);
+    applySearchLayout();
+};
+
 function extractSearchContent(html, stripToolbar = false) {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html;
@@ -378,6 +400,7 @@ function createSearchTab(keyword, htmlContent, start = 1, activate = true) {
         switchTab(id);
     }
     setupInfiniteScrollForPanel(panel);
+    applySearchLayout();
     return id;
 }
 
@@ -454,6 +477,7 @@ async function refreshSearchTab(id) {
         }
         panel.dataset.start = '21';
         setupInfiniteScrollForPanel(panel);
+        applySearchLayout();
         showToast(`✅ '${keyword}' 검색 결과를 새로고침 완료했습니다.`);
     } catch (e) {
         console.error('새로고침 오류:', e);
@@ -575,6 +599,7 @@ function setupInfiniteScrollForPanel(panel) {
                 // Insert new items before the sentinel
                 sentinel.insertAdjacentHTML('beforebegin', extractSearchContent(html, true));
                 panel.dataset.start = String(start + 20);
+                applySearchLayout();
                 loading = false;
             } catch (err) {
                 sentinel.innerHTML = '네트워크 오류';
@@ -670,6 +695,7 @@ async function handleSearch() {
                 }
                 panel.dataset.start = '21';
                 setupInfiniteScrollForPanel(panel);
+                applySearchLayout();
             }
         } else {
             showToast('검색 실패: ' + resp.status);
@@ -967,5 +993,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load default search tabs on startup
+    applySearchLayout();
     loadDefaultSearch();
 });

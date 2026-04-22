@@ -317,9 +317,11 @@ body {
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     overflow: hidden;
     backdrop-filter: blur(10px);
+    text-align: center;
 }
 
 .tab-btn:hover {
@@ -351,6 +353,21 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1 1 auto;
+    text-align: center;
+}
+
+.default-tab {
+    flex: 0 1 156px;
+    background: linear-gradient(180deg, rgba(15, 118, 110, 0.1), rgba(255, 255, 255, 0.68));
+    border-color: rgba(15, 118, 110, 0.16);
+}
+
+.default-tab:hover {
+    background: linear-gradient(180deg, rgba(15, 118, 110, 0.16), rgba(255, 255, 255, 0.82));
+}
+
+.default-tab.active {
+    background: linear-gradient(180deg, rgba(15, 118, 110, 0.18), rgba(255, 255, 255, 0.98));
 }
 
 .tab-btn-close {
@@ -540,6 +557,53 @@ body {
     align-items: center;
     flex-wrap: wrap;
     justify-content: flex-end;
+}
+
+.results-layout-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(12px);
+}
+
+.layout-toggle-btn {
+    min-width: 58px;
+    height: 36px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-sub);
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 14px;
+}
+
+.layout-toggle-btn.active {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.16), rgba(29, 78, 216, 0.08));
+    color: var(--primary-color);
+}
+
+.search-results-list.layout-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.search-results-list.layout-grid .results-toolbar,
+.search-results-list.layout-grid .empty-state {
+    grid-column: 1 / -1;
+}
+
+.search-results-list.layout-grid .news-card {
+    margin-bottom: 0;
+    height: 100%;
+}
+
+.search-results-list.layout-grid .news-actions {
+    margin-top: auto;
 }
 
 .btn-panel-refresh {
@@ -1246,6 +1310,10 @@ body {
         padding: 10px 12px;
     }
 
+    .default-tab {
+        flex: 1 1 0;
+    }
+
     .home-hero,
     .home-section {
         padding: 24px;
@@ -1275,6 +1343,10 @@ body {
     .results-toolbar-actions {
         width: 100%;
         justify-content: space-between;
+    }
+
+    .search-results-list.layout-grid {
+        grid-template-columns: 1fr;
     }
 
     .news-card {
