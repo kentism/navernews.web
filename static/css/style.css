@@ -357,7 +357,12 @@ body {
 }
 
 .default-tab {
-    flex: 0 1 156px;
+    flex: 0 0 auto;
+    min-width: 96px;
+    max-width: 122px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 700;
     background: linear-gradient(180deg, rgba(15, 118, 110, 0.1), rgba(255, 255, 255, 0.68));
     border-color: rgba(15, 118, 110, 0.16);
 }
@@ -368,6 +373,10 @@ body {
 
 .default-tab.active {
     background: linear-gradient(180deg, rgba(15, 118, 110, 0.18), rgba(255, 255, 255, 0.98));
+}
+
+.default-tab .tab-btn-label {
+    justify-content: center;
 }
 
 .tab-btn-close {
@@ -1311,7 +1320,10 @@ body {
     }
 
     .default-tab {
-        flex: 1 1 0;
+        min-width: 82px;
+        max-width: 110px;
+        padding: 9px 10px;
+        font-size: 13px;
     }
 
     .home-hero,
