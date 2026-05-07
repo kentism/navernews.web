@@ -16,6 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (textArea) textArea.value = updatedText;
         if (window.clippingEditor) window.clippingEditor.setMarkdown(updatedText);
     }
+    if (storedText) {
+        const normalizedStoredText = persistClippedText(localStorage.getItem('clippedTextContent') || storedText);
+        const textArea = document.getElementById('clippingTextArea');
+        if (textArea) textArea.value = normalizedStoredText;
+        if (window.clippingEditor) window.clippingEditor.setMarkdown(normalizedStoredText);
+    }
 });
 
 // Global reference to the editor instance
@@ -23,6 +29,25 @@ window.clippingEditor = null;
 
 // Default text for the clipping memo pad
 const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타\n\n';
+
+function normalizeClipUrl(url) {
+    return String(url || '')
+        .trim()
+        .replace(/\\([()[\]_*])/g, '$1');
+}
+
+function normalizeMarkdownUrls(text) {
+    return String(text || '').replace(/(^|\n)(<?https?:\/\/[^\s>]+>?)(?=\n|$)/g, (match, prefix, url) => {
+        const rawUrl = url.replace(/^<|>$/g, '');
+        return `${prefix}<${normalizeClipUrl(rawUrl)}>`;
+    });
+}
+
+function persistClippedText(text) {
+    const normalizedText = normalizeMarkdownUrls(text);
+    localStorage.setItem('clippedTextContent', normalizedText);
+    return normalizedText;
+}
 
 /**
  * Clips an article to the text area, categorized by section.
@@ -46,7 +71,8 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     }
 
     // Format the new entry
-    const newEntry = `▷ ${source} : ${title} (${formattedDate})\n${originalLink}`;
+    const safeOriginalLink = normalizeClipUrl(originalLink || link);
+    const newEntry = `▷ ${source} : ${title} (${formattedDate})\n<${safeOriginalLink}>`;
 
     // Categorized Insertion Logic
     if (category) {
@@ -86,7 +112,7 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
         currentText = currentText.trimEnd() + `\n\n${newEntry}\n`;
     }
 
-    localStorage.setItem('clippedTextContent', currentText);
+    currentText = persistClippedText(currentText);
 
     if (window.clippingEditor) {
         window.clippingEditor.setMarkdown(currentText);
@@ -162,7 +188,7 @@ async function loadClippingsTab() {
 
         const editorContainer = document.getElementById('editor');
         if (editorContainer) {
-            const savedText = localStorage.getItem('clippedTextContent') || DEFAULT_CLIPPED_TEXT;
+            const savedText = normalizeMarkdownUrls(localStorage.getItem('clippedTextContent') || DEFAULT_CLIPPED_TEXT);
             const isDark = document.body.classList.contains('dark-mode');
             
             // Fix container overflow so dropdowns aren't clipped
@@ -185,16 +211,23 @@ async function loadClippingsTab() {
                 ],
                 events: {
                     change: () => {
-                        localStorage.setItem('clippedTextContent', window.clippingEditor.getMarkdown());
+                        const normalizedText = persistClippedText(window.clippingEditor.getMarkdown());
+                        if (normalizedText !== window.clippingEditor.getMarkdown()) {
+                            window.clippingEditor.setMarkdown(normalizedText);
+                        }
                     }
                 }
             });
+
+            persistClippedText(savedText);
         }
 
         const copyBtn = document.getElementById('copyTextBtn');
         if (copyBtn) {
             copyBtn.addEventListener('click', () => {
-                const textToCopy = window.clippingEditor ? window.clippingEditor.getMarkdown() : '';
+                const textToCopy = window.clippingEditor
+                    ? persistClippedText(window.clippingEditor.getMarkdown())
+                    : normalizeMarkdownUrls(localStorage.getItem('clippedTextContent') || '');
                 if (!textToCopy) return;
                 if (navigator.clipboard && window.isSecureContext) {
                     navigator.clipboard.writeText(textToCopy)
@@ -225,7 +258,7 @@ async function loadClippingsTab() {
             clearBtn.addEventListener('click', () => {
                 if (window.clippingEditor) {
                     window.clippingEditor.setMarkdown(DEFAULT_CLIPPED_TEXT);
-                    localStorage.setItem('clippedTextContent', DEFAULT_CLIPPED_TEXT);
+                    persistClippedText(DEFAULT_CLIPPED_TEXT);
                     window.showToast('✨ 텍스트를 초기화했습니다.');
                 }
             });
