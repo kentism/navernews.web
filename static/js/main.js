@@ -658,7 +658,14 @@ async function runCandidateCollection() {
         const resp = await fetch('/api/clipping-candidates/run', { method: 'POST', body: new FormData() });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || '후보 수집 실패');
-        if (status) status.textContent = `${data.keywords.length}개 검색어에서 ${data.created}건의 새 후보를 수집했습니다.`;
+        
+        const cutoffStr = new Date(data.cutoff).toLocaleString();
+        if (data.created > 0) {
+            status.textContent = `${data.keywords.length}개 키워드에서 ${data.checked}건의 기사를 검토하여, 새로운 후보 ${data.created}건을 수집했습니다. (기준: ${cutoffStr} 이후)`;
+        } else {
+            status.textContent = `${data.keywords.length}개 키워드에서 ${data.checked}건의 기사를 검토했으나, 새로운 후보가 없습니다. (기준: ${cutoffStr} 이후)`;
+        }
+        
         showToast(`클리핑 후보 ${data.created}건 수집 완료`);
         await refreshCandidates();
     } catch (e) {
@@ -728,7 +735,14 @@ async function addCandidateKeyword(keyword) {
         candidateKeywords = data.items || [];
         renderCandidateKeywords(candidateKeywords);
         if (input) input.value = '';
-        showToast(data.created ? '후보 수집 검색어를 추가했습니다.' : '이미 등록된 후보 수집 검색어입니다.');
+        
+        const msg = data.created ? '후보 수집 검색어를 추가했습니다.' : '이미 등록된 후보 수집 검색어입니다.';
+        showToast(msg);
+        
+        // If the user added from a search tab, they might want to know they need to run collection
+        if (status && !data.items.length) {
+             status.textContent = '후보 수집 검색어가 추가되었습니다. [후보 수집] 버튼을 눌러 새 기사를 확인하세요.';
+        }
     } catch (e) {
         console.error('Candidate keyword add failed:', e);
         showToast('후보 수집 검색어 추가에 실패했습니다.');

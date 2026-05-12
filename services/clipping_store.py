@@ -229,6 +229,16 @@ def upsert_article(item) -> int:
 
 def create_candidate(item, keyword: str) -> bool:
     article_id = upsert_article(item)
+    
+    # Check if this article was already finalized
+    with _connect() as conn:
+        already_finalized = conn.execute(
+            "SELECT 1 FROM clipping_events WHERE article_id = ? AND action = 'finalized' LIMIT 1",
+            (article_id,)
+        ).fetchone()
+        if already_finalized:
+            return False
+
     score, category = score_article(item.title, item.description, keyword, item.source)
     now = to_iso(utc_now())
 
@@ -451,34 +461,46 @@ def parse_final_clipping_entries(content: str) -> list[dict]:
     lines = content.splitlines()
 
     for index, line in enumerate(lines):
+        # 1. Update current category if header found
         category = _category_from_header(line)
         if category:
             current_category = category
             continue
 
-        url_match = re.search(r"<?(https?://[^\s>]+)>?", line)
+        # 2. Look for URLs in the line (handles <url>, [text](url), or raw url)
+        # Regex explanation:
+        # - Group 1: URL inside < > or ( ) or just starting with http
+        url_match = re.search(r"(?:<|\[.*\]\()?(https?://[^\s>)]+)(?:>|\))?", line)
         if not url_match:
             continue
 
+        link = url_match.group(1).rstrip(".,)")
+
+        # 3. Determine Title/Source from previous non-empty line
         previous = ""
         for prev_index in range(index - 1, -1, -1):
-            if lines[prev_index].strip():
-                previous = lines[prev_index].strip()
+            p_line = lines[prev_index].strip()
+            if p_line and not re.search(r"https?://", p_line) and not p_line.startswith("■"):
+                previous = p_line
                 break
 
-        if not previous or re.search(r"<?https?://", previous):
-            title = url_match.group(1)
-            source = ""
-        else:
-            source = ""
-            title = previous
-            source_match = re.match(r"^\s*(?:[-*]\s*)?(?:[^\w\s])?\s*([^:：]{1,30})\s*[:：]\s*(.+)$", previous)
+        title = link
+        source = ""
+
+        if previous:
+            # Try to match "Source : Title" or "▷ Source : Title"
+            # Handles various colon types and optional bullet points
+            source_match = re.match(r"^\s*(?:[▷▷\-*•]\s*)?([^:：]+)\s*[:：]\s*(.+)$", previous)
             if source_match:
                 source = source_match.group(1).strip()
                 title = source_match.group(2).strip()
-            title = re.sub(r"\s*\(\d{1,2}\.\d{1,2}\.\)\s*$", "", title).strip()
+            else:
+                # If no colon, treat the whole line as title
+                title = previous.lstrip("▷▷\-*• ").strip()
+            
+            # Remove date suffix like (05.12.) or [05.12]
+            title = re.sub(r"\s*[\(\[]\d{1,2}\.\d{1,2}\.?[\)\]]\s*$", "", title).strip()
 
-        link = url_match.group(1).rstrip(".,)")
         entries.append(
             {
                 "title": title,

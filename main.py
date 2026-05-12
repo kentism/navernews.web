@@ -523,6 +523,7 @@ async def run_clipping_candidates(
 
     run_id = create_run(cutoff, keywords)
     created_count = 0
+    total_checked = 0
 
     for keyword in keywords:
         start = 1
@@ -530,7 +531,8 @@ async def run_clipping_candidates(
             items = await fetch_news(keyword, headers=headers, start=start, display=100)
             if not items:
                 break
-
+            
+            total_checked += len(items)
             reached_cutoff = False
             for item in items:
                 pub_dt = parse_pub_date(item.pubDate)
@@ -550,6 +552,7 @@ async def run_clipping_candidates(
     return {
         "status": "success",
         "created": created_count,
+        "checked": total_checked,
         "cutoff": cutoff.isoformat(),
         "keywords": keywords,
     }
