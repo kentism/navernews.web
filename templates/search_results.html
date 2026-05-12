@@ -26,6 +26,9 @@
             <button type="button" class="btn-panel-refresh" onclick="refreshSearchTab(this.closest('.tab-pane').id)">
                 새로고침
             </button>
+            <button type="button" class="btn-panel-refresh" data-keyword="{{ keyword }}" onclick="addCandidateKeywordFromSearch(this.dataset.keyword)">
+                후보 수집어 추가
+            </button>
         </div>
     </div>
 

@@ -551,6 +551,301 @@ async function loadAlertsTab() {
 }
 window.loadAlertsTab = loadAlertsTab;
 
+let candidateCategories = ['전원위 관련', '방송·통신 관련', '유관기관 관련', '기타'];
+let candidateCache = [];
+let candidateKeywords = [];
+
+async function loadCandidatesTab() {
+    const candidatesPane = document.getElementById('candidates');
+    if (!candidatesPane) return;
+
+    let innerContainer = candidatesPane.querySelector('.tab-content-inner');
+    if (!innerContainer) {
+        innerContainer = document.createElement('div');
+        innerContainer.className = 'tab-content-inner';
+        candidatesPane.appendChild(innerContainer);
+    }
+
+    const hasContent = innerContainer.querySelector('#candidateList');
+    if (!hasContent) {
+        innerContainer.innerHTML = '<div class="loading-state">클리핑 후보를 로드하는 중...</div>';
+        try {
+            const resp = await fetch('/candidates-tab');
+            innerContainer.innerHTML = await resp.text();
+            setupCandidateActions();
+        } catch (e) {
+            console.error('Candidate tab load failed:', e);
+            innerContainer.innerHTML = '<div class="error-state">클리핑 후보를 불러오지 못했습니다.</div>';
+            return;
+        }
+    }
+
+    await refreshCandidates();
+}
+window.loadCandidatesTab = loadCandidatesTab;
+
+function setupCandidateActions() {
+    const runBtn = document.getElementById('runCandidatesBtn');
+    if (runBtn) {
+        runBtn.addEventListener('click', runCandidateCollection);
+    }
+
+    const addKeywordBtn = document.getElementById('addCandidateKeywordBtn');
+    const keywordInput = document.getElementById('candidateKeywordInput');
+    if (addKeywordBtn && keywordInput) {
+        addKeywordBtn.addEventListener('click', () => {
+            addCandidateKeyword(keywordInput.value);
+        });
+        keywordInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') addCandidateKeyword(keywordInput.value);
+        });
+    }
+
+    const keywordList = document.getElementById('candidateKeywordList');
+    if (keywordList) {
+        keywordList.addEventListener('click', async (event) => {
+            const removeBtn = event.target.closest('[data-candidate-keyword-remove]');
+            if (!removeBtn) return;
+            await removeCandidateKeyword(removeBtn.dataset.keyword);
+        });
+    }
+
+    const list = document.getElementById('candidateList');
+    if (!list) return;
+
+    list.addEventListener('click', async (event) => {
+        const acceptBtn = event.target.closest('[data-candidate-accept]');
+        const rejectBtn = event.target.closest('[data-candidate-reject]');
+        const openBtn = event.target.closest('[data-candidate-open]');
+        const card = event.target.closest('.candidate-card');
+        if (!card) return;
+
+        const candidateId = Number(card.dataset.candidateId);
+        const item = candidateCache.find((candidate) => candidate.id === candidateId);
+        if (!item) return;
+
+        if (openBtn) {
+            window.open(item.original_link || item.link, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        if (rejectBtn) {
+            await rejectCandidate(candidateId);
+            return;
+        }
+
+        if (acceptBtn) {
+            const select = card.querySelector('.candidate-category-select');
+            const category = select ? select.value : item.suggested_category;
+            await acceptCandidate(item, category, acceptBtn);
+        }
+    });
+}
+
+async function runCandidateCollection() {
+    const status = document.getElementById('candidateStatus');
+    const btn = document.getElementById('runCandidatesBtn');
+    if (!candidateKeywords.length) {
+        if (status) status.textContent = '후보 수집 검색어를 먼저 추가하세요.';
+        showToast('후보 수집 검색어가 필요합니다.');
+        return;
+    }
+
+    if (status) status.textContent = '후보를 수집하는 중입니다...';
+    if (btn) btn.disabled = true;
+
+    try {
+        const resp = await fetch('/api/clipping-candidates/run', { method: 'POST', body: new FormData() });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '후보 수집 실패');
+        if (status) status.textContent = `${data.keywords.length}개 검색어에서 ${data.created}건의 새 후보를 수집했습니다.`;
+        showToast(`클리핑 후보 ${data.created}건 수집 완료`);
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate collection failed:', e);
+        if (status) status.textContent = '후보 수집에 실패했습니다.';
+        showToast('후보 수집에 실패했습니다.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function refreshCandidates() {
+    const list = document.getElementById('candidateList');
+    const status = document.getElementById('candidateStatus');
+    if (!list) return;
+
+    try {
+        const resp = await fetch('/api/clipping-candidates');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '후보 조회 실패');
+        candidateCategories = data.categories || candidateCategories;
+        candidateCache = data.items || [];
+        candidateKeywords = data.keywords || [];
+        renderCandidateKeywords(candidateKeywords);
+        renderCandidates(candidateCache);
+        if (status) status.textContent = `${candidateKeywords.length}개 검색어, ${candidateCache.length}건의 후보가 대기 중입니다.`;
+    } catch (e) {
+        console.error('Candidate refresh failed:', e);
+        list.innerHTML = '<div class="empty-state"><p>후보를 불러오지 못했습니다.</p></div>';
+        if (status) status.textContent = '후보 조회에 실패했습니다.';
+    }
+}
+
+function renderCandidateKeywords(keywords) {
+    const list = document.getElementById('candidateKeywordList');
+    if (!list) return;
+
+    if (!keywords.length) {
+        list.innerHTML = '<div class="candidate-keyword-empty">후보 수집 검색어가 없습니다.</div>';
+        return;
+    }
+
+    list.innerHTML = keywords.map((keyword) => `
+        <span class="candidate-keyword-chip">
+            <span>${escapeHtml(keyword)}</span>
+            <button type="button" data-candidate-keyword-remove data-keyword="${escapeAttr(keyword)}" aria-label="후보 수집 검색어 제거">×</button>
+        </span>
+    `).join('');
+}
+
+async function addCandidateKeyword(keyword) {
+    const cleaned = String(keyword || '').trim();
+    const input = document.getElementById('candidateKeywordInput');
+    if (!cleaned) {
+        showToast('추가할 검색어를 입력하세요.');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/candidate-keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword: cleaned })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '검색어 추가 실패');
+        candidateKeywords = data.items || [];
+        renderCandidateKeywords(candidateKeywords);
+        if (input) input.value = '';
+        showToast(data.created ? '후보 수집 검색어를 추가했습니다.' : '이미 등록된 후보 수집 검색어입니다.');
+    } catch (e) {
+        console.error('Candidate keyword add failed:', e);
+        showToast('후보 수집 검색어 추가에 실패했습니다.');
+    }
+}
+
+window.addCandidateKeywordFromSearch = async function(keyword) {
+    await addCandidateKeyword(keyword);
+};
+
+async function removeCandidateKeyword(keyword) {
+    try {
+        const resp = await fetch('/api/candidate-keywords/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '검색어 제거 실패');
+        candidateKeywords = data.items || [];
+        renderCandidateKeywords(candidateKeywords);
+        showToast('후보 수집 검색어를 제거했습니다.');
+    } catch (e) {
+        console.error('Candidate keyword remove failed:', e);
+        showToast('후보 수집 검색어 제거에 실패했습니다.');
+    }
+}
+
+function renderCandidates(items) {
+    const list = document.getElementById('candidateList');
+    if (!list) return;
+
+    if (!items.length) {
+        list.innerHTML = '<div class="empty-state"><p>대기 중인 후보가 없습니다.</p></div>';
+        return;
+    }
+
+    list.innerHTML = items.map((item) => {
+        const categoryOptions = candidateCategories.map((category) => {
+            const selected = category === item.suggested_category ? 'selected' : '';
+            return `<option value="${escapeAttr(category)}" ${selected}>${escapeHtml(category)}</option>`;
+        }).join('');
+        const similarBadge = item.similar_count > 0
+            ? `<span class="candidate-badge">유사 ${item.similar_count}건</span>`
+            : '';
+
+        return `
+            <div class="candidate-card" data-candidate-id="${item.id}">
+                <div class="candidate-card-top">
+                    <div class="candidate-meta">
+                        <span>${escapeHtml(item.source || item.domain || '출처 미상')}</span>
+                        <span>${escapeHtml(item.pub_date || '')}</span>
+                        <span class="candidate-score">${item.score}점</span>
+                        ${similarBadge}
+                    </div>
+                    <select class="candidate-category-select" aria-label="후보 카테고리">
+                        ${categoryOptions}
+                    </select>
+                </div>
+                <h3>${escapeHtml(item.title)}</h3>
+                <p>${escapeHtml(item.description || '')}</p>
+                <div class="candidate-keyword">검색어: ${escapeHtml(item.keyword)}</div>
+                <div class="news-actions">
+                    <button type="button" class="btn-small btn-primary btn-clip-trigger" data-candidate-accept>클리핑</button>
+                    <button type="button" class="btn-small" data-candidate-reject>제외</button>
+                    <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function acceptCandidate(item, category, btnEl) {
+    try {
+        const resp = await fetch(`/api/clipping-candidates/${item.id}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '후보 반영 실패');
+
+        if (window.clipArticleFromData) {
+            window.clipArticleFromData(
+                data.item.title,
+                data.item.link,
+                '',
+                data.item.source,
+                data.item.pub_date,
+                data.item.original_link,
+                btnEl,
+                category,
+                { skipRecord: true }
+            );
+        }
+
+        showToast('후보를 클리핑에 반영했습니다.');
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate accept failed:', e);
+        showToast('후보 반영에 실패했습니다.');
+    }
+}
+
+async function rejectCandidate(candidateId) {
+    try {
+        const resp = await fetch(`/api/clipping-candidates/${candidateId}/reject`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '후보 제외 실패');
+        showToast('후보를 제외했습니다.');
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate reject failed:', e);
+        showToast('후보 제외에 실패했습니다.');
+    }
+}
+
 
 // ==============================================================================
 // 5. INFINITE SCROLL LOGIC
@@ -778,6 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const tabId = btn.dataset.tab;
             if (tabId === 'alerts') loadAlertsTab();
+            if (tabId === 'candidates') loadCandidatesTab();
             if (tabId === 'clippings') loadClippingsTab();
             switchTab(tabId);
         });

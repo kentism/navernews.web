@@ -1,6 +1,7 @@
 import asyncio
 import re
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Optional
 
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -21,6 +22,23 @@ from app_config import (
     WATCHER_STALE_SECONDS,
 )
 from app_logging import configure_logging, get_logger
+from services.clipping_store import (
+    DEFAULT_CATEGORIES,
+    accept_candidate,
+    add_candidate_keyword,
+    create_candidate,
+    create_run,
+    finish_run,
+    get_default_cutoff,
+    init_db,
+    list_candidates,
+    list_candidate_keywords,
+    parse_pub_date,
+    record_clip_event,
+    remove_candidate_keyword,
+    reject_candidate,
+    save_final_clipping_snapshot,
+)
 from services.monitoring import state
 from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
 from utils.template_filters import extract_highlight_keyword, time_ago
@@ -147,6 +165,7 @@ async def poll_naver_news_task():
 
 @app.on_event("startup")
 async def startup_event():
+    init_db()
     asyncio.create_task(poll_naver_news_task())
 
 
@@ -275,6 +294,19 @@ async def clippings_tab(request: Request):
     )
 
 
+@app.get("/candidates-tab", response_class=HTMLResponse)
+async def candidates_tab(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return auth_check
+
+    return templates.TemplateResponse(
+        request=request,
+        name="candidates_tab.html",
+        context={"categories": DEFAULT_CATEGORIES},
+    )
+
+
 @app.get("/alerts-tab", response_class=HTMLResponse)
 async def alerts_tab(request: Request):
     auth_check = await verify_access(request)
@@ -373,6 +405,27 @@ class SyncWatchRequest(BaseModel):
     keywords: List[str]
 
 
+class ClipEventRequest(BaseModel):
+    title: str
+    link: str
+    original_link: str = ""
+    source: str = ""
+    pub_date: str = ""
+    category: str = "기타"
+
+
+class FinalClippingRequest(BaseModel):
+    content: str
+
+
+class CandidateKeywordRequest(BaseModel):
+    keyword: str
+
+
+class CandidateDecisionRequest(BaseModel):
+    category: Optional[str] = None
+
+
 @app.post("/api/sync-watch")
 async def sync_watch(request: Request, data: SyncWatchRequest):
     auth_check = await verify_access(request)
@@ -393,3 +446,163 @@ async def sync_watch(request: Request, data: SyncWatchRequest):
         extra={"client_id": data.client_id, "keyword_count": len(data.keywords)},
     )
     return {"status": "success", "count": len(data.keywords)}
+
+
+@app.get("/api/clipping-candidates")
+async def clipping_candidates(request: Request, status: str = "pending"):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    return {
+        "items": list_candidates(status=status),
+        "categories": DEFAULT_CATEGORIES,
+        "keywords": list_candidate_keywords(),
+    }
+
+
+@app.get("/api/candidate-keywords")
+async def candidate_keywords(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    return {"items": list_candidate_keywords()}
+
+
+@app.post("/api/candidate-keywords")
+async def add_candidate_keyword_api(request: Request, data: CandidateKeywordRequest):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    keyword = data.keyword.strip()
+    if not keyword:
+        return JSONResponse(content={"error": "Keyword is required"}, status_code=400)
+
+    created = add_candidate_keyword(keyword)
+    return {"status": "success", "created": created, "items": list_candidate_keywords()}
+
+
+@app.post("/api/candidate-keywords/remove")
+async def remove_candidate_keyword_api(request: Request, data: CandidateKeywordRequest):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    removed = remove_candidate_keyword(data.keyword)
+    return {"status": "success", "removed": removed, "items": list_candidate_keywords()}
+
+
+@app.post("/api/clipping-candidates/run")
+async def run_clipping_candidates(
+    request: Request,
+    since: str = Form(default=""),
+    headers: dict = Depends(get_naver_api_headers),
+):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    cutoff = get_default_cutoff()
+    if since:
+        try:
+            cutoff = datetime.fromisoformat(since).astimezone(timezone.utc)
+        except Exception:
+            return JSONResponse(content={"error": "Invalid since value"}, status_code=400)
+
+    keywords = list_candidate_keywords()
+    if not keywords:
+        return {
+            "status": "success",
+            "created": 0,
+            "cutoff": cutoff.isoformat(),
+            "keywords": [],
+            "message": "No candidate keywords configured",
+        }
+
+    run_id = create_run(cutoff, keywords)
+    created_count = 0
+
+    for keyword in keywords:
+        start = 1
+        for _ in range(5):
+            items = await fetch_news(keyword, headers=headers, start=start, display=100)
+            if not items:
+                break
+
+            reached_cutoff = False
+            for item in items:
+                pub_dt = parse_pub_date(item.pubDate)
+                if pub_dt and pub_dt < cutoff:
+                    reached_cutoff = True
+                    continue
+
+                if create_candidate(item, keyword):
+                    created_count += 1
+
+            if reached_cutoff:
+                break
+
+            start += 100
+
+    finish_run(run_id, created_count)
+    return {
+        "status": "success",
+        "created": created_count,
+        "cutoff": cutoff.isoformat(),
+        "keywords": keywords,
+    }
+
+
+@app.post("/api/clipping-candidates/{candidate_id}/accept")
+async def accept_clipping_candidate(request: Request, candidate_id: int, data: CandidateDecisionRequest):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    candidate = accept_candidate(candidate_id, data.category)
+    if not candidate:
+        return JSONResponse(content={"error": "Candidate not found"}, status_code=404)
+
+    return {"status": "success", "item": candidate}
+
+
+@app.post("/api/clipping-candidates/{candidate_id}/reject")
+async def reject_clipping_candidate(request: Request, candidate_id: int):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    if not reject_candidate(candidate_id):
+        return JSONResponse(content={"error": "Candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
+@app.post("/api/clipping-events")
+async def clipping_events(request: Request, data: ClipEventRequest):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    record_clip_event(
+        title=data.title,
+        link=data.link,
+        original_link=data.original_link,
+        source=data.source,
+        pub_date=data.pub_date,
+        category=data.category,
+        action="draft",
+    )
+    return {"status": "success"}
+
+
+@app.post("/api/clipping-finalizations")
+async def clipping_finalizations(request: Request, data: FinalClippingRequest):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    result = save_final_clipping_snapshot(data.content)
+    return {"status": "success", **result}

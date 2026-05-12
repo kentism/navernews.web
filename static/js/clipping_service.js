@@ -52,7 +52,7 @@ function persistClippedText(text) {
 /**
  * Clips an article to the text area, categorized by section.
  */
-function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category) {
+function clipArticleFromData(title, link, content, source, pubDate, originalLink, btnEl, category, options = {}) {
     let currentText = window.clippingEditor 
         ? window.clippingEditor.getMarkdown() 
         : (localStorage.getItem('clippedTextContent') || DEFAULT_CLIPPED_TEXT);
@@ -126,6 +126,21 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     }
 
     if (window.showToast) window.showToast(`✅ [${category}]에 추가되었습니다.`);
+
+    if (!options.skipRecord) {
+        fetch('/api/clipping-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title,
+                link,
+                original_link: originalLink || link,
+                source,
+                pub_date: pubDate,
+                category: category || '기타'
+            })
+        }).catch((err) => console.warn('Failed to record clipping event:', err));
+    }
 
     if (btnEl) {
         const originalText = btnEl.textContent;
@@ -260,6 +275,41 @@ async function loadClippingsTab() {
                     window.clippingEditor.setMarkdown(DEFAULT_CLIPPED_TEXT);
                     persistClippedText(DEFAULT_CLIPPED_TEXT);
                     window.showToast('✨ 텍스트를 초기화했습니다.');
+                }
+            });
+        }
+
+        const finalizeLearningBtn = document.getElementById('finalizeLearningBtn');
+        if (finalizeLearningBtn) {
+            finalizeLearningBtn.addEventListener('click', async () => {
+                const content = window.clippingEditor
+                    ? persistClippedText(window.clippingEditor.getMarkdown())
+                    : normalizeMarkdownUrls(localStorage.getItem('clippedTextContent') || '');
+                if (!content.trim()) {
+                    window.showToast('학습할 최종본 내용이 없습니다.');
+                    return;
+                }
+
+                finalizeLearningBtn.disabled = true;
+                try {
+                    const resp = await fetch('/api/clipping-finalizations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error || 'finalization failed');
+
+                    if (data.duplicate) {
+                        window.showToast('이미 학습된 최종본입니다.');
+                    } else {
+                        window.showToast(`최종본 ${data.entry_count}건을 학습 데이터로 저장했습니다.`);
+                    }
+                } catch (e) {
+                    console.error('Final clipping learning failed:', e);
+                    window.showToast('최종본 학습 저장에 실패했습니다.');
+                } finally {
+                    finalizeLearningBtn.disabled = false;
                 }
             });
         }
