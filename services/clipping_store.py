@@ -4,10 +4,12 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 import re
+import json
 from typing import Optional
 from urllib.parse import urlparse
 
 from app_config import BASE_DIR
+from services.semantic_service import get_embedding, calculate_similarity
 
 
 DB_PATH = BASE_DIR / "data" / "clipping_prototype.sqlite3"
@@ -105,6 +107,13 @@ def init_db() -> None:
                 keyword TEXT NOT NULL UNIQUE,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS article_embeddings (
+                article_id INTEGER PRIMARY KEY,
+                vector_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(article_id) REFERENCES articles(id)
+            );
             """
         )
         existing_columns = {
@@ -169,7 +178,23 @@ def _group_key(title: str) -> str:
     return " ".join(tokens[:6]) or title[:24].lower()
 
 
-def score_article(title: str, description: str, keyword: str, source: str = "") -> tuple[int, str]:
+def _get_recent_finalized_vectors(limit: int = 20) -> list[list[float]]:
+    """Retrieves vectors of recently finalized articles."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT e.vector_json 
+            FROM article_embeddings e
+            JOIN clipping_events ev ON ev.article_id = e.article_id
+            WHERE ev.action = 'finalized'
+            ORDER BY ev.created_at DESC
+            LIMIT ?
+            """,
+            (limit,)
+        ).fetchall()
+        return [json.loads(row["vector_json"]) for row in rows]
+
+async def score_article(title: str, description: str, keyword: str, source: str = "", article_id: Optional[int] = None) -> tuple[int, str]:
     text = f"{title} {description} {keyword}".lower()
     best_category = "기타"
     best_hits = 0
@@ -182,12 +207,40 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
 
     keyword_terms = [part.strip('+"-') for part in keyword.split() if part.strip('+"-')]
     keyword_hits = sum(1 for term in keyword_terms if term.lower() in text)
-    score = min(100, 35 + best_hits * 18 + keyword_hits * 8)
-
+    
+    # 1. Base Score from keywords (up to 70%)
+    base_score = min(70, 35 + best_hits * 15 + keyword_hits * 10)
     if source:
-        score += 4
+        base_score += 5
 
-    return min(score, 100), best_category
+    # 2. Semantic Score (up to 30%)
+    semantic_bonus = 0
+    recent_vectors = _get_recent_finalized_vectors(limit=15)
+    if recent_vectors:
+        current_vector = await get_embedding(f"{title} {description}")
+        if current_vector:
+            # Store embedding for future use if article_id provided
+            if article_id:
+                _save_article_embedding(article_id, current_vector)
+            
+            # Find max similarity with recent high-quality clips
+            max_sim = max([calculate_similarity(current_vector, rv) for rv in recent_vectors])
+            # Boost score based on similarity (0.7+ is high)
+            if max_sim > 0.6:
+                semantic_bonus = int((max_sim - 0.5) * 60) # e.g., 0.8 -> (0.3 * 60) = 18 pts
+    
+    final_score = min(100, base_score + semantic_bonus)
+    return final_score, best_category
+
+def _save_article_embedding(article_id: int, vector: list[float]) -> None:
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO article_embeddings (article_id, vector_json, created_at)
+            VALUES (?, ?, ?)
+            """,
+            (article_id, json.dumps(vector), to_iso(utc_now()))
+        )
 
 
 def upsert_article(item) -> int:
@@ -227,7 +280,7 @@ def upsert_article(item) -> int:
         return int(row["id"])
 
 
-def create_candidate(item, keyword: str) -> bool:
+async def create_candidate(item, keyword: str) -> bool:
     article_id = upsert_article(item)
     
     # Check if this article was already finalized
@@ -239,7 +292,7 @@ def create_candidate(item, keyword: str) -> bool:
         if already_finalized:
             return False
 
-    score, category = score_article(item.title, item.description, keyword, item.source)
+    score, category = await score_article(item.title, item.description, keyword, item.source, article_id=article_id)
     now = to_iso(utc_now())
 
     with _connect() as conn:
@@ -529,7 +582,7 @@ def find_article_id_by_link(link: str) -> Optional[int]:
         return int(row["id"]) if row else None
 
 
-def save_final_clipping_snapshot(content: str) -> dict:
+async def save_final_clipping_snapshot(content: str) -> dict:
     entries = parse_final_clipping_entries(content)
     now = to_iso(utc_now())
     digest = _content_hash(content)
@@ -552,8 +605,20 @@ def save_final_clipping_snapshot(content: str) -> dict:
         snapshot_id = int(cur.lastrowid)
 
     for entry in entries:
+        article_id = find_article_id_by_link(entry["link"])
+        
+        # Semantic Learning: Generate embedding for finalized entry if not exists
+        if article_id:
+            # Check if embedding already exists
+            with _connect() as conn:
+                exists = conn.execute("SELECT 1 FROM article_embeddings WHERE article_id = ?", (article_id,)).fetchone()
+                if not exists:
+                    vector = await get_embedding(f"{entry['title']} {entry['source']}")
+                    if vector:
+                        _save_article_embedding(article_id, vector)
+
         record_clip_event(
-            article_id=find_article_id_by_link(entry["link"]),
+            article_id=article_id,
             snapshot_id=snapshot_id,
             title=entry["title"],
             link=entry["link"],

@@ -6,3 +6,6 @@ python-multipart
 jinja2
 markupsafe
 aiofiles
+google-generativeai
+numpy
+python-dotenv

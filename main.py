@@ -607,5 +607,5 @@ async def clipping_finalizations(request: Request, data: FinalClippingRequest):
     if auth_check:
         return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
 
-    result = save_final_clipping_snapshot(data.content)
+    result = await save_final_clipping_snapshot(data.content)
     return {"status": "success", **result}
