@@ -359,6 +359,10 @@ async function refreshFinalizationHistory() {
 
     try {
         const resp = await fetch('/api/clipping-finalizations');
+        if (resp.status === 401) {
+            list.innerHTML = '<p class="history-empty">인증이 만료되었습니다. <a href="/login">다시 로그인</a></p>';
+            return;
+        }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || 'history load failed');
 
@@ -368,21 +372,25 @@ async function refreshFinalizationHistory() {
         }
 
         list.innerHTML = data.items.map(item => {
-            const date = new Date(item.created_at).toLocaleString();
+            const dateStr = item.created_at ? new Date(item.created_at).toLocaleString() : '날짜 미상';
+            const preview = (item.preview || '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+            
             return `
                 <div class="history-item">
                     <div class="history-info">
-                        <span class="history-date">${date}</span>
-                        <p class="history-preview">${item.preview}...</p>
+                        <span class="history-date">${dateStr}</span>
+                        <p class="history-preview">${preview}...</p>
                     </div>
-                    <span class="history-meta">${item.entry_count}건</span>
+                    <span class="history-meta">${item.entry_count || 0}건</span>
                     <button class="btn-history-del" data-snapshot-id="${item.id}" title="학습 이력 삭제">🗑️</button>
                 </div>
             `;
         }).join('');
     } catch (e) {
         console.error('History refresh failed:', e);
-        list.innerHTML = '<p class="history-empty">이력을 불러오는데 실패했습니다.</p>';
+        list.innerHTML = '<p class="history-empty">이력을 불러오는데 실패했습니다. <button class="btn-small" onclick="refreshFinalizationHistory()">재시도</button></p>';
     }
 }
 

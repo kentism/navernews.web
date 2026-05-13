@@ -690,35 +690,47 @@ async function runCandidateCollection() {
 async function refreshCandidates() {
     const list = document.getElementById('candidateList');
     const status = document.getElementById('candidateStatus');
+    const cutoffLabel = document.getElementById('currentCutoffLabel');
     if (!list) return;
 
     try {
         const resp = await fetch('/api/clipping-candidates');
+        if (resp.status === 401) {
+            if (status) status.innerHTML = '인증이 만료되었습니다. <a href="/login">다시 로그인</a> 해주세요.';
+            return;
+        }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || '후보 조회 실패');
+
         candidateCategories = data.categories || candidateCategories;
         candidateCache = data.items || [];
         candidateKeywords = data.keywords || [];
+
         renderCandidateKeywords(candidateKeywords);
         renderCandidates(candidateCache);
-        if (status) status.textContent = `${candidateKeywords.length}개 검색어, ${candidateCache.length}건의 후보가 대기 중입니다.`;
 
-        // Update cutoff label
-        const cutoffLabel = document.getElementById('currentCutoffLabel');
+        if (status) {
+            status.textContent = `${candidateKeywords.length}개 검색어, ${candidateCache.length}건의 후보가 대기 중입니다.`;
+        }
+
         if (cutoffLabel) {
             if (data.default_cutoff) {
                 const date = new Date(data.default_cutoff);
-                cutoffLabel.textContent = ` 기준: ${date.toLocaleString()}`;
+                const timeStr = isNaN(date.getTime()) ? '형식 오류' : date.toLocaleString();
+                cutoffLabel.textContent = ` 기준: ${timeStr}`;
             } else {
-                cutoffLabel.textContent = ' 시점 확인 불가';
+                cutoffLabel.textContent = ' 시점 데이터 없음';
             }
         }
     } catch (e) {
         console.error('Candidate refresh failed:', e);
-        if (list) list.innerHTML = '<div class="empty-state"><p>후보를 불러오지 못했습니다.</p></div>';
-        if (status) status.textContent = '후보 조회에 실패했습니다.';
-        
-        const cutoffLabel = document.getElementById('currentCutoffLabel');
+        if (list) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <p>후보 데이터를 불러오지 못했습니다. (네트워크 오류)</p>
+                    <button class="btn-small" onclick="refreshCandidates()">다시 시도</button>
+                </div>`;
+        }
         if (cutoffLabel) cutoffLabel.textContent = ' 로드 실패';
     }
 }

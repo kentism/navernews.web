@@ -453,8 +453,7 @@ async def sync_watch(request: Request, data: SyncWatchRequest):
 @app.get("/api/clipping-candidates")
 async def clipping_candidates(request: Request, status: str = "pending"):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     return {
         "items": list_candidates(status=status),
@@ -550,7 +549,7 @@ async def run_clipping_candidates(
                     reached_cutoff = True
                     continue
 
-                if create_candidate(item, keyword):
+                if await create_candidate(item, keyword):
                     created_count += 1
 
             if reached_cutoff:
@@ -571,8 +570,7 @@ async def run_clipping_candidates(
 @app.post("/api/clipping-candidates/{candidate_id}/accept")
 async def accept_clipping_candidate(request: Request, candidate_id: int, data: CandidateDecisionRequest):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     candidate = accept_candidate(candidate_id, data.category)
     if not candidate:
@@ -584,8 +582,7 @@ async def accept_clipping_candidate(request: Request, candidate_id: int, data: C
 @app.post("/api/clipping-candidates/{candidate_id}/reject")
 async def reject_clipping_candidate(request: Request, candidate_id: int):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     if not reject_candidate(candidate_id):
         return JSONResponse(content={"error": "Candidate not found"}, status_code=404)

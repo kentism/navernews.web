@@ -147,35 +147,43 @@ def parse_pub_date(value: str) -> Optional[datetime]:
 
 
 def get_default_cutoff() -> datetime:
-    with _connect() as conn:
-        row = conn.execute(
-            """
-            SELECT created_at FROM clipping_events
-            WHERE action = 'finalized'
-            ORDER BY created_at DESC
-            LIMIT 1
-            """
-        ).fetchone()
-        if row:
-            try:
-                return datetime.fromisoformat(row["created_at"]).astimezone(timezone.utc)
-            except Exception:
-                pass
+    try:
+        with _connect() as conn:
+            row = conn.execute(
+                """
+                SELECT created_at FROM clipping_events
+                WHERE action = 'finalized'
+                ORDER BY created_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            if row and row["created_at"]:
+                try:
+                    return datetime.fromisoformat(row["created_at"]).astimezone(timezone.utc)
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"Error in get_default_cutoff: {e}")
 
+    # Fallback to 24 hours ago
     return utc_now() - timedelta(days=1)
 
 def list_finalizations(limit: int = 30) -> list[dict]:
-    with _connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT id, created_at, entry_count, SUBSTR(content, 1, 150) as preview 
-            FROM final_clipping_snapshots 
-            ORDER BY created_at DESC 
-            LIMIT ?
-            """,
-            (limit,)
-        ).fetchall()
-        return [dict(row) for row in rows]
+    try:
+        with _connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, created_at, entry_count, SUBSTR(content, 1, 150) as preview 
+                FROM final_clipping_snapshots 
+                ORDER BY created_at DESC 
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"Error in list_finalizations: {e}")
+        return []
 
 def delete_finalization(snapshot_id: int) -> bool:
     with _connect() as conn:
