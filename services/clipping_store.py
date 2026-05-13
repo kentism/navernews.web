@@ -651,3 +651,7 @@ async def save_final_clipping_snapshot(content: str) -> dict:
         )
 
     return {"snapshot_id": snapshot_id, "entry_count": len(entries), "duplicate": False}
+
+
+# Initialize DB on import
+init_db()

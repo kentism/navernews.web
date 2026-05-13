@@ -701,14 +701,21 @@ async function refreshCandidates() {
 
         // Update cutoff label
         const cutoffLabel = document.getElementById('currentCutoffLabel');
-        if (cutoffLabel && data.default_cutoff) {
-            const date = new Date(data.default_cutoff);
-            cutoffLabel.textContent = `📍 추적 기준: ${date.toLocaleString()}`;
+        if (cutoffLabel) {
+            if (data.default_cutoff) {
+                const date = new Date(data.default_cutoff);
+                cutoffLabel.textContent = ` 기준: ${date.toLocaleString()}`;
+            } else {
+                cutoffLabel.textContent = ' 시점 확인 불가';
+            }
         }
     } catch (e) {
         console.error('Candidate refresh failed:', e);
-        list.innerHTML = '<div class="empty-state"><p>후보를 불러오지 못했습니다.</p></div>';
+        if (list) list.innerHTML = '<div class="empty-state"><p>후보를 불러오지 못했습니다.</p></div>';
         if (status) status.textContent = '후보 조회에 실패했습니다.';
+        
+        const cutoffLabel = document.getElementById('currentCutoffLabel');
+        if (cutoffLabel) cutoffLabel.textContent = ' 로드 실패';
     }
 }
 
