@@ -44,7 +44,7 @@ function escapeAttr(s) {
 }
 
 /**
- * Displays a temporary toast message.
+ * Shows a toast message.
  */
 function showToast(message) {
     const container = document.getElementById('toastContainer');
@@ -60,7 +60,10 @@ function showToast(message) {
     setTimeout(() => toast.classList.add('show'), 10);
 
     // Remove after 3 seconds
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 // Expose to window for inline calls if necessary
 window.showToast = showToast;
@@ -673,7 +676,8 @@ async function runCandidateCollection() {
         }
         
         showToast(`클리핑 후보 ${data.created}건 수집 완료`);
-        await refreshCandidates();
+        // Force immediate list refresh
+        setTimeout(() => refreshCandidates(), 500);
     } catch (e) {
         console.error('Candidate collection failed:', e);
         if (status) status.textContent = '후보 수집에 실패했습니다.';

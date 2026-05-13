@@ -304,11 +304,9 @@ async function loadClippingsTab() {
                         window.showToast('이미 학습된 최종본입니다.');
                     } else {
                         window.showToast(`최종본 ${data.entry_count}건을 학습 데이터로 저장했습니다.`);
-                        // Refresh history if open
-                        if (!document.getElementById('historyContainer').classList.contains('hidden')) {
-                            refreshFinalizationHistory();
-                        }
                     }
+                    // Refresh history so it's ready when opened
+                    refreshFinalizationHistory();
                 } catch (e) {
                     console.error('Final clipping learning failed:', e);
                     window.showToast('최종본 학습 저장에 실패했습니다.');

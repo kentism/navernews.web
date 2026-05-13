@@ -59,6 +59,8 @@ async def verify_access(request: Request):
 
     access_token = request.cookies.get("access_token")
     if access_token != APP_ACCESS_KEY:
+        if request.url.path.startswith("/api/"):
+            return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
         return RedirectResponse(url="/login", status_code=303)
 
     return None
@@ -622,8 +624,7 @@ async def clipping_finalizations(request: Request, data: FinalClippingRequest):
 @app.get("/api/clipping-finalizations")
 async def list_clipping_finalizations(request: Request, limit: int = 30):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     return {"status": "success", "items": list_finalizations(limit=limit)}
 
