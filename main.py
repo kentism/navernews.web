@@ -458,6 +458,7 @@ async def clipping_candidates(request: Request, status: str = "pending"):
         "items": list_candidates(status=status),
         "categories": DEFAULT_CATEGORIES,
         "keywords": list_candidate_keywords(),
+        "default_cutoff": to_iso(get_default_cutoff()),
     }
 
 
@@ -507,9 +508,16 @@ async def run_clipping_candidates(
     cutoff = get_default_cutoff()
     if since:
         try:
-            cutoff = datetime.fromisoformat(since).astimezone(timezone.utc)
-        except Exception:
-            return JSONResponse(content={"error": "Invalid since value"}, status_code=400)
+            if since == "today":
+                cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            elif since == "24h":
+                cutoff = datetime.now(timezone.utc) - timedelta(days=1)
+            elif since == "3d":
+                cutoff = datetime.now(timezone.utc) - timedelta(days=3)
+            else:
+                cutoff = datetime.fromisoformat(since).astimezone(timezone.utc)
+        except Exception as exc:
+            logger.warning(f"Invalid since value: {since}, error: {exc}")
 
     keywords = list_candidate_keywords()
     if not keywords:
@@ -609,3 +617,22 @@ async def clipping_finalizations(request: Request, data: FinalClippingRequest):
 
     result = await save_final_clipping_snapshot(data.content)
     return {"status": "success", **result}
+
+
+@app.get("/api/clipping-finalizations")
+async def list_clipping_finalizations(request: Request, limit: int = 30):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    return {"status": "success", "items": list_finalizations(limit=limit)}
+
+
+@app.delete("/api/clipping-finalizations/{snapshot_id}")
+async def remove_clipping_finalization(request: Request, snapshot_id: int):
+    auth_check = await verify_access(request)
+    if auth_check:
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+
+    success = delete_finalization(snapshot_id)
+    return {"status": "success", "deleted": success}

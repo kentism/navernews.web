@@ -655,7 +655,13 @@ async function runCandidateCollection() {
     if (btn) btn.disabled = true;
 
     try {
-        const resp = await fetch('/api/clipping-candidates/run', { method: 'POST', body: new FormData() });
+        const sinceSelect = document.getElementById('sinceOverride');
+        const fd = new FormData();
+        if (sinceSelect && sinceSelect.value) {
+            fd.append('since', sinceSelect.value);
+        }
+
+        const resp = await fetch('/api/clipping-candidates/run', { method: 'POST', body: fd });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || '후보 수집 실패');
         
@@ -692,6 +698,13 @@ async function refreshCandidates() {
         renderCandidateKeywords(candidateKeywords);
         renderCandidates(candidateCache);
         if (status) status.textContent = `${candidateKeywords.length}개 검색어, ${candidateCache.length}건의 후보가 대기 중입니다.`;
+
+        // Update cutoff label
+        const cutoffLabel = document.getElementById('currentCutoffLabel');
+        if (cutoffLabel && data.default_cutoff) {
+            const date = new Date(data.default_cutoff);
+            cutoffLabel.textContent = `📍 추적 기준: ${date.toLocaleString()}`;
+        }
     } catch (e) {
         console.error('Candidate refresh failed:', e);
         list.innerHTML = '<div class="empty-state"><p>후보를 불러오지 못했습니다.</p></div>';

@@ -164,6 +164,27 @@ def get_default_cutoff() -> datetime:
 
     return utc_now() - timedelta(days=1)
 
+def list_finalizations(limit: int = 30) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, created_at, entry_count, SUBSTR(content, 1, 150) as preview 
+            FROM final_clipping_snapshots 
+            ORDER BY created_at DESC 
+            LIMIT ?
+            """,
+            (limit,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+def delete_finalization(snapshot_id: int) -> bool:
+    with _connect() as conn:
+        # 1. Clean up events
+        conn.execute("DELETE FROM clipping_events WHERE snapshot_id = ?", (snapshot_id,))
+        # 2. Delete snapshot
+        cur = conn.execute("DELETE FROM final_clipping_snapshots WHERE id = ?", (snapshot_id,))
+        return cur.rowcount > 0
+
 
 def _domain_from_link(link: str) -> str:
     return (urlparse(link or "").netloc or "").replace("www.", "")

@@ -304,12 +304,41 @@ async function loadClippingsTab() {
                         window.showToast('이미 학습된 최종본입니다.');
                     } else {
                         window.showToast(`최종본 ${data.entry_count}건을 학습 데이터로 저장했습니다.`);
+                        // Refresh history if open
+                        if (!document.getElementById('historyContainer').classList.contains('hidden')) {
+                            refreshFinalizationHistory();
+                        }
                     }
                 } catch (e) {
                     console.error('Final clipping learning failed:', e);
                     window.showToast('최종본 학습 저장에 실패했습니다.');
                 } finally {
                     finalizeLearningBtn.disabled = false;
+                }
+            });
+        }
+
+        // --- 🕰️ History Management ---
+        const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
+        const historyContainer = document.getElementById('historyContainer');
+        if (toggleHistoryBtn && historyContainer) {
+            toggleHistoryBtn.addEventListener('click', () => {
+                const isHidden = historyContainer.classList.toggle('hidden');
+                if (!isHidden) {
+                    refreshFinalizationHistory();
+                }
+            });
+        }
+
+        const historyList = document.getElementById('historyList');
+        if (historyList) {
+            historyList.addEventListener('click', async (e) => {
+                const delBtn = e.target.closest('.btn-history-del');
+                if (delBtn) {
+                    const snapshotId = delBtn.dataset.snapshotId;
+                    if (confirm('정말 이 학습 이력을 삭제하시겠습니까? (이 기사들이 다시 후보에 포함될 수 있습니다)')) {
+                        await deleteFinalization(snapshotId);
+                    }
                 }
             });
         }
@@ -325,8 +354,51 @@ async function loadClippingsTab() {
         innerContainer.innerHTML = '<div class="error-state">클리핑 탭을 불러오는데 실패했습니다.</div>';
     }
 }
-window.loadClippingsTab = loadClippingsTab;
 
-/**
- * Legacy resize logic removed for TOAST UI Integration
- */
+async function refreshFinalizationHistory() {
+    const list = document.getElementById('historyList');
+    if (!list) return;
+
+    try {
+        const resp = await fetch('/api/clipping-finalizations');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'history load failed');
+
+        if (!data.items || data.items.length === 0) {
+            list.innerHTML = '<p class="history-empty">아직 학습된 이력이 없습니다.</p>';
+            return;
+        }
+
+        list.innerHTML = data.items.map(item => {
+            const date = new Date(item.created_at).toLocaleString();
+            return `
+                <div class="history-item">
+                    <div class="history-info">
+                        <span class="history-date">${date}</span>
+                        <p class="history-preview">${item.preview}...</p>
+                    </div>
+                    <span class="history-meta">${item.entry_count}건</span>
+                    <button class="btn-history-del" data-snapshot-id="${item.id}" title="학습 이력 삭제">🗑️</button>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('History refresh failed:', e);
+        list.innerHTML = '<p class="history-empty">이력을 불러오는데 실패했습니다.</p>';
+    }
+}
+
+async function deleteFinalization(snapshotId) {
+    try {
+        const resp = await fetch(`/api/clipping-finalizations/${snapshotId}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (!resp.ok || !data.deleted) throw new Error('Delete failed');
+        window.showToast('학습 이력이 삭제되었습니다.');
+        refreshFinalizationHistory();
+    } catch (e) {
+        console.error('Delete finalization failed:', e);
+        window.showToast('이력 삭제에 실패했습니다.');
+    }
+}
+
+window.loadClippingsTab = loadClippingsTab;
