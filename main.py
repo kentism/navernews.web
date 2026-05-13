@@ -593,8 +593,7 @@ async def reject_clipping_candidate(request: Request, candidate_id: int):
 @app.post("/api/clipping-events")
 async def clipping_events(request: Request, data: ClipEventRequest):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     record_clip_event(
         title=data.title,
@@ -611,8 +610,7 @@ async def clipping_events(request: Request, data: ClipEventRequest):
 @app.post("/api/clipping-finalizations")
 async def clipping_finalizations(request: Request, data: FinalClippingRequest):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     result = await save_final_clipping_snapshot(data.content)
     return {"status": "success", **result}
@@ -629,8 +627,7 @@ async def list_clipping_finalizations(request: Request, limit: int = 30):
 @app.delete("/api/clipping-finalizations/{snapshot_id}")
 async def remove_clipping_finalization(request: Request, snapshot_id: int):
     auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if auth_check: return auth_check
 
     success = delete_finalization(snapshot_id)
     return {"status": "success", "deleted": success}
