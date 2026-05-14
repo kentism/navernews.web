@@ -518,42 +518,6 @@ function switchTab(tabId) {
     }
 }
 
-async function loadAlertsTab() {
-    const alertsPane = document.getElementById('alerts');
-    if (!alertsPane) return;
-
-    let innerContainer = alertsPane.querySelector('.tab-content-inner');
-    if (!innerContainer) {
-        innerContainer = document.createElement('div');
-        innerContainer.className = 'tab-content-inner';
-        alertsPane.appendChild(innerContainer);
-    }
-
-    const hasContent = innerContainer.querySelector('#alertManagerSection');
-    if (hasContent) {
-        renderActiveAlerts();
-        return;
-    }
-
-    innerContainer.innerHTML = '<div class="loading-state">알림 센터를 로드하는 중...</div>';
-
-    try {
-        const resp = await fetch('/alerts-tab');
-        const html = await resp.text();
-        innerContainer.innerHTML = html;
-        renderActiveAlerts();
-
-        const clearAllAlertsBtn = document.getElementById('clearAllAlertsBtn');
-        if (clearAllAlertsBtn) {
-            clearAllAlertsBtn.addEventListener('click', clearAllAlerts);
-        }
-    } catch (e) {
-        console.error('알림 센터 로드 실패:', e);
-        innerContainer.innerHTML = '<div class="error-state">알림 센터를 불러오는데 실패했습니다.</div>';
-    }
-}
-window.loadAlertsTab = loadAlertsTab;
-
 let candidateCategories = ['위원회 관련', '방송·통신 관련', '유관기관 관련', '기타'];
 let candidateCache = [];
 let candidateKeywords = [];
@@ -1129,7 +1093,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!btn) return;
 
             const tabId = btn.dataset.tab;
-            if (tabId === 'alerts') loadAlertsTab();
             if (tabId === 'candidates') loadCandidatesTab();
             if (tabId === 'clippings') loadClippingsTab();
             switchTab(tabId);

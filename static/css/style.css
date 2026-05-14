@@ -879,6 +879,37 @@ body {
     margin: 0;
 }
 
+.inline-alert-panel {
+    margin: 18px 0 22px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--glass-bg);
+    overflow: hidden;
+}
+
+.inline-alert-panel > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.inline-alert-panel > summary small {
+    color: var(--text-sub);
+    font-size: 0.86rem;
+    font-weight: 500;
+}
+
+.inline-alert-panel .alert-management-wrapper {
+    margin: 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
 .candidate-workspace {
     display: flex;
     flex-direction: column;
