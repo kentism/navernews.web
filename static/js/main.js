@@ -554,7 +554,7 @@ async function loadAlertsTab() {
 }
 window.loadAlertsTab = loadAlertsTab;
 
-let candidateCategories = ['전원위 관련', '방송·통신 관련', '유관기관 관련', '기타'];
+let candidateCategories = ['위원회 관련', '방송·통신 관련', '유관기관 관련', '기타'];
 let candidateCache = [];
 let candidateKeywords = [];
 
@@ -669,19 +669,20 @@ async function runCandidateCollection() {
         if (!resp.ok) throw new Error(data.error || '후보 수집 실패');
         
         const cutoffStr = new Date(data.cutoff).toLocaleString();
-        if (data.created > 0) {
-            status.textContent = `${data.keywords.length}개 키워드에서 ${data.checked}건의 기사를 검토하여, 새로운 후보 ${data.created}건을 수집했습니다. (기준: ${cutoffStr} 이후)`;
-        } else {
-            status.textContent = `${data.keywords.length}개 키워드에서 ${data.checked}건의 기사를 검토했으나, 새로운 후보가 없습니다. (기준: ${cutoffStr} 이후)`;
-        }
+        const skipped = [
+            `점수 미달 ${data.skipped_low_score || 0}건`,
+            `이미 학습 ${data.skipped_finalized || 0}건`,
+            `기존 후보 ${data.skipped_duplicate || 0}건`
+        ].join(', ');
+        status.textContent = `${data.keywords.length}개 검색어에서 ${data.checked || 0}건을 검토했고, 새 후보 ${data.created || 0}건을 수집했습니다. (${skipped}, 기준: ${cutoffStr} 이후)`;
         
         showToast(`클리핑 후보 ${data.created}건 수집 완료`);
-        // Force immediate list refresh
-        setTimeout(() => refreshCandidates(), 500);
+        await refreshCandidates();
     } catch (e) {
         console.error('Candidate collection failed:', e);
-        if (status) status.textContent = '후보 수집에 실패했습니다.';
-        showToast('후보 수집에 실패했습니다.');
+        const message = e.message || '후보 수집에 실패했습니다.';
+        if (status) status.textContent = message;
+        showToast(message);
     } finally {
         if (btn) btn.disabled = false;
     }
@@ -734,6 +735,7 @@ async function refreshCandidates() {
         if (cutoffLabel) cutoffLabel.textContent = ' 로드 실패';
     }
 }
+window.refreshCandidates = refreshCandidates;
 
 function renderCandidateKeywords(keywords) {
     const list = document.getElementById('candidateKeywordList');
@@ -776,8 +778,9 @@ async function addCandidateKeyword(keyword) {
         showToast(msg);
         
         // If the user added from a search tab, they might want to know they need to run collection
-        if (status && !data.items.length) {
-             status.textContent = '후보 수집 검색어가 추가되었습니다. [후보 수집] 버튼을 눌러 새 기사를 확인하세요.';
+        const status = document.getElementById('candidateStatus');
+        if (status) {
+             status.textContent = '후보 수집 검색어가 추가되었습니다. [후보 수집 시작] 버튼을 눌러 새 기사를 확인하세요.';
         }
     } catch (e) {
         console.error('Candidate keyword add failed:', e);
@@ -824,6 +827,9 @@ function renderCandidates(items) {
         const similarBadge = item.similar_count > 0
             ? `<span class="candidate-badge">유사 ${item.similar_count}건</span>`
             : '';
+        const reasons = Array.isArray(item.score_reasons) && item.score_reasons.length
+            ? `<ul class="candidate-reasons">${item.score_reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join('')}</ul>`
+            : '<ul class="candidate-reasons"><li>점수 산정 사유 없음</li></ul>';
 
         return `
             <div class="candidate-card" data-candidate-id="${item.id}">
@@ -841,6 +847,7 @@ function renderCandidates(items) {
                 <h3>${escapeHtml(item.title)}</h3>
                 <p>${escapeHtml(item.description || '')}</p>
                 <div class="candidate-keyword">검색어: ${escapeHtml(item.keyword)}</div>
+                ${reasons}
                 <div class="news-actions">
                     <button type="button" class="btn-small btn-primary btn-clip-trigger" data-candidate-accept>클리핑</button>
                     <button type="button" class="btn-small" data-candidate-reject>제외</button>

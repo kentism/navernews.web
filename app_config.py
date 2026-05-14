@@ -1,9 +1,14 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
 # Load .env file
-load_dotenv()
+if load_dotenv:
+    load_dotenv()
 
 
 BASE_DIR = Path(__file__).resolve().parent

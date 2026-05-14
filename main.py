@@ -1,6 +1,6 @@
 import asyncio
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, Form, Request
@@ -33,11 +33,14 @@ from services.clipping_store import (
     init_db,
     list_candidates,
     list_candidate_keywords,
+    list_finalizations,
     parse_pub_date,
     record_clip_event,
+    delete_finalization,
     remove_candidate_keyword,
     reject_candidate,
     save_final_clipping_snapshot,
+    to_iso,
 )
 from services.monitoring import state
 from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
@@ -505,6 +508,11 @@ async def run_clipping_candidates(
     auth_check = await verify_access(request)
     if auth_check:
         return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
+    if not headers.get("X-Naver-Client-Id") or not headers.get("X-Naver-Client-Secret"):
+        return JSONResponse(
+            content={"error": "Naver API credentials are missing"},
+            status_code=400,
+        )
 
     cutoff = get_default_cutoff()
     if since:
@@ -533,6 +541,9 @@ async def run_clipping_candidates(
     run_id = create_run(cutoff, keywords)
     created_count = 0
     total_checked = 0
+    skipped_low_score = 0
+    skipped_finalized = 0
+    skipped_duplicate = 0
 
     for keyword in keywords:
         start = 1
@@ -549,8 +560,15 @@ async def run_clipping_candidates(
                     reached_cutoff = True
                     continue
 
-                if await create_candidate(item, keyword):
+                result = await create_candidate(item, keyword)
+                if result["created"]:
                     created_count += 1
+                elif result["status"] == "low_score":
+                    skipped_low_score += 1
+                elif result["status"] == "finalized":
+                    skipped_finalized += 1
+                elif result["status"] == "duplicate":
+                    skipped_duplicate += 1
 
             if reached_cutoff:
                 break
@@ -562,6 +580,9 @@ async def run_clipping_candidates(
         "status": "success",
         "created": created_count,
         "checked": total_checked,
+        "skipped_low_score": skipped_low_score,
+        "skipped_finalized": skipped_finalized,
+        "skipped_duplicate": skipped_duplicate,
         "cutoff": cutoff.isoformat(),
         "keywords": keywords,
     }

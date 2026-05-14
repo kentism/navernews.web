@@ -1056,6 +1056,25 @@ body {
     line-height: 1.55;
 }
 
+.candidate-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0;
+    margin: 12px 0;
+    list-style: none;
+}
+
+.candidate-reasons li {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-sub);
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
 /* ==============================================================================
    12. HOME TAB & FEATURES
    ============================================================================== */

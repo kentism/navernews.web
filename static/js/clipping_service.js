@@ -303,7 +303,9 @@ async function loadClippingsTab() {
                     if (data.duplicate) {
                         window.showToast('이미 학습된 최종본입니다.');
                     } else {
-                        window.showToast(`최종본 ${data.entry_count}건을 학습 데이터로 저장했습니다.`);
+                        const matched = data.matched_count ?? 0;
+                        const unmatched = data.unmatched_count ?? 0;
+                        window.showToast(`최종본 ${data.entry_count}건 저장 완료 (기사 매칭 ${matched}건, 직접 입력 ${unmatched}건)`);
                     }
                     // Refresh history so it's ready when opened
                     refreshFinalizationHistory();
