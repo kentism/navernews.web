@@ -361,7 +361,7 @@ async def sse_notifications(request: Request, client_id: str = None):
                     yield f"data: {message}\n\n"
                     state.last_seen_clients[client_id] = _current_loop_time()
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    yield "data: ping\n\n"
                     state.last_seen_clients[client_id] = _current_loop_time()
         except asyncio.CancelledError:
             logger.info("SSE connection cancelled", extra={"client_id": client_id})
