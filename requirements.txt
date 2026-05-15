@@ -6,4 +6,3 @@ python-multipart
 jinja2
 markupsafe
 aiofiles
-python-dotenv
