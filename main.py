@@ -1,4 +1,4 @@
-import re
+﻿import re
 import asyncio
 
 from fastapi import FastAPI, Form, Request
@@ -6,7 +6,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
-from pydantic import BaseModel
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app_config import (
@@ -148,7 +147,7 @@ async def poll_naver_news_task():
                 if not is_new:
                     continue
 
-                message = f"[{keyword}] 관련 새로운 기사가 감지되었습니다."
+                message = f"[{keyword}] 愿???덈줈??湲곗궗媛 媛먯??섏뿀?듬땲??"
                 state.notification_history.append((now, keyword, message))
                 if len(state.notification_history) > MAX_NOTIFICATION_HISTORY:
                     state.notification_history.pop(0)
@@ -189,12 +188,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
     if request.url.path.startswith("/api/"):
         return JSONResponse(
-            content={"error": "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요."},
+            content={"error": "?쒕쾭 ?대? ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂."},
             status_code=500,
         )
 
     return HTMLResponse(
-        content="<h2>서버 오류가 발생했습니다.</h2><p>잠시 후 다시 시도해주세요.</p>",
+        content="<h2>?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.</h2><p>?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.</p>",
         status_code=500,
     )
 
@@ -235,7 +234,7 @@ async def home(request: Request):
         name="index.html",
         context={
             "default_keywords": DEFAULT_KEYWORDS,
-            "storage_notice": "클리핑 메모, 최근 검색어, 알림 상태는 현재 사용 중인 브라우저에 저장됩니다.",
+            "storage_notice": "?대━??硫붾え, 理쒓렐 寃?됱뼱, ?뚮┝ ?곹깭???꾩옱 ?ъ슜 以묒씤 釉뚮씪?곗?????λ맗?덈떎.",
         },
     )
 
@@ -250,7 +249,7 @@ async def clippings_tab(request: Request):
         request=request,
         name="clippings_tab.html",
         context={
-            "storage_notice": "이 탭의 메모와 알림 설정은 브라우저 로컬 저장소를 사용합니다.",
+            "storage_notice": "????쓽 硫붾え? ?뚮┝ ?ㅼ젙? 釉뚮씪?곗? 濡쒖뺄 ??μ냼瑜??ъ슜?⑸땲??",
         },
     )
 
@@ -278,19 +277,9 @@ async def alerts_tab(request: Request):
         request=request,
         name="alerts_tab.html",
         context={
-            "storage_notice": "알림 상태는 현재 브라우저 로컬 저장소와 실시간 연결 상태를 기준으로 동작합니다.",
+            "storage_notice": "?뚮┝ ?곹깭???꾩옱 釉뚮씪?곗? 濡쒖뺄 ??μ냼? ?ㅼ떆媛??곌껐 ?곹깭瑜?湲곗??쇰줈 ?숈옉?⑸땲??",
         },
     )
 
 
-class ClipEventRequest(BaseModel):
-    title: str
-    link: str
-    original_link: str = ""
-    source: str = ""
-    pub_date: str = ""
-    category: str = "기타"
 
-
-class FinalClippingRequest(BaseModel):
-    content: str
