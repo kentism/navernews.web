@@ -1,7 +1,7 @@
 import re
 import asyncio
 
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -26,10 +26,11 @@ from services.clipping_store import (
     init_db,
 )
 from services.monitoring import state
-from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
+from services.news_service import fetch_news, get_naver_api_headers
 from routers.candidates import router as candidates_router
 from routers.clippings import router as clippings_router
 from routers.notifications import router as notifications_router
+from routers.search import router as search_router
 from routers.storage import router as storage_router
 from utils.template_filters import extract_highlight_keyword, time_ago
 
@@ -41,6 +42,7 @@ app = FastAPI()
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+app.state.templates = templates
 
 
 async def verify_access(request: Request):
@@ -60,6 +62,7 @@ app.state.verify_access = verify_access
 app.include_router(candidates_router)
 app.include_router(clippings_router)
 app.include_router(notifications_router)
+app.include_router(search_router)
 app.include_router(storage_router)
 
 
@@ -237,61 +240,6 @@ async def home(request: Request):
     )
 
 
-@app.post("/api/search", response_class=JSONResponse)
-async def search_api(
-    request: Request,
-    keyword: str = Form(...),
-    start: int = Form(default=1),
-    headers: dict = Depends(get_naver_api_headers),
-):
-    auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
-
-    cache_key = f"{keyword}_{start}"
-    items = state.search_cache.get(cache_key)
-    if items is None:
-        items = await fetch_news(keyword, headers=headers, start=start, display=20)
-        if start == 1:
-            state.search_cache[cache_key] = items
-
-    return {"items": [item.model_dump() for item in items], "total": len(items)}
-
-
-@app.post("/search-results", response_class=HTMLResponse)
-async def search_results(
-    request: Request,
-    keyword: str = Form(...),
-    start: int = Form(default=1),
-    headers: dict = Depends(get_naver_api_headers),
-):
-    auth_check = await verify_access(request)
-    if auth_check:
-        return auth_check
-
-    cache_key = f"{keyword}_{start}"
-    form = await request.form()
-    is_refresh = form.get("refresh") == "true"
-
-    items = state.search_cache.get(cache_key)
-    if items is None or is_refresh:
-        items = await fetch_news(keyword, headers=headers, start=start, display=20)
-        if start == 1:
-            state.search_cache[cache_key] = items
-
-    return templates.TemplateResponse(
-        request=request,
-        name="search_results.html",
-        context={"items": items, "keyword": keyword, "start": start + 20},
-    )
-
-
-@app.get("/api/article", response_class=JSONResponse)
-async def get_article_content(url: str):
-    content = await parse_article(url)
-    return {"content": content}
-
-
 @app.get("/clippings-tab", response_class=HTMLResponse)
 async def clippings_tab(request: Request):
     auth_check = await verify_access(request)
@@ -346,4 +294,3 @@ class ClipEventRequest(BaseModel):
 
 class FinalClippingRequest(BaseModel):
     content: str
-
