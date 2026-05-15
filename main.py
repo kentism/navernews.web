@@ -1,9 +1,8 @@
-import asyncio
 import re
-from typing import List
+import asyncio
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
@@ -30,6 +29,7 @@ from services.monitoring import state
 from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
 from routers.candidates import router as candidates_router
 from routers.clippings import router as clippings_router
+from routers.notifications import router as notifications_router
 from routers.storage import router as storage_router
 from utils.template_filters import extract_highlight_keyword, time_ago
 
@@ -59,6 +59,7 @@ async def verify_access(request: Request):
 app.state.verify_access = verify_access
 app.include_router(candidates_router)
 app.include_router(clippings_router)
+app.include_router(notifications_router)
 app.include_router(storage_router)
 
 
@@ -334,89 +335,6 @@ async def alerts_tab(request: Request):
     )
 
 
-@app.get("/api/stream/notifications")
-async def sse_notifications(request: Request, client_id: str = None):
-    if not client_id:
-        return JSONResponse(content={"error": "client_id is required"}, status_code=400)
-
-    async def event_generator():
-        current_time = _current_loop_time()
-        state.last_seen_clients[client_id] = current_time
-
-        queue = asyncio.Queue()
-        state.sse_connections[client_id] = queue
-
-        try:
-            yield f"data: connected:{client_id}\n\n"
-
-            client_keywords = [
-                keyword
-                for keyword, watchers in state.watch_registry.items()
-                if client_id in watchers
-            ]
-
-            for ts, keyword, message in state.notification_history:
-                if keyword in client_keywords and (current_time - ts) < NOTIFICATION_HISTORY_TTL_SECONDS:
-                    yield f"data: {message}\n\n"
-
-            while True:
-                if await request.is_disconnected():
-                    break
-
-                try:
-                    message = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    yield f"data: {message}\n\n"
-                    state.last_seen_clients[client_id] = _current_loop_time()
-                except asyncio.TimeoutError:
-                    yield "data: ping\n\n"
-                    state.last_seen_clients[client_id] = _current_loop_time()
-        except asyncio.CancelledError:
-            logger.info("SSE connection cancelled", extra={"client_id": client_id})
-        finally:
-            state.sse_connections.pop(client_id, None)
-            state.last_seen_clients[client_id] = _current_loop_time()
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-@app.post("/api/watch")
-async def watch_keyword(request: Request, keyword: str = Form(...), client_id: str = Form(None)):
-    auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
-
-    if not client_id:
-        return JSONResponse({"status": "error", "message": "No client_id provided"}, status_code=400)
-
-    state.watch_registry.setdefault(keyword, set()).add(client_id)
-    logger.info("Registered keyword watch", extra={"client_id": client_id, "keyword": keyword})
-    return {"status": "success", "keyword": keyword}
-
-
-@app.post("/api/unwatch")
-async def unwatch_keyword(request: Request, keyword: str = Form(...), client_id: str = Form(None)):
-    auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
-
-    if client_id and keyword in state.watch_registry:
-        state.watch_registry[keyword].discard(client_id)
-        if not state.watch_registry[keyword]:
-            del state.watch_registry[keyword]
-        logger.info("Unregistered keyword watch", extra={"client_id": client_id, "keyword": keyword})
-
-    return {"status": "success"}
-
-
-class SyncWatchRequest(BaseModel):
-    client_id: str
-    keywords: List[str]
-
-
 class ClipEventRequest(BaseModel):
     title: str
     link: str
@@ -429,24 +347,3 @@ class ClipEventRequest(BaseModel):
 class FinalClippingRequest(BaseModel):
     content: str
 
-
-@app.post("/api/sync-watch")
-async def sync_watch(request: Request, data: SyncWatchRequest):
-    auth_check = await verify_access(request)
-    if auth_check:
-        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
-
-    for keyword in list(state.watch_registry.keys()):
-        if data.client_id in state.watch_registry[keyword]:
-            state.watch_registry[keyword].remove(data.client_id)
-            if not state.watch_registry[keyword]:
-                del state.watch_registry[keyword]
-
-    for keyword in data.keywords:
-        state.watch_registry.setdefault(keyword, set()).add(data.client_id)
-
-    logger.info(
-        "Synchronized keyword watches",
-        extra={"client_id": data.client_id, "keyword_count": len(data.keywords)},
-    )
-    return {"status": "success", "count": len(data.keywords)}
