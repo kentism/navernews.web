@@ -8,10 +8,10 @@ import json
 from typing import Optional
 from urllib.parse import urlparse
 
-from app_config import BASE_DIR
+from app_config import CLIPPING_DB_PATH
 
 
-DB_PATH = BASE_DIR / "data" / "clipping_prototype.sqlite3"
+DB_PATH = CLIPPING_DB_PATH
 CANDIDATE_SCORE_THRESHOLD = 55
 DEFAULT_CATEGORIES = [
     "위원회 관련",
@@ -129,6 +129,61 @@ def init_db() -> None:
         }
         if "score_reasons" not in candidate_columns:
             conn.execute("ALTER TABLE clipping_candidates ADD COLUMN score_reasons TEXT")
+
+
+def get_storage_status() -> dict:
+    status = {
+        "db_path": str(DB_PATH),
+        "data_dir": str(DB_PATH.parent),
+        "db_exists": DB_PATH.exists(),
+        "db_size_bytes": DB_PATH.stat().st_size if DB_PATH.exists() else 0,
+        "data_dir_writable": False,
+        "write_error": None,
+        "counts": {},
+        "candidate_status_counts": {},
+    }
+
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        probe_path = DB_PATH.parent / ".write_probe"
+        probe_path.write_text("ok", encoding="utf-8")
+        probe_path.unlink(missing_ok=True)
+        status["data_dir_writable"] = True
+    except OSError as exc:
+        status["write_error"] = str(exc)
+
+    if not DB_PATH.exists():
+        return status
+
+    try:
+        with _connect() as conn:
+            for table in [
+                "articles",
+                "clipping_candidates",
+                "clipping_events",
+                "final_clipping_snapshots",
+                "morning_runs",
+                "candidate_keywords",
+            ]:
+                row = conn.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()
+                status["counts"][table] = row["count"] if row else 0
+
+            rows = conn.execute(
+                """
+                SELECT status, COUNT(*) AS count
+                FROM clipping_candidates
+                GROUP BY status
+                ORDER BY status
+                """
+            ).fetchall()
+            status["candidate_status_counts"] = {
+                row["status"]: row["count"]
+                for row in rows
+            }
+    except sqlite3.Error as exc:
+        status["write_error"] = str(exc)
+
+    return status
 
 
 def utc_now() -> datetime:

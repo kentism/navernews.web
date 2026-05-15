@@ -30,6 +30,7 @@ from services.clipping_store import (
     create_run,
     finish_run,
     get_default_cutoff,
+    get_storage_status,
     init_db,
     list_candidates,
     list_candidate_keywords,
@@ -171,6 +172,15 @@ async def poll_naver_news_task():
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    storage_status = get_storage_status()
+    logger.info(
+        "Initialized clipping storage",
+        extra={
+            "db_path": storage_status["db_path"],
+            "data_dir_writable": storage_status["data_dir_writable"],
+            "db_size_bytes": storage_status["db_size_bytes"],
+        },
+    )
     asyncio.create_task(poll_naver_news_task())
 
 
@@ -648,6 +658,14 @@ async def list_clipping_finalizations(request: Request, limit: int = 30):
     if auth_check: return auth_check
 
     return {"status": "success", "items": list_finalizations(limit=limit)}
+
+
+@app.get("/api/storage/status")
+async def storage_status(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+
+    return {"status": "success", "storage": get_storage_status()}
 
 
 @app.delete("/api/clipping-finalizations/{snapshot_id}")

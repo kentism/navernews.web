@@ -14,6 +14,10 @@ if load_dotenv:
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
+DATA_DIR = Path(os.getenv("APP_DATA_DIR", str(BASE_DIR / "data"))).expanduser().resolve()
+CLIPPING_DB_PATH = Path(
+    os.getenv("CLIPPING_DB_PATH", str(DATA_DIR / "clipping_prototype.sqlite3"))
+).expanduser().resolve()
 
 APP_ACCESS_KEY = os.getenv("APP_ACCESS_KEY", "32195114")
 DEFAULT_KEYWORDS = [
