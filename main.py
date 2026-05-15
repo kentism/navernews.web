@@ -29,10 +29,8 @@ from services.clipping_store import (
     create_candidate,
     create_run,
     finish_run,
-    export_storage_snapshot,
     get_default_cutoff,
     get_storage_status,
-    import_storage_snapshot,
     init_db,
     list_candidates,
     list_candidate_keywords,
@@ -49,10 +47,9 @@ from services.monitoring import state
 from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
 from services.storage_backup import (
     BackupConfigError,
-    download_backup,
-    get_backup_config_status,
-    upload_backup,
 )
+from services.storage_orchestrator import create_storage_backup_result
+from routers.storage import router as storage_router
 from utils.template_filters import extract_highlight_keyword, time_ago
 
 
@@ -63,12 +60,6 @@ app = FastAPI()
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-
-
-async def create_storage_backup_result() -> dict:
-    snapshot = export_storage_snapshot()
-    backup = await upload_backup(snapshot)
-    return {"backup": backup, "storage": snapshot["storage"]}
 
 
 async def verify_access(request: Request):
@@ -82,6 +73,10 @@ async def verify_access(request: Request):
         return RedirectResponse(url="/login", status_code=303)
 
     return None
+
+
+app.state.verify_access = verify_access
+app.include_router(storage_router)
 
 
 def highlight_keyword(text, keyword):
@@ -460,15 +455,6 @@ class CandidateDecisionRequest(BaseModel):
     category: Optional[str] = None
 
 
-class StorageImportRequest(BaseModel):
-    payload: dict
-    confirm_replace: bool = False
-
-
-class StorageRestoreRequest(BaseModel):
-    confirm_replace: bool = False
-
-
 @app.post("/api/sync-watch")
 async def sync_watch(request: Request, data: SyncWatchRequest):
     auth_check = await verify_access(request)
@@ -695,94 +681,6 @@ async def list_clipping_finalizations(request: Request, limit: int = 30):
     if auth_check: return auth_check
 
     return {"status": "success", "items": list_finalizations(limit=limit)}
-
-
-@app.get("/api/storage/status")
-async def storage_status(request: Request):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    return {
-        "status": "success",
-        "storage": get_storage_status(),
-        "backup": get_backup_config_status(),
-    }
-
-
-@app.get("/api/storage/export")
-async def storage_export(request: Request):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    return {"status": "success", "snapshot": export_storage_snapshot()}
-
-
-@app.post("/api/storage/import")
-async def storage_import(request: Request, data: StorageImportRequest):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    if not data.confirm_replace:
-        return JSONResponse(
-            content={"error": "confirm_replace must be true to replace local storage."},
-            status_code=400,
-        )
-
-    try:
-        result = import_storage_snapshot(data.payload, replace=True)
-    except ValueError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=400)
-
-    return {"status": "success", **result}
-
-
-@app.get("/api/storage/backup/status")
-async def storage_backup_status(request: Request):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    return {"status": "success", "backup": get_backup_config_status()}
-
-
-@app.post("/api/storage/backup")
-async def storage_backup(request: Request):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    try:
-        result = await create_storage_backup_result()
-    except BackupConfigError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=400)
-    except RuntimeError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=502)
-
-    return {"status": "success", **result}
-
-
-@app.post("/api/storage/restore")
-async def storage_restore(request: Request, data: StorageRestoreRequest):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    if not data.confirm_replace:
-        return JSONResponse(
-            content={"error": "confirm_replace must be true to restore backup over local storage."},
-            status_code=400,
-        )
-
-    try:
-        snapshot = await download_backup()
-        result = import_storage_snapshot(snapshot, replace=True)
-    except BackupConfigError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=400)
-    except FileNotFoundError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=404)
-    except ValueError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=400)
-    except RuntimeError as exc:
-        return JSONResponse(content={"error": str(exc)}, status_code=502)
-
-    return {"status": "success", **result}
 
 
 @app.delete("/api/clipping-finalizations/{snapshot_id}")
