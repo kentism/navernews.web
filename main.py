@@ -65,6 +65,12 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+async def create_storage_backup_result() -> dict:
+    snapshot = export_storage_snapshot()
+    backup = await upload_backup(snapshot)
+    return {"backup": backup, "storage": snapshot["storage"]}
+
+
 async def verify_access(request: Request):
     if request.url.path in ["/login", "/static/css/style.css"]:
         return None
@@ -666,7 +672,21 @@ async def clipping_finalizations(request: Request, data: FinalClippingRequest):
     if auth_check: return auth_check
 
     result = await save_final_clipping_snapshot(data.content)
-    return {"status": "success", **result}
+    response = {"status": "success", **result}
+
+    if result.get("duplicate"):
+        return response
+
+    try:
+        response["auto_backup"] = await create_storage_backup_result()
+    except BackupConfigError as exc:
+        response["backup_warning"] = str(exc)
+        logger.warning("Automatic backup skipped", extra={"error": str(exc)})
+    except RuntimeError as exc:
+        response["backup_warning"] = str(exc)
+        logger.warning("Automatic backup failed", extra={"error": str(exc)})
+
+    return response
 
 
 @app.get("/api/clipping-finalizations")
@@ -730,14 +750,13 @@ async def storage_backup(request: Request):
     if auth_check: return auth_check
 
     try:
-        snapshot = export_storage_snapshot()
-        result = await upload_backup(snapshot)
+        result = await create_storage_backup_result()
     except BackupConfigError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
     except RuntimeError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=502)
 
-    return {"status": "success", "backup": result, "storage": snapshot["storage"]}
+    return {"status": "success", **result}
 
 
 @app.post("/api/storage/restore")

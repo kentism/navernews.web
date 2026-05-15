@@ -305,7 +305,11 @@ async function loadClippingsTab() {
                     } else {
                         const matched = data.matched_count ?? 0;
                         const unmatched = data.unmatched_count ?? 0;
-                        window.showToast(`최종본 ${data.entry_count}건 저장 완료 (기사 매칭 ${matched}건, 직접 입력 ${unmatched}건)`);
+                        const backupText = data.auto_backup ? ' GitHub 백업 완료' : '';
+                        window.showToast(`최종본 ${data.entry_count}건 저장 완료 (기사 매칭 ${matched}건, 직접 입력 ${unmatched}건)${backupText}`);
+                        if (data.backup_warning) {
+                            window.showToast(`자동 백업 실패: ${data.backup_warning}`);
+                        }
                     }
                     // Refresh history so it's ready when opened
                     refreshFinalizationHistory();
