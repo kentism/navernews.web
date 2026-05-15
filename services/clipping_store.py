@@ -29,18 +29,17 @@ STORAGE_RESTORE_ORDER = [
     "articles",
 ]
 DEFAULT_CATEGORIES = [
-    "위원회 관련",
-    "방송·통신 관련",
-    "유관기관 관련",
-    "기타",
+    "\uc704\uc6d0\ud68c \uad00\ub828",
+    "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828",
+    "\uc720\uad00\uae30\uad00 \uad00\ub828",
+    "\uae30\ud0c0",
 ]
 
 CATEGORY_TERMS = {
-    "위원회 관련": ["전원위", "전체회의", "위원회", "의결", "회의"],
-    "방송·통신 관련": ["방송", "통신", "방통위", "방송통신", "미디어", "플랫폼"],
-    "유관기관 관련": ["국회", "정부", "대통령실", "과기정통부", "문체부", "KCC"],
+    "\uc704\uc6d0\ud68c \uad00\ub828": ["\uc704\uc6d0\ud68c", "\uc804\uccb4\ud68c\uc758", "\uc2ec\uc758", "\uc758\uacb0", "\ud68c\uc758"],
+    "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828": ["\ubc29\uc1a1", "\ud1b5\uc2e0", "\ubc29\ud1b5\uc704", "\ubc29\uc1a1\ud1b5\uc2e0", "\ubbf8\ub514\uc5b4", "\ud50c\ub7ab\ud3fc"],
+    "\uc720\uad00\uae30\uad00 \uad00\ub828": ["\uad6d\ud68c", "\uc815\ubd80", "\ub300\ud1b5\ub839\uc2e4", "\uacfc\uae30\uc815\ud1b5\ubd80", "\ubb38\uccb4\ubd80", "KCC"],
 }
-
 
 @contextmanager
 def _connect():
@@ -411,7 +410,7 @@ def _load_learning_examples(limit: int = 80) -> tuple[list[dict], list[dict]]:
 
 def score_article(title: str, description: str, keyword: str, source: str = "") -> tuple[int, str, list[str]]:
     text = f"{title} {description} {keyword}".lower()
-    best_category = "기타"
+    best_category = "\uae30\ud0c0"
     best_hits = 0
     reasons: list[str] = []
 
@@ -428,14 +427,14 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
     if keyword_hits:
         bonus = min(25, keyword_hits * 10)
         score += bonus
-        reasons.append(f"검색어 표현 일치 +{bonus}")
+        reasons.append(f"\uac80\uc0c9\uc5b4\uc640 \uc9c1\uc811 \uad00\ub828\ub41c \ud45c\ud604 +{bonus}")
     if best_hits:
         bonus = min(24, best_hits * 8)
         score += bonus
-        reasons.append(f"{best_category} 카테고리 단서 +{bonus}")
+        reasons.append(f"{best_category} \ubd84\ub958 \ud0a4\uc6cc\ub4dc \ud3ec\ud568 +{bonus}")
     if source:
         score += 4
-        reasons.append("출처 확인 가능 +4")
+        reasons.append("\ucd9c\ucc98 \uc815\ubcf4 \ud655\uc778 +4")
 
     finalized, rejected = _load_learning_examples()
     current_tokens = _tokenize(f"{title} {description}")
@@ -444,7 +443,7 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
         finalized_sources = {example.get("source") for example in finalized if example.get("source")}
         if source and source in finalized_sources:
             score += 8
-            reasons.append("최종본에 자주 남은 출처 +8")
+            reasons.append("\ucd5c\uc885\ubcf8\uc5d0 \uc790\uc8fc \ub4f1\uc7a5\ud55c \ucd9c\ucc98 +8")
 
         similarities = [
             _jaccard(current_tokens, _tokenize(example.get("title", "")))
@@ -454,9 +453,9 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
         if max_similarity >= 0.18:
             bonus = min(25, int(max_similarity * 60))
             score += bonus
-            reasons.append(f"최종본 제목 패턴 유사 +{bonus}")
+            reasons.append(f"\ucd5c\uc885\ubcf8 \ud559\uc2b5 \uc0ac\ub840\uc640 \uc81c\ubaa9 \uc720\uc0ac +{bonus}")
     else:
-        reasons.append("학습 이력이 적어 검색어/카테고리 규칙 중심")
+        reasons.append("\uc544\uc9c1 \ud559\uc2b5 \uc0ac\ub840\uac00 \ubd80\uc871\ud574 \uac80\uc0c9\uc5b4/\ubd84\ub958 \ud0a4\uc6cc\ub4dc \uae30\ubc18\uc73c\ub85c \ud310\ub2e8")
 
     if rejected:
         similarities = [
@@ -467,13 +466,12 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
         if max_similarity >= 0.18:
             penalty = min(28, int(max_similarity * 60))
             score -= penalty
-            reasons.append(f"제외 이력과 유사 -{penalty}")
+            reasons.append(f"\uc81c\uc678\ud55c \uae30\uc0ac\uc640 \uc81c\ubaa9 \uc720\uc0ac -{penalty}")
 
     final_score = max(0, min(100, score))
     if final_score < CANDIDATE_SCORE_THRESHOLD:
-        reasons.append(f"후보 기준 {CANDIDATE_SCORE_THRESHOLD}점 미만")
+        reasons.append(f"\ud6c4\ubcf4 \uc120\ubcc4 \uae30\uc900 {CANDIDATE_SCORE_THRESHOLD}\uc810 \ubbf8\ub9cc")
     return final_score, best_category, reasons
-
 
 def upsert_article(item) -> int:
     now = to_iso(utc_now())
@@ -764,30 +762,25 @@ def _category_from_header(line: str) -> Optional[str]:
 
 def parse_final_clipping_entries(content: str) -> list[dict]:
     entries = []
-    current_category = "기타"
+    current_category = "\uae30\ud0c0"
     lines = content.splitlines()
 
     for index, line in enumerate(lines):
-        # 1. Update current category if header found
         category = _category_from_header(line)
         if category:
             current_category = category
             continue
 
-        # 2. Look for URLs in the line (handles <url>, [text](url), or raw url)
-        # Regex explanation:
-        # - Group 1: URL inside < > or ( ) or just starting with http
         url_match = re.search(r"(?:<|\[.*\]\()?(https?://[^\s>)]+)(?:>|\))?", line)
         if not url_match:
             continue
 
         link = url_match.group(1).rstrip(".,)")
 
-        # 3. Determine Title/Source from previous non-empty line
         previous = ""
         for prev_index in range(index - 1, -1, -1):
             p_line = lines[prev_index].strip()
-            if p_line and not re.search(r"https?://", p_line) and not p_line.startswith("■"):
+            if p_line and not re.search(r"https?://", p_line) and not p_line.startswith("#"):
                 previous = p_line
                 break
 
@@ -795,17 +788,13 @@ def parse_final_clipping_entries(content: str) -> list[dict]:
         source = ""
 
         if previous:
-            # Try to match "Source : Title" or "▷ Source : Title"
-            # Handles various colon types and optional bullet points
-            source_match = re.match(r"^\s*(?:[▷▷\-*•]\s*)?([^:：]+)\s*[:：]\s*(.+)$", previous)
+            source_match = re.match(r"^\s*(?:[\u25b7\-*]\s*)?([^:\uff1a]+)\s*[:\uff1a]\s*(.+)$", previous)
             if source_match:
                 source = source_match.group(1).strip()
                 title = source_match.group(2).strip()
             else:
-                # If no colon, treat the whole line as title
-                title = previous.lstrip("▷-*• ").strip()
-            
-            # Remove date suffix like (05.12.) or [05.12]
+                title = previous.lstrip("\u25b7-* ").strip()
+
             title = re.sub(r"\s*[\(\[]\d{1,2}\.\d{1,2}\.?[\)\]]\s*$", "", title).strip()
 
         entries.append(
@@ -820,7 +809,6 @@ def parse_final_clipping_entries(content: str) -> list[dict]:
         )
 
     return entries
-
 
 def find_article_id_by_link(link: str) -> Optional[int]:
     with _connect() as conn:

@@ -147,7 +147,7 @@ async def poll_naver_news_task():
                 if not is_new:
                     continue
 
-                message = f"[{keyword}] 愿???덈줈??湲곗궗媛 媛먯??섏뿀?듬땲??"
+                message = f"[{keyword}] 관련 새 기사가 감지되었습니다."
                 state.notification_history.append((now, keyword, message))
                 if len(state.notification_history) > MAX_NOTIFICATION_HISTORY:
                     state.notification_history.pop(0)
@@ -188,12 +188,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
     if request.url.path.startswith("/api/"):
         return JSONResponse(
-            content={"error": "?쒕쾭 ?대? ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂."},
+            content={"error": "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요."},
             status_code=500,
         )
 
     return HTMLResponse(
-        content="<h2>?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.</h2><p>?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.</p>",
+        content="<h2>서버 오류가 발생했습니다.</h2><p>잠시 후 다시 시도해주세요.</p>",
         status_code=500,
     )
 
@@ -234,7 +234,7 @@ async def home(request: Request):
         name="index.html",
         context={
             "default_keywords": DEFAULT_KEYWORDS,
-            "storage_notice": "?대━??硫붾え, 理쒓렐 寃?됱뼱, ?뚮┝ ?곹깭???꾩옱 ?ъ슜 以묒씤 釉뚮씪?곗?????λ맗?덈떎.",
+            "storage_notice": "클리핑 메모, 최근 검색어, 알림 상태는 현재 사용 중인 브라우저와 서버 저장소에 보관됩니다.",
         },
     )
 
@@ -249,7 +249,7 @@ async def clippings_tab(request: Request):
         request=request,
         name="clippings_tab.html",
         context={
-            "storage_notice": "????쓽 硫붾え? ?뚮┝ ?ㅼ젙? 釉뚮씪?곗? 濡쒖뺄 ??μ냼瑜??ъ슜?⑸땲??",
+            "storage_notice": "작성 중인 클리핑 메모는 브라우저에 임시 저장되고, 최종본 학습 이력은 서버 저장소와 GitHub 백업에 보관됩니다.",
         },
     )
 
@@ -277,7 +277,7 @@ async def alerts_tab(request: Request):
         request=request,
         name="alerts_tab.html",
         context={
-            "storage_notice": "?뚮┝ ?곹깭???꾩옱 釉뚮씪?곗? 濡쒖뺄 ??μ냼? ?ㅼ떆媛??곌껐 ?곹깭瑜?湲곗??쇰줈 ?숈옉?⑸땲??",
+            "storage_notice": "알림 상태는 현재 브라우저와 실시간 연결 상태를 기준으로 동작합니다.",
         },
     )
 

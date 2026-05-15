@@ -1,41 +1,31 @@
 <div class="clipping-text-wrapper">
-    <!-- Section Header -->
-    <h2 class="clipping-header">📁 클리핑 모음</h2>
+    <h2 class="clipping-header">클리핑 모음</h2>
 
-    <!-- Section Main -->
-    <p class="clipping-main">검색결과 탭에서 클리핑한 뉴스들이 카테고리에 따라 아래에 추가됩니다.<br>
-        텍스트 영역 하단 핸들을 조정할 경우 텍스트 영역의 높이가 변경됩니다.<br>
-        텍스트 영역에서는 자유롭게 텍스트 편집이 가능하며 📋 텍스트 복사 버튼을 통해 일괄 복사가 가능합니다.<br>
-        클리핑 텍스트 영역을 비우고 싶다면 ✨ 비우기 버튼을 누르시고, 비우기 버튼을 누르지 않으면 이전 클리핑 내역이 저장됩니다. </p>
+    <p class="clipping-main">
+        검색 결과에서 클리핑한 기사가 카테고리별로 정리됩니다.<br>
+        작성 중인 내용은 브라우저에 임시 저장되고, 최종본 학습을 누르면 학습 이력과 백업에 반영됩니다.<br>
+        텍스트를 직접 편집하거나 복사하고, 필요하면 초기화할 수 있습니다.
+    </p>
 
-    <!-- Action Buttons -->
     <div class="clipping-actions">
-        <button id="copyTextBtn" class="btn-copy">
-            📋 텍스트 복사
-        </button>
-        <button id="finalizeLearningBtn" class="btn-copy">
-            최종본 학습
-        </button>
-        <button id="clearTextBtn" class="btn-clear">
-            ✨ 비우기
-        </button>
+        <button id="copyTextBtn" class="btn-copy" type="button">텍스트 복사</button>
+        <button id="finalizeLearningBtn" class="btn-copy" type="button">최종본 학습</button>
+        <button id="clearTextBtn" class="btn-clear" type="button">비우기</button>
     </div>
 
     <details class="inline-alert-panel">
         <summary>
-            <span>🔔 실시간 알림 관리</span>
-            <small>감시 중인 키워드를 클리핑 작업 중 바로 정리합니다.</small>
+            <span>실시간 알림 관리</span>
+            <small>감시 중인 검색어를 클리핑 작업 중 바로 확인합니다.</small>
         </summary>
         {% include 'alerts_tab.html' %}
     </details>
 
-    <!-- Text Area (Replaced by TOAST UI Editor) -->
     <div id="editor" class="clipping-editor-container"></div>
 
-    <!-- Learning History Section -->
     <div class="history-section">
-        <button id="toggleHistoryBtn" class="btn-history-toggle">
-            🕰️ 학습 이력 보기 (최근 30건)
+        <button id="toggleHistoryBtn" class="btn-history-toggle" type="button">
+            학습 이력 보기 (최근 30건)
         </button>
         <div id="historyContainer" class="history-container hidden">
             <div id="historyList" class="history-list">

@@ -4,25 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📰 뉴스 클리핑</title>
-    <!-- Fonts -->
+    <title>뉴스 클리핑</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-
-    <!-- Favicon -->
     <link rel="icon"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3E🗐%3C/text%3E%3C/svg%3E">
-
-    <!-- Fonts -->
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='75' font-size='75'%3EN%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" as="style" crossorigin
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-
-    <!-- TOAST UI Editor -->
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/theme/toastui-editor-dark.min.css" />
-
-    <!-- Styles -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
     <script>
         window.defaultSearchKeywords = {{ default_keywords|tojson }};
@@ -30,27 +21,22 @@
 </head>
 
 <body>
-    <!-- ========================================================================== -->
-    <!-- HEADER -->
-    <!-- ========================================================================== -->
     <div class="sticky-top-wrapper">
         <header class="header">
             <div class="header-content">
-                <h1>📰 뉴스 클리핑</h1>
-                <button class="theme-btn" onclick="toggleTheme()" aria-label="다크 모드 전환">🌙</button>
+                <h1>뉴스 클리핑</h1>
+                <button class="theme-btn" onclick="toggleTheme()" aria-label="테마 전환">테마</button>
             </div>
 
-            <!-- Search Box -->
             <div class="search-box">
                 <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off" aria-label="뉴스 검색어 입력">
-                <button id="searchBtn" aria-label="검색 실행">🔍</button>
-                <button id="advancedSearchToggleBtn" title="고급 검색" class="btn-icon" aria-label="고급 검색 열기">⚙️</button>
-                
+                <button id="searchBtn" aria-label="검색 실행">검색</button>
+                <button id="advancedSearchToggleBtn" title="고급 검색" class="btn-icon" aria-label="고급 검색 열기">필터</button>
+
                 <div id="recentKeywords" class="recent-keywords-dropdown"></div>
 
-                <!-- Advanced Search Dropdown -->
                 <div id="advancedSearchPanel" class="advanced-search-dropdown">
-                    <div class="advanced-search-header">고급 검색 (상세 필터)</div>
+                    <div class="advanced-search-header">고급 검색</div>
                     <div class="advanced-search-body">
                         <div class="form-group">
                             <label for="advInclude">반드시 포함할 단어 (+)</label>
@@ -58,71 +44,56 @@
                         </div>
                         <div class="form-group">
                             <label for="advExclude">제외할 단어 (-)</label>
-                            <input type="text" id="advExclude" placeholder="예: 나무위키">
+                            <input type="text" id="advExclude" placeholder="예: 사무처">
                         </div>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Tab Navigation -->
         <div class="tabs-nav-wrapper">
             <div class="tabs-nav">
-                <button class="tab-btn default-tab active" data-tab="homeTab" id="homeTabBtn"><span class="tab-btn-label">🏠 홈</span></button>
-                <button class="tab-btn default-tab" data-tab="candidates" id="candidatesBtn"><span class="tab-btn-label">🧭 후보</span></button>
-                <button class="tab-btn default-tab" data-tab="clippings" id="clippingsBtn"><span class="tab-btn-label">📁 클리핑</span></button>
+                <button class="tab-btn default-tab active" data-tab="homeTab" id="homeTabBtn"><span class="tab-btn-label">홈</span></button>
+                <button class="tab-btn default-tab" data-tab="candidates" id="candidatesBtn"><span class="tab-btn-label">후보</span></button>
+                <button class="tab-btn default-tab" data-tab="clippings" id="clippingsBtn"><span class="tab-btn-label">클리핑</span></button>
             </div>
         </div>
     </div>
 
-    <!-- ========================================================================== -->
-    <!-- MAIN CONTAINER -->
-    <!-- ========================================================================== -->
     <div class="container">
         <div class="storage-notice" role="status">{{ storage_notice }}</div>
 
-        <!-- Tab Contents -->
         <div class="tabs-content">
-            <!-- Home Tab -->
             <div id="homeTab" class="tab-pane active">
                 {% include 'home.html' %}
             </div>
 
-            <!-- 기존 검색 결과 탭 (필요하면 그대로 유지) -->
-            <div id="searchPanelsContainer" class="tab-pane">
-                <!-- 검색 결과가 동적으로 삽입될 영역 -->
-            </div>
+            <div id="searchPanelsContainer" class="tab-pane"></div>
 
-            <!-- Candidates Tab -->
             <div id="candidates" class="tab-pane">
                 <div class="tab-content-inner">
-                    <p>클리핑 후보를 로드하는 중...</p>
+                    <p>후보 화면을 불러오는 중...</p>
                 </div>
             </div>
 
-            <!-- Clippings Tab -->
             <div id="clippings" class="tab-pane">
                 <div class="tab-content-inner">
-                    <p>클리핑 탭을 로드하는 중...</p>
+                    <p>클리핑 화면을 불러오는 중...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scroll Controls -->
-    <div class="scroll-controls" id="scrollControls">
-        <button id="scrollTopBtn" title="맨 위로" aria-label="맨 위로 이동">↑</button>
-        <button id="scrollBottomBtn" title="맨 아래로" aria-label="맨 아래로 이동">↓</button>
-    </div>
-
-    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Scripts -->
-    <!-- TOAST UI Editor JS -->
+    <div id="scrollControls" class="scroll-controls">
+        <button id="scrollTopBtn" type="button" aria-label="맨 위로">위</button>
+        <button id="scrollBottomBtn" type="button" aria-label="맨 아래로">아래</button>
+    </div>
+
     <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
-    <script src="{{ url_for('static', path='js/clipping_service.js') }}"></script>
     <script src="{{ url_for('static', path='js/main.js') }}"></script>
+    <script src="{{ url_for('static', path='js/clipping_service.js') }}"></script>
 </body>
 
 </html>

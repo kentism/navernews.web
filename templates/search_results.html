@@ -1,24 +1,18 @@
-<!-- ============================================================================ -->
-<!-- NEWS RESULTS LISTS -->
-<!-- This template is rendered server-side and injected into search tabs -->
-<!-- ============================================================================ -->
-
 <div class="search-results-list">
-    <!-- Notification Toggle -->
     <div class="results-toolbar">
         <div class="results-toolbar-copy">
             <span class="results-toolbar-label">현재 검색어</span>
             <h2>{{ keyword }}</h2>
-            <p>필요한 기사만 추리고, 실시간 감시와 새로고침을 이 영역에서 바로 관리하세요.</p>
+            <p>필요한 기사만 추려 클리핑하거나, 이 검색어를 후보 수집 검색어로 등록할 수 있습니다.</p>
         </div>
         <div class="results-toolbar-actions">
-            <div class="results-layout-toggle" aria-label="검색결과 보기 방식">
+            <div class="results-layout-toggle" aria-label="검색 결과 보기 방식">
                 <button type="button" class="layout-toggle-btn active" data-layout="list" onclick="setSearchLayout('list')">1열</button>
                 <button type="button" class="layout-toggle-btn" data-layout="grid" onclick="setSearchLayout('grid')">2열</button>
             </div>
             <div class="watch-toggle-container">
                 <label class="watch-switch">
-                    <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)" aria-label="{{ keyword }} 실시간 알림 토글">
+                    <input type="checkbox" class="watch-checkbox" data-keyword="{{ keyword }}" onchange="toggleKeywordWatch(this)" aria-label="{{ keyword }} 실시간 알림 전환">
                     <span class="watch-slider"></span>
                 </label>
                 <span class="watch-label">실시간 알림</span>
@@ -27,72 +21,59 @@
                 새로고침
             </button>
             <button type="button" class="btn-panel-refresh" data-keyword="{{ keyword }}" onclick="addCandidateKeywordFromSearch(this.dataset.keyword)">
-                후보 수집어 추가
+                후보 수집에 추가
             </button>
         </div>
     </div>
 
     {% for item in items %}
-    <!-- Single News Card -->
     <div class="news-card" data-title="{{ item.title | escape }}" data-link="{{ item.link }}"
         data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}" data-originallink="{{ item.originallink }}"
         data-domain="{{ item.domain }}">
 
-        <!-- Header: Source and Date -->
         <div class="news-header">
             <span class="news-source">{{ item.source }}</span>
             <span class="news-date">{{ item.pubDate | time_ago }}</span>
         </div>
 
-        <!-- Title with Keyword Highlight -->
         <h3 class="news-title">{{ item.title | highlight(keyword) }}</h3>
-
-        <!-- Description with Keyword Highlight -->
         <p class="news-desc">{{ item.description | highlight(keyword) }}</p>
 
-        <!-- Action Buttons -->
         <div class="news-actions">
-            <!-- Clipping Action with Popup Menu -->
             <div class="clip-selector-wrapper">
                 <button class="btn-small btn-primary btn-clip-trigger" type="button" data-title="{{ item.title }}"
                     data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
                     data-originallink="{{ item.originallink }}" onclick="toggleClipMenu(this)">
-                    📌 클립
+                    클리핑
                 </button>
                 <div class="clip-popup-menu">
                     <button type="button"
-                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '위원회 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">위원회
-                        관련</button>
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '위원회 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">위원회 관련</button>
                     <button type="button"
-                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '방송·통신 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">방송·통신
-                        관련</button>
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '방송·통신 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">방송·통신 관련</button>
                     <button type="button"
-                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '유관기관 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">유관기관
-                        관련</button>
+                        onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '유관기관 관련'); toggleClipMenu(this.parentElement.previousElementSibling);">유관기관 관련</button>
                     <button type="button"
                         onclick="clipArticleFromData(this.parentElement.previousElementSibling.dataset.title, this.parentElement.previousElementSibling.dataset.link, '', this.parentElement.previousElementSibling.dataset.source, this.parentElement.previousElementSibling.dataset.pubdate, this.parentElement.previousElementSibling.dataset.originallink, this.parentElement.previousElementSibling, '기타'); toggleClipMenu(this.parentElement.previousElementSibling);">기타</button>
                 </div>
             </div>
 
-            <!-- Naver Link -->
             <a class="btn-small" href="{{ item.link }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
-                🔗 네이버에서 보기
+                네이버에서 보기
             </a>
 
-            <!-- Original Link (if available) -->
             {% if item.originallink %}
             <a class="btn-small" href="{{ item.originallink }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
-                🌐 언론사에서 보기
+                원문 보기
             </a>
             {% endif %}
         </div>
     </div>
     {% endfor %}
 
-    <!-- Empty State -->
     {% if items|length == 0 %}
     <div class="empty-state">
-        <p>검색 결과가 없습니다</p>
+        <p>검색 결과가 없습니다.</p>
     </div>
     {% endif %}
 </div>
