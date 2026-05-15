@@ -13,6 +13,7 @@ from services.storage_backup import (
     get_backup_config_status,
 )
 from services.storage_orchestrator import create_storage_backup_result
+from routers.auth import require_auth
 
 
 router = APIRouter(prefix="/api/storage")
@@ -27,15 +28,9 @@ class StorageRestoreRequest(BaseModel):
     confirm_replace: bool = False
 
 
-async def _require_auth(request: Request):
-    verify_access = request.app.state.verify_access
-    auth_check = await verify_access(request)
-    return auth_check if auth_check else None
-
-
 @router.get("/status")
 async def storage_status(request: Request):
-    auth_check = await _require_auth(request)
+    auth_check = await require_auth(request)
     if auth_check:
         return auth_check
 
@@ -48,7 +43,7 @@ async def storage_status(request: Request):
 
 @router.get("/export")
 async def storage_export(request: Request):
-    auth_check = await _require_auth(request)
+    auth_check = await require_auth(request)
     if auth_check:
         return auth_check
 
@@ -57,7 +52,7 @@ async def storage_export(request: Request):
 
 @router.post("/import")
 async def storage_import(request: Request, data: StorageImportRequest):
-    auth_check = await _require_auth(request)
+    auth_check = await require_auth(request)
     if auth_check:
         return auth_check
 
@@ -77,7 +72,7 @@ async def storage_import(request: Request, data: StorageImportRequest):
 
 @router.get("/backup/status")
 async def storage_backup_status(request: Request):
-    auth_check = await _require_auth(request)
+    auth_check = await require_auth(request)
     if auth_check:
         return auth_check
 
@@ -86,7 +81,7 @@ async def storage_backup_status(request: Request):
 
 @router.post("/backup")
 async def storage_backup(request: Request):
-    auth_check = await _require_auth(request)
+    auth_check = await require_auth(request)
     if auth_check:
         return auth_check
 
@@ -102,7 +97,7 @@ async def storage_backup(request: Request):
 
 @router.post("/restore")
 async def storage_restore(request: Request, data: StorageRestoreRequest):
-    auth_check = await _require_auth(request)
+    auth_check = await require_auth(request)
     if auth_check:
         return auth_check
 

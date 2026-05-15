@@ -34,21 +34,14 @@ from services.clipping_store import (
     init_db,
     list_candidates,
     list_candidate_keywords,
-    list_finalizations,
     parse_pub_date,
-    record_clip_event,
-    delete_finalization,
     remove_candidate_keyword,
     reject_candidate,
-    save_final_clipping_snapshot,
     to_iso,
 )
 from services.monitoring import state
 from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
-from services.storage_backup import (
-    BackupConfigError,
-)
-from services.storage_orchestrator import create_storage_backup_result
+from routers.clippings import router as clippings_router
 from routers.storage import router as storage_router
 from utils.template_filters import extract_highlight_keyword, time_ago
 
@@ -76,6 +69,7 @@ async def verify_access(request: Request):
 
 
 app.state.verify_access = verify_access
+app.include_router(clippings_router)
 app.include_router(storage_router)
 
 
@@ -634,59 +628,3 @@ async def reject_clipping_candidate(request: Request, candidate_id: int):
 
     return {"status": "success"}
 
-
-@app.post("/api/clipping-events")
-async def clipping_events(request: Request, data: ClipEventRequest):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    record_clip_event(
-        title=data.title,
-        link=data.link,
-        original_link=data.original_link,
-        source=data.source,
-        pub_date=data.pub_date,
-        category=data.category,
-        action="draft",
-    )
-    return {"status": "success"}
-
-
-@app.post("/api/clipping-finalizations")
-async def clipping_finalizations(request: Request, data: FinalClippingRequest):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    result = await save_final_clipping_snapshot(data.content)
-    response = {"status": "success", **result}
-
-    if result.get("duplicate"):
-        return response
-
-    try:
-        response["auto_backup"] = await create_storage_backup_result()
-    except BackupConfigError as exc:
-        response["backup_warning"] = str(exc)
-        logger.warning("Automatic backup skipped", extra={"error": str(exc)})
-    except RuntimeError as exc:
-        response["backup_warning"] = str(exc)
-        logger.warning("Automatic backup failed", extra={"error": str(exc)})
-
-    return response
-
-
-@app.get("/api/clipping-finalizations")
-async def list_clipping_finalizations(request: Request, limit: int = 30):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    return {"status": "success", "items": list_finalizations(limit=limit)}
-
-
-@app.delete("/api/clipping-finalizations/{snapshot_id}")
-async def remove_clipping_finalization(request: Request, snapshot_id: int):
-    auth_check = await verify_access(request)
-    if auth_check: return auth_check
-
-    success = delete_finalization(snapshot_id)
-    return {"status": "success", "deleted": success}
