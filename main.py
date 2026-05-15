@@ -29,8 +29,10 @@ from services.clipping_store import (
     create_candidate,
     create_run,
     finish_run,
+    export_storage_snapshot,
     get_default_cutoff,
     get_storage_status,
+    import_storage_snapshot,
     init_db,
     list_candidates,
     list_candidate_keywords,
@@ -45,6 +47,12 @@ from services.clipping_store import (
 )
 from services.monitoring import state
 from services.news_service import NewsItem, fetch_news, get_naver_api_headers, parse_article
+from services.storage_backup import (
+    BackupConfigError,
+    download_backup,
+    get_backup_config_status,
+    upload_backup,
+)
 from utils.template_filters import extract_highlight_keyword, time_ago
 
 
@@ -446,6 +454,15 @@ class CandidateDecisionRequest(BaseModel):
     category: Optional[str] = None
 
 
+class StorageImportRequest(BaseModel):
+    payload: dict
+    confirm_replace: bool = False
+
+
+class StorageRestoreRequest(BaseModel):
+    confirm_replace: bool = False
+
+
 @app.post("/api/sync-watch")
 async def sync_watch(request: Request, data: SyncWatchRequest):
     auth_check = await verify_access(request)
@@ -665,7 +682,88 @@ async def storage_status(request: Request):
     auth_check = await verify_access(request)
     if auth_check: return auth_check
 
-    return {"status": "success", "storage": get_storage_status()}
+    return {
+        "status": "success",
+        "storage": get_storage_status(),
+        "backup": get_backup_config_status(),
+    }
+
+
+@app.get("/api/storage/export")
+async def storage_export(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+
+    return {"status": "success", "snapshot": export_storage_snapshot()}
+
+
+@app.post("/api/storage/import")
+async def storage_import(request: Request, data: StorageImportRequest):
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+
+    if not data.confirm_replace:
+        return JSONResponse(
+            content={"error": "confirm_replace must be true to replace local storage."},
+            status_code=400,
+        )
+
+    try:
+        result = import_storage_snapshot(data.payload, replace=True)
+    except ValueError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=400)
+
+    return {"status": "success", **result}
+
+
+@app.get("/api/storage/backup/status")
+async def storage_backup_status(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+
+    return {"status": "success", "backup": get_backup_config_status()}
+
+
+@app.post("/api/storage/backup")
+async def storage_backup(request: Request):
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+
+    try:
+        snapshot = export_storage_snapshot()
+        result = await upload_backup(snapshot)
+    except BackupConfigError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=400)
+    except RuntimeError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=502)
+
+    return {"status": "success", "backup": result, "storage": snapshot["storage"]}
+
+
+@app.post("/api/storage/restore")
+async def storage_restore(request: Request, data: StorageRestoreRequest):
+    auth_check = await verify_access(request)
+    if auth_check: return auth_check
+
+    if not data.confirm_replace:
+        return JSONResponse(
+            content={"error": "confirm_replace must be true to restore backup over local storage."},
+            status_code=400,
+        )
+
+    try:
+        snapshot = await download_backup()
+        result = import_storage_snapshot(snapshot, replace=True)
+    except BackupConfigError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=400)
+    except FileNotFoundError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=404)
+    except ValueError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=400)
+    except RuntimeError as exc:
+        return JSONResponse(content={"error": str(exc)}, status_code=502)
+
+    return {"status": "success", **result}
 
 
 @app.delete("/api/clipping-finalizations/{snapshot_id}")

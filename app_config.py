@@ -35,3 +35,9 @@ NOTIFICATION_HISTORY_TTL_SECONDS = int(os.getenv("NOTIFICATION_HISTORY_TTL_SECON
 MAX_NOTIFICATION_HISTORY = int(os.getenv("MAX_NOTIFICATION_HISTORY", "50"))
 HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
 HTTP_RETRY_COUNT = int(os.getenv("HTTP_RETRY_COUNT", "3"))
+
+BACKUP_PROVIDER = os.getenv("BACKUP_PROVIDER", "").strip().lower()
+BACKUP_GITHUB_TOKEN = os.getenv("BACKUP_GITHUB_TOKEN", "").strip()
+BACKUP_GITHUB_REPO = os.getenv("BACKUP_GITHUB_REPO", "").strip()
+BACKUP_GITHUB_BRANCH = os.getenv("BACKUP_GITHUB_BRANCH", "main").strip()
+BACKUP_FILE_PATH = os.getenv("BACKUP_FILE_PATH", "navernews/clipping_backup.json").strip()

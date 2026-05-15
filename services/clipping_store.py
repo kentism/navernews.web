@@ -2,7 +2,6 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from pathlib import Path
 import re
 import json
 from typing import Optional
@@ -13,6 +12,22 @@ from app_config import CLIPPING_DB_PATH
 
 DB_PATH = CLIPPING_DB_PATH
 CANDIDATE_SCORE_THRESHOLD = 55
+STORAGE_TABLES = [
+    "articles",
+    "final_clipping_snapshots",
+    "clipping_events",
+    "clipping_candidates",
+    "morning_runs",
+    "candidate_keywords",
+]
+STORAGE_RESTORE_ORDER = [
+    "clipping_candidates",
+    "clipping_events",
+    "morning_runs",
+    "candidate_keywords",
+    "final_clipping_snapshots",
+    "articles",
+]
 DEFAULT_CATEGORIES = [
     "위원회 관련",
     "방송·통신 관련",
@@ -184,6 +199,88 @@ def get_storage_status() -> dict:
         status["write_error"] = str(exc)
 
     return status
+
+
+def _table_columns(conn, table: str) -> list[str]:
+    return [row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+
+
+def export_storage_snapshot() -> dict:
+    init_db()
+    with _connect() as conn:
+        tables = {}
+        for table in STORAGE_TABLES:
+            rows = conn.execute(f"SELECT * FROM {table}").fetchall()
+            tables[table] = [dict(row) for row in rows]
+
+    return {
+        "version": 1,
+        "exported_at": to_iso(utc_now()),
+        "storage": get_storage_status(),
+        "tables": tables,
+    }
+
+
+def import_storage_snapshot(snapshot: dict, *, replace: bool = True) -> dict:
+    if not isinstance(snapshot, dict):
+        raise ValueError("Backup payload must be a JSON object.")
+
+    tables = snapshot.get("tables")
+    if not isinstance(tables, dict):
+        raise ValueError("Backup payload must contain a tables object.")
+
+    unknown_tables = sorted(set(tables) - set(STORAGE_TABLES))
+    if unknown_tables:
+        raise ValueError(f"Backup payload contains unknown tables: {', '.join(unknown_tables)}")
+
+    init_db()
+    imported_counts = {}
+
+    with _connect() as conn:
+        column_map = {
+            table: set(_table_columns(conn, table))
+            for table in STORAGE_TABLES
+        }
+
+        if replace:
+            for table in STORAGE_RESTORE_ORDER:
+                conn.execute(f"DELETE FROM {table}")
+
+        for table in STORAGE_TABLES:
+            rows = tables.get(table, [])
+            if not isinstance(rows, list):
+                raise ValueError(f"Table {table} must be a list.")
+
+            imported_counts[table] = 0
+            allowed_columns = column_map[table]
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    raise ValueError(f"Table {table} contains a non-object row.")
+
+                unknown_columns = sorted(set(row) - allowed_columns)
+                if unknown_columns:
+                    raise ValueError(
+                        f"Table {table} contains unknown columns: {', '.join(unknown_columns)}"
+                    )
+
+                columns = [column for column in _table_columns(conn, table) if column in row]
+                if not columns:
+                    continue
+
+                placeholders = ", ".join(["?"] * len(columns))
+                column_sql = ", ".join(columns)
+                values = [row[column] for column in columns]
+                conn.execute(
+                    f"INSERT OR REPLACE INTO {table} ({column_sql}) VALUES ({placeholders})",
+                    values,
+                )
+                imported_counts[table] += 1
+
+    return {
+        "imported_counts": imported_counts,
+        "storage": get_storage_status(),
+    }
 
 
 def utc_now() -> datetime:
