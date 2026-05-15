@@ -193,6 +193,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
+@app.get("/healthz", response_class=JSONResponse)
+async def healthz():
+    return {"status": "ok"}
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = None):
     return templates.TemplateResponse(request=request, name="login.html", context={"error": error})
