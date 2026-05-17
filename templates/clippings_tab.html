@@ -13,6 +13,42 @@
         <button id="clearTextBtn" class="btn-clear" type="button">비우기</button>
     </div>
 
+    <section class="learning-status-panel" aria-labelledby="learningStatusTitle">
+        <div class="learning-status-header">
+            <div>
+                <h3 id="learningStatusTitle">학습 상태</h3>
+                <p id="learningStatusSummary">학습 데이터와 GitHub 백업 상태를 확인하는 중입니다.</p>
+            </div>
+            <span id="learningStatusBadge" class="learning-status-badge">확인 중</span>
+        </div>
+
+        <div class="learning-status-grid">
+            <div class="learning-status-metric">
+                <span>최종본</span>
+                <strong id="learningSnapshotCount">-</strong>
+            </div>
+            <div class="learning-status-metric">
+                <span>학습 기사</span>
+                <strong id="learningArticleCount">-</strong>
+            </div>
+            <div class="learning-status-metric">
+                <span>마지막 학습</span>
+                <strong id="learningLatestAt">-</strong>
+            </div>
+            <div class="learning-status-metric">
+                <span>백업 상태</span>
+                <strong id="learningBackupStatus">-</strong>
+            </div>
+        </div>
+
+        <div id="learningInsightList" class="learning-insight-list"></div>
+
+        <div class="learning-status-actions">
+            <button id="refreshLearningStatusBtn" class="btn-small" type="button">상태 새로고침</button>
+            <button id="restoreLearningBtn" class="btn-small btn-restore-learning" type="button" hidden>GitHub 백업에서 복원</button>
+        </div>
+    </section>
+
     <details class="inline-alert-panel">
         <summary>
             <span>실시간 알림 관리</span>

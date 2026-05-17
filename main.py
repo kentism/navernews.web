@@ -24,6 +24,7 @@ from services.clipping_store import (
     get_storage_status,
     init_db,
 )
+from services.storage_orchestrator import restore_backup_if_local_learning_empty
 from services.monitoring import state
 from services.news_service import fetch_news, get_naver_api_headers
 from routers.candidates import router as candidates_router
@@ -167,6 +168,14 @@ async def poll_naver_news_task():
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    restore_status = await restore_backup_if_local_learning_empty()
+    logger.info(
+        "Checked learning backup auto-restore",
+        extra={
+            "restore_status": restore_status.get("status"),
+            "restore_reason": restore_status.get("reason"),
+        },
+    )
     storage_status = get_storage_status()
     logger.info(
         "Initialized clipping storage",

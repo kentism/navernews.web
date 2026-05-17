@@ -4,15 +4,19 @@ from pydantic import BaseModel
 
 from services.clipping_store import (
     export_storage_snapshot,
+    get_learning_summary,
     get_storage_status,
     import_storage_snapshot,
 )
 from services.storage_backup import (
     BackupConfigError,
-    download_backup,
     get_backup_config_status,
 )
-from services.storage_orchestrator import create_storage_backup_result
+from services.storage_orchestrator import (
+    create_storage_backup_result,
+    inspect_backup_learning_summary,
+    restore_backup_result,
+)
 from routers.auth import require_auth
 
 
@@ -79,6 +83,40 @@ async def storage_backup_status(request: Request):
     return {"status": "success", "backup": get_backup_config_status()}
 
 
+@router.get("/learning-status")
+async def storage_learning_status(request: Request):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    backup_learning = {"available": False, "reason": "not_checked"}
+    try:
+        backup_learning = await inspect_backup_learning_summary()
+    except BackupConfigError as exc:
+        backup_learning = {"available": False, "reason": "backup_not_configured", "error": str(exc)}
+    except FileNotFoundError as exc:
+        backup_learning = {"available": False, "reason": "backup_file_not_found", "error": str(exc)}
+    except ValueError as exc:
+        backup_learning = {"available": False, "reason": "backup_invalid", "error": str(exc)}
+    except RuntimeError as exc:
+        backup_learning = {"available": False, "reason": "backup_unavailable", "error": str(exc)}
+
+    learning = get_learning_summary()
+    restore_available = (
+        learning["snapshot_count"] == 0
+        and learning["finalized_event_count"] == 0
+        and backup_learning.get("snapshot_count", 0) > 0
+    )
+
+    return {
+        "status": "success",
+        "learning": learning,
+        "backup": get_backup_config_status(),
+        "backup_learning": backup_learning,
+        "restore_available": restore_available,
+    }
+
+
 @router.post("/backup")
 async def storage_backup(request: Request):
     auth_check = await require_auth(request)
@@ -108,8 +146,7 @@ async def storage_restore(request: Request, data: StorageRestoreRequest):
         )
 
     try:
-        snapshot = await download_backup()
-        result = import_storage_snapshot(snapshot, replace=True)
+        result = await restore_backup_result()
     except BackupConfigError as exc:
         return JSONResponse(content={"error": str(exc)}, status_code=400)
     except FileNotFoundError as exc:

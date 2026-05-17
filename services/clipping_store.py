@@ -343,6 +343,81 @@ def list_finalizations(limit: int = 30) -> list[dict]:
         print(f"Error in list_finalizations: {e}")
         return []
 
+
+def get_learning_summary() -> dict:
+    init_db()
+    summary = {
+        "snapshot_count": 0,
+        "finalized_event_count": 0,
+        "candidate_count": 0,
+        "last_finalized_at": None,
+        "last_snapshot_entry_count": 0,
+        "top_sources": [],
+        "top_categories": [],
+    }
+
+    try:
+        with _connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    COUNT(*) AS snapshot_count,
+                    MAX(created_at) AS last_finalized_at
+                FROM final_clipping_snapshots
+                """
+            ).fetchone()
+            if row:
+                summary["snapshot_count"] = int(row["snapshot_count"] or 0)
+                summary["last_finalized_at"] = row["last_finalized_at"]
+
+            row = conn.execute(
+                """
+                SELECT entry_count
+                FROM final_clipping_snapshots
+                ORDER BY created_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            if row:
+                summary["last_snapshot_entry_count"] = int(row["entry_count"] or 0)
+
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM clipping_events WHERE action = 'finalized'"
+            ).fetchone()
+            summary["finalized_event_count"] = int(row["count"] or 0) if row else 0
+
+            row = conn.execute("SELECT COUNT(*) AS count FROM clipping_candidates").fetchone()
+            summary["candidate_count"] = int(row["count"] or 0) if row else 0
+
+            source_rows = conn.execute(
+                """
+                SELECT source, COUNT(*) AS count
+                FROM clipping_events
+                WHERE action = 'finalized' AND COALESCE(source, '') != ''
+                GROUP BY source
+                ORDER BY count DESC, source ASC
+                LIMIT 5
+                """
+            ).fetchall()
+            summary["top_sources"] = [dict(row) for row in source_rows]
+
+            category_rows = conn.execute(
+                """
+                SELECT category, COUNT(*) AS count
+                FROM clipping_events
+                WHERE action = 'finalized' AND COALESCE(category, '') != ''
+                GROUP BY category
+                ORDER BY count DESC, category ASC
+                LIMIT 5
+                """
+            ).fetchall()
+            summary["top_categories"] = [dict(row) for row in category_rows]
+    except sqlite3.Error as exc:
+        summary["error"] = str(exc)
+
+    return summary
+
+
 def delete_finalization(snapshot_id: int) -> bool:
     with _connect() as conn:
         # 1. Clean up events
