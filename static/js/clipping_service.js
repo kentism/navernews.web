@@ -280,17 +280,16 @@ function bindClippingActions() {
         finalizeLearningBtn.addEventListener('click', finalizeCurrentClipping);
     }
 
-    const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
-    const historyContainer = document.getElementById('historyContainer');
-    if (toggleHistoryBtn && historyContainer) {
-        toggleHistoryBtn.addEventListener('click', () => {
-            const isHidden = historyContainer.classList.toggle('hidden');
-            if (!isHidden) refreshFinalizationHistory();
-        });
+    const clearAllAlertsBtn = document.getElementById('clearAllAlertsBtn');
+    if (clearAllAlertsBtn && typeof window.clearAllAlerts === 'function') {
+        clearAllAlertsBtn.addEventListener('click', window.clearAllAlerts);
     }
+}
 
+function initializeLearningPanel() {
     const historyList = document.getElementById('historyList');
-    if (historyList) {
+    if (historyList && !historyList.dataset.bound) {
+        historyList.dataset.bound = 'true';
         historyList.addEventListener('click', async event => {
             const delBtn = event.target.closest('.btn-history-del');
             if (!delBtn) return;
@@ -302,20 +301,20 @@ function bindClippingActions() {
         });
     }
 
-    const clearAllAlertsBtn = document.getElementById('clearAllAlertsBtn');
-    if (clearAllAlertsBtn && typeof window.clearAllAlerts === 'function') {
-        clearAllAlertsBtn.addEventListener('click', window.clearAllAlerts);
-    }
-
     const refreshLearningStatusBtn = document.getElementById('refreshLearningStatusBtn');
-    if (refreshLearningStatusBtn) {
+    if (refreshLearningStatusBtn && !refreshLearningStatusBtn.dataset.bound) {
+        refreshLearningStatusBtn.dataset.bound = 'true';
         refreshLearningStatusBtn.addEventListener('click', refreshLearningStatus);
     }
 
     const restoreLearningBtn = document.getElementById('restoreLearningBtn');
-    if (restoreLearningBtn) {
+    if (restoreLearningBtn && !restoreLearningBtn.dataset.bound) {
+        restoreLearningBtn.dataset.bound = 'true';
         restoreLearningBtn.addEventListener('click', restoreLearningFromBackup);
     }
+
+    refreshLearningStatus();
+    refreshFinalizationHistory();
 }
 
 async function copyClippingText() {
@@ -395,7 +394,9 @@ async function refreshLearningStatus() {
     const latestAt = document.getElementById('learningLatestAt');
     const backupStatus = document.getElementById('learningBackupStatus');
     const restoreBtn = document.getElementById('restoreLearningBtn');
+    const restoreNotice = document.getElementById('learningRestoreNotice');
     const insightList = document.getElementById('learningInsightList');
+    const historyMeta = document.getElementById('learningHistoryMeta');
 
     if (!badge || !summary) return;
 
@@ -420,17 +421,17 @@ async function refreshLearningStatus() {
         const backupLearning = data.backup_learning || {};
         const hasLearning = (learning.snapshot_count || 0) > 0 || (learning.finalized_event_count || 0) > 0;
 
-        snapshotCount.textContent = `${learning.snapshot_count || 0}건`;
-        articleCount.textContent = `${learning.finalized_event_count || 0}건`;
-        latestAt.textContent = formatDateTime(learning.last_finalized_at);
+        snapshotCount.textContent = `최종본 ${learning.snapshot_count || 0}건`;
+        articleCount.textContent = `학습 기사 ${learning.finalized_event_count || 0}건`;
+        latestAt.textContent = `마지막 학습 ${formatDateTime(learning.last_finalized_at)}`;
 
         if (backup.configured) {
             const backupCount = backupLearning.snapshot_count ?? 0;
             backupStatus.textContent = backupLearning.available
-                ? `연결됨 · 백업 ${backupCount}건`
-                : '연결됨 · 백업 확인 필요';
+                ? `백업 ${backupCount}건`
+                : '백업 확인 필요';
         } else {
-            backupStatus.textContent = '미설정';
+            backupStatus.textContent = '백업 미설정';
         }
 
         if (hasLearning) {
@@ -449,6 +450,14 @@ async function refreshLearningStatus() {
 
         if (restoreBtn) {
             restoreBtn.hidden = !data.restore_available;
+        }
+        if (restoreNotice) {
+            restoreNotice.hidden = !data.restore_available;
+        }
+        if (historyMeta) {
+            historyMeta.textContent = hasLearning
+                ? `총 ${learning.snapshot_count || 0}개 최종본, ${learning.finalized_event_count || 0}개 기사 학습`
+                : '아직 표시할 학습 이력이 없습니다';
         }
 
         if (insightList) {
@@ -469,6 +478,7 @@ async function refreshLearningStatus() {
         badge.classList.add('error');
         summary.textContent = '학습 상태를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';
         if (restoreBtn) restoreBtn.hidden = true;
+        if (restoreNotice) restoreNotice.hidden = true;
     }
 }
 
@@ -517,8 +527,13 @@ async function refreshFinalizationHistory() {
 
         if (!data.items || data.items.length === 0) {
             list.innerHTML = '<p class="history-empty">아직 학습된 최종본 이력이 없습니다.</p>';
+            const historyMeta = document.getElementById('learningHistoryMeta');
+            if (historyMeta) historyMeta.textContent = '아직 표시할 학습 이력이 없습니다';
             return;
         }
+
+        const historyMeta = document.getElementById('learningHistoryMeta');
+        if (historyMeta) historyMeta.textContent = `최근 ${data.items.length}건 표시 중`;
 
         list.innerHTML = data.items.map(item => {
             const dateStr = formatDateTime(item.created_at);
@@ -555,5 +570,6 @@ async function deleteFinalization(snapshotId) {
 }
 
 window.loadClippingsTab = loadClippingsTab;
+window.initializeLearningPanel = initializeLearningPanel;
 window.refreshFinalizationHistory = refreshFinalizationHistory;
 window.refreshLearningStatus = refreshLearningStatus;

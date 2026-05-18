@@ -535,16 +535,21 @@ async function loadCandidatesTab() {
 
     const hasContent = innerContainer.querySelector('#candidateList');
     if (!hasContent) {
-        innerContainer.innerHTML = '<div class="loading-state">클리핑 후보를 로드하는 중...</div>';
+        innerContainer.innerHTML = '<div class="loading-state">학습 화면을 불러오는 중...</div>';
         try {
             const resp = await fetch('/candidates-tab');
             innerContainer.innerHTML = await resp.text();
             setupCandidateActions();
+            if (typeof window.initializeLearningPanel === 'function') {
+                window.initializeLearningPanel();
+            }
         } catch (e) {
             console.error('Candidate tab load failed:', e);
-            innerContainer.innerHTML = '<div class="error-state">클리핑 후보를 불러오지 못했습니다.</div>';
+            innerContainer.innerHTML = '<div class="error-state">학습 화면을 불러오지 못했습니다.</div>';
             return;
         }
+    } else if (typeof window.refreshLearningStatus === 'function') {
+        window.refreshLearningStatus();
     }
 
     await refreshCandidates();
