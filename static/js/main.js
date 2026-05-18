@@ -372,6 +372,38 @@ function extractSearchContent(html, stripToolbar = false) {
     return wrapper.innerHTML;
 }
 
+function syncSearchPanelControls(panel) {
+    const checkbox = panel.querySelector('.watch-checkbox');
+    if (checkbox && window.keywordWatchSet) {
+        checkbox.checked = window.keywordWatchSet.has(checkbox.dataset.keyword);
+    }
+}
+
+function resetPanelSentinel(panel) {
+    const contentArea = panel.querySelector('.search-panel-content');
+    if (!contentArea) return;
+
+    const existingSentinel = contentArea.querySelector('.panel-sentinel');
+    if (existingSentinel) existingSentinel.remove();
+
+    const sentinel = document.createElement('div');
+    sentinel.className = 'panel-sentinel';
+    sentinel.innerHTML = getSentinelHTML();
+    contentArea.appendChild(sentinel);
+}
+
+function renderSearchResultsIntoPanel(panel, html, nextStart = 21) {
+    const contentArea = panel.querySelector('.search-panel-content');
+    if (!contentArea) return;
+
+    contentArea.innerHTML = extractSearchContent(html);
+    panel.dataset.start = String(nextStart);
+    syncSearchPanelControls(panel);
+    resetPanelSentinel(panel);
+    setupInfiniteScrollForPanel(panel);
+    applySearchLayout();
+}
+
 /**
  * Creates a new search result tab.
  */
@@ -479,10 +511,16 @@ async function refreshSearchTab(id) {
 
     const keyword = panel.dataset.keyword;
     const contentArea = panel.querySelector('.search-panel-content');
+    const previousHtml = contentArea ? contentArea.innerHTML : '';
+    const refreshBtn = panel.querySelector('[data-search-refresh]');
 
     if (contentArea) {
         contentArea.innerHTML = getSkeletonHTML();
         showToast(`'${keyword}' 검색 결과를 새로고침하는 중...`);
+    }
+    if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '새로고침 중';
     }
 
     const fd = new FormData();
@@ -492,30 +530,38 @@ async function refreshSearchTab(id) {
 
     try {
         const resp = await fetch('/search-results', { method: 'POST', body: fd });
+        if (resp.redirected || resp.status === 401) {
+            throw new Error('인증이 만료되었습니다. 다시 로그인한 뒤 새로고침해주세요.');
+        }
         if (!resp.ok) {
-            showToast('새로고침 실패: 서버 오류');
-            if (contentArea) contentArea.innerHTML = '<div class="empty-state"><p>새로고침에 실패했습니다.</p></div>';
-            return;
+            throw new Error(`새로고침 실패: 서버 오류 ${resp.status}`);
         }
         const html = await resp.text();
-
-        if (contentArea) {
-            contentArea.innerHTML = extractSearchContent(html);
-            const sentinel = document.createElement('div');
-            sentinel.className = 'panel-sentinel';
-            sentinel.innerHTML = getSentinelHTML();
-            contentArea.appendChild(sentinel);
+        if (!html || !html.includes('search-results-list')) {
+            throw new Error('새 검색 결과 화면을 불러오지 못했습니다.');
         }
-        panel.dataset.start = '21';
-        setupInfiniteScrollForPanel(panel);
-        applySearchLayout();
-        showToast(`✅ '${keyword}' 검색 결과를 새로고침 완료했습니다.`);
+
+        renderSearchResultsIntoPanel(panel, html, 21);
+        showToast(`'${keyword}' 검색 결과를 새로고침 완료했습니다.`);
     } catch (e) {
         console.error('새로고침 오류:', e);
-        showToast('❌ 새로고침 중 네트워크 오류가 발생했습니다.');
-        if (contentArea) contentArea.innerHTML = '<div class="empty-state"><p>네트워크 오류로 새로고침에 실패했습니다.</p></div>';
+        showToast(e.message || '새로고침 중 네트워크 오류가 발생했습니다.');
+        if (contentArea && previousHtml) {
+            contentArea.innerHTML = previousHtml;
+            resetPanelSentinel(panel);
+            syncSearchPanelControls(panel);
+            setupInfiniteScrollForPanel(panel);
+            applySearchLayout();
+        }
+    } finally {
+        const nextRefreshBtn = panel.querySelector('[data-search-refresh]');
+        if (nextRefreshBtn) {
+            nextRefreshBtn.disabled = false;
+            nextRefreshBtn.textContent = '새로고침';
+        }
     }
 }
+window.refreshSearchTab = refreshSearchTab;
 
 function switchTab(tabId) {
     if (!tabId) return;
@@ -1099,16 +1145,8 @@ async function handleSearch() {
                 if (contentArea) {
                     contentArea.innerHTML = extractSearchContent(html);
                     
-                    // Sync toggle state
-                    const checkbox = panel.querySelector('.watch-checkbox');
-                    if (checkbox && window.keywordWatchSet) {
-                        checkbox.checked = window.keywordWatchSet.has(checkbox.dataset.keyword);
-                    }
-
-                    const sentinel = document.createElement('div');
-                    sentinel.className = 'panel-sentinel';
-                    sentinel.innerHTML = getSentinelHTML();
-                    contentArea.appendChild(sentinel);
+                    syncSearchPanelControls(panel);
+                    resetPanelSentinel(panel);
                 }
                 panel.dataset.start = '21';
                 setupInfiniteScrollForPanel(panel);
@@ -1140,6 +1178,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const recentKeywords = document.getElementById('recentKeywords');
 
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+
+    document.addEventListener('click', (event) => {
+        const refreshBtn = event.target.closest('[data-search-refresh]');
+        if (!refreshBtn) return;
+
+        const panel = refreshBtn.closest('.tab-pane');
+        if (!panel) return;
+        refreshSearchTab(panel.id);
+    });
 
     document.addEventListener('change', (event) => {
         const checkbox = event.target.closest('.watch-checkbox');
