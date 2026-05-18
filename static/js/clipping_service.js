@@ -6,6 +6,8 @@
 
 const CLIPPED_TEXT_KEY = 'clippedTextContent';
 const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타\n\n';
+const LEARNING_HISTORY_PASSWORD = 'kcsc1377!';
+const LEARNING_HISTORY_UNLOCK_KEY = 'learningHistoryUnlocked';
 
 window.clippingEditor = null;
 let isSyncingClippingEditor = false;
@@ -64,6 +66,67 @@ function notifyClippingToast(message) {
     if (typeof window.showToast === 'function') {
         window.showToast(message);
     }
+}
+
+function isLearningHistoryUnlocked() {
+    return sessionStorage.getItem(LEARNING_HISTORY_UNLOCK_KEY) === 'true';
+}
+
+function setLearningHistoryUnlocked(unlocked) {
+    if (unlocked) {
+        sessionStorage.setItem(LEARNING_HISTORY_UNLOCK_KEY, 'true');
+    } else {
+        sessionStorage.removeItem(LEARNING_HISTORY_UNLOCK_KEY);
+    }
+}
+
+function applyLearningHistoryLockState() {
+    const lockPanel = document.getElementById('learningHistoryLockPanel');
+    const content = document.getElementById('learningHistoryContent');
+    if (!lockPanel && !content) return true;
+
+    const unlocked = isLearningHistoryUnlocked();
+    if (lockPanel) lockPanel.hidden = unlocked;
+    if (content) content.hidden = !unlocked;
+    return unlocked;
+}
+
+function requireLearningHistoryUnlock(showNotice = true) {
+    if (applyLearningHistoryLockState()) return true;
+
+    if (showNotice) {
+        const message = document.getElementById('learningHistoryLockMessage');
+        if (message) message.textContent = '관리자 비밀번호를 입력하면 학습 이력을 확인할 수 있습니다.';
+        notifyClippingToast('학습 이력 기능이 잠겨 있습니다.');
+    }
+    return false;
+}
+
+function bindLearningHistoryLock() {
+    const lockPanel = document.getElementById('learningHistoryLockPanel');
+    const input = document.getElementById('learningHistoryPassword');
+    const message = document.getElementById('learningHistoryLockMessage');
+    if (!lockPanel || !input || lockPanel.dataset.bound) return;
+
+    lockPanel.dataset.bound = 'true';
+    lockPanel.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (input.value === LEARNING_HISTORY_PASSWORD) {
+            setLearningHistoryUnlocked(true);
+            input.value = '';
+            if (message) message.textContent = '';
+            applyLearningHistoryLockState();
+            notifyClippingToast('학습 이력 잠금을 해제했습니다.');
+            await refreshLearningStatus();
+            await refreshFinalizationHistory();
+            return;
+        }
+
+        input.value = '';
+        input.focus();
+        if (message) message.textContent = '비밀번호가 일치하지 않습니다.';
+        notifyClippingToast('학습 이력 비밀번호가 일치하지 않습니다.');
+    });
 }
 
 function getCurrentClippingText() {
@@ -302,10 +365,19 @@ function bindClippingActions() {
 }
 
 function initializeLearningPanel() {
+    bindLearningHistoryLock();
+    const unlocked = applyLearningHistoryLockState();
+
     const historyList = document.getElementById('historyList');
     if (historyList && !historyList.dataset.bound) {
         historyList.dataset.bound = 'true';
         historyList.addEventListener('click', async event => {
+            const editBtn = event.target.closest('.btn-history-edit');
+            if (editBtn) {
+                await loadFinalizationForEdit(editBtn.dataset.snapshotId, editBtn);
+                return;
+            }
+
             const delBtn = event.target.closest('.btn-history-del');
             if (!delBtn) return;
 
@@ -314,6 +386,18 @@ function initializeLearningPanel() {
                 await deleteFinalization(snapshotId, delBtn);
             }
         });
+    }
+
+    const editPanel = document.getElementById('finalizationEditPanel');
+    if (editPanel && !editPanel.dataset.bound) {
+        editPanel.dataset.bound = 'true';
+        editPanel.addEventListener('submit', saveFinalizationEdit);
+    }
+
+    const cancelEditBtn = document.getElementById('cancelFinalizationEditBtn');
+    if (cancelEditBtn && !cancelEditBtn.dataset.bound) {
+        cancelEditBtn.dataset.bound = 'true';
+        cancelEditBtn.addEventListener('click', closeFinalizationEditPanel);
     }
 
     const refreshLearningStatusBtn = document.getElementById('refreshLearningStatusBtn');
@@ -328,6 +412,7 @@ function initializeLearningPanel() {
         restoreLearningBtn.addEventListener('click', restoreLearningFromBackup);
     }
 
+    if (!unlocked) return;
     refreshLearningStatus();
     refreshFinalizationHistory();
 }
@@ -402,6 +487,8 @@ async function finalizeCurrentClipping() {
 }
 
 async function refreshLearningStatus() {
+    if (!requireLearningHistoryUnlock(false)) return;
+
     const badge = document.getElementById('learningStatusBadge');
     const summary = document.getElementById('learningStatusSummary');
     const snapshotCount = document.getElementById('learningSnapshotCount');
@@ -498,6 +585,8 @@ async function refreshLearningStatus() {
 }
 
 async function restoreLearningFromBackup() {
+    if (!requireLearningHistoryUnlock()) return;
+
     if (!confirm('GitHub 백업의 학습 데이터를 현재 서버 저장소로 복원할까요? 현재 서버 저장소가 백업 내용으로 교체됩니다.')) {
         return;
     }
@@ -527,6 +616,8 @@ async function restoreLearningFromBackup() {
 }
 
 async function refreshFinalizationHistory() {
+    if (!requireLearningHistoryUnlock(false)) return;
+
     const list = document.getElementById('historyList');
     if (!list) return;
 
@@ -560,6 +651,7 @@ async function refreshFinalizationHistory() {
                         <p class="history-preview">${preview}...</p>
                     </div>
                     <span class="history-meta">${item.entry_count || 0}건</span>
+                    <button class="btn-history-edit" data-snapshot-id="${item.id}" title="학습 이력 수정">수정</button>
                     <button class="btn-history-del" data-snapshot-id="${item.id}" title="학습 이력 삭제">삭제</button>
                 </div>
             `;
@@ -570,7 +662,116 @@ async function refreshFinalizationHistory() {
     }
 }
 
+function closeFinalizationEditPanel() {
+    const panel = document.getElementById('finalizationEditPanel');
+    const textarea = document.getElementById('finalizationEditContent');
+    const status = document.getElementById('finalizationEditStatus');
+    const title = document.getElementById('finalizationEditTitle');
+    if (panel) {
+        panel.hidden = true;
+        delete panel.dataset.snapshotId;
+    }
+    if (textarea) textarea.value = '';
+    if (title) title.textContent = '최종본 수정';
+    if (status) status.textContent = '수정 후 저장하면 학습 이력과 GitHub 백업이 함께 갱신됩니다.';
+}
+
+async function loadFinalizationForEdit(snapshotId, button = null) {
+    if (!requireLearningHistoryUnlock()) return;
+
+    const panel = document.getElementById('finalizationEditPanel');
+    const textarea = document.getElementById('finalizationEditContent');
+    const status = document.getElementById('finalizationEditStatus');
+    const title = document.getElementById('finalizationEditTitle');
+    if (!panel || !textarea) return;
+
+    const originalButtonText = button ? button.textContent : '';
+    if (button) {
+        button.disabled = true;
+        button.textContent = '불러오는 중';
+    }
+    if (status) status.textContent = '최종본 내용을 불러오는 중입니다.';
+
+    try {
+        const resp = await fetch(`/api/clipping-finalizations/${snapshotId}`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '최종본 조회 실패');
+
+        const item = data.item || {};
+        panel.hidden = false;
+        panel.dataset.snapshotId = snapshotId;
+        textarea.value = item.content || '';
+        if (title) title.textContent = `최종본 수정 #${snapshotId}`;
+        if (status) status.textContent = '내용을 수정한 뒤 저장하면 학습 이벤트와 GitHub 백업이 갱신됩니다.';
+        textarea.focus();
+    } catch (error) {
+        console.error('Finalization edit load failed:', error);
+        if (status) status.textContent = '최종본 내용을 불러오지 못했습니다.';
+        notifyClippingToast('최종본 내용을 불러오지 못했습니다.');
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = originalButtonText || '수정';
+        }
+    }
+}
+
+async function saveFinalizationEdit(event) {
+    event.preventDefault();
+    if (!requireLearningHistoryUnlock()) return;
+
+    const panel = document.getElementById('finalizationEditPanel');
+    const textarea = document.getElementById('finalizationEditContent');
+    const status = document.getElementById('finalizationEditStatus');
+    const saveBtn = document.getElementById('saveFinalizationEditBtn');
+    const snapshotId = panel ? panel.dataset.snapshotId : '';
+    const content = textarea ? textarea.value : '';
+
+    if (!snapshotId || !content.trim()) {
+        notifyClippingToast('수정할 최종본 내용이 없습니다.');
+        return;
+    }
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '저장 중';
+    }
+    if (status) status.textContent = '수정 내용을 저장하고 GitHub 백업에 반영하는 중입니다.';
+
+    try {
+        const resp = await fetch(`/api/clipping-finalizations/${snapshotId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '최종본 수정 실패');
+
+        const matched = data.matched_count ?? 0;
+        const unmatched = data.unmatched_count ?? 0;
+        const backupText = data.auto_backup ? ' GitHub 백업 완료' : '';
+        notifyClippingToast(`최종본 수정 완료 (기사 매칭 ${matched}건, 직접 입력 ${unmatched}건)${backupText}`);
+        if (data.backup_warning) {
+            notifyClippingToast(`자동 백업 실패: ${data.backup_warning}`);
+        }
+        closeFinalizationEditPanel();
+        await refreshFinalizationHistory();
+        await refreshLearningStatus();
+    } catch (error) {
+        console.error('Finalization edit save failed:', error);
+        if (status) status.textContent = error.message || '최종본 수정에 실패했습니다.';
+        notifyClippingToast(error.message || '최종본 수정에 실패했습니다.');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = '수정 저장';
+        }
+    }
+}
+
 async function deleteFinalization(snapshotId, button = null) {
+    if (!requireLearningHistoryUnlock()) return;
+
     const row = button ? button.closest('.history-item') : null;
     const originalButtonText = button ? button.textContent : '';
     const historyMeta = document.getElementById('learningHistoryMeta');
@@ -595,7 +796,11 @@ async function deleteFinalization(snapshotId, button = null) {
             }
         }
 
-        notifyClippingToast('학습 이력을 삭제했습니다.');
+        const backupText = data.auto_backup ? ' GitHub 백업 완료' : '';
+        notifyClippingToast(`학습 이력을 삭제했습니다.${backupText}`);
+        if (data.backup_warning) {
+            notifyClippingToast(`자동 백업 실패: ${data.backup_warning}`);
+        }
         await refreshFinalizationHistory();
         await refreshLearningStatus();
     } catch (error) {

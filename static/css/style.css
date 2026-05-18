@@ -896,6 +896,45 @@ body {
     margin-top: 0;
 }
 
+.learning-history-lock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+}
+
+.learning-history-lock h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+
+.learning-history-lock p {
+    margin: 0;
+    color: var(--text-sub);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.learning-history-lock-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.learning-history-lock-controls input {
+    width: 190px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-main);
+}
+
+.learning-history-lock-message {
+    grid-column: 1 / -1;
+    min-height: 18px;
+}
+
 .learning-status-header {
     display: flex;
     align-items: flex-start;
@@ -2031,6 +2070,46 @@ input:checked + .watch-slider:before {
     display: none;
 }
 
+.finalization-edit-panel {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+}
+
+.finalization-edit-panel[hidden] {
+    display: none;
+}
+
+.finalization-edit-header,
+.finalization-edit-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.finalization-edit-panel textarea {
+    width: 100%;
+    min-height: 220px;
+    resize: vertical;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font: inherit;
+    line-height: 1.5;
+}
+
+.finalization-edit-actions span {
+    color: var(--text-sub);
+    font-size: 0.86rem;
+}
+
 .history-list {
     display: flex;
     flex-direction: column;
@@ -2092,9 +2171,22 @@ input:checked + .watch-slider:before {
     transition: all 0.2s ease;
 }
 
+.btn-history-edit {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    cursor: pointer;
+    padding: 6px 9px;
+    border-radius: 6px;
+}
+
 .btn-history-del:hover {
     opacity: 1;
     background: rgba(255, 107, 107, 0.1);
+}
+
+.btn-history-edit:hover {
+    background: var(--bg-color);
 }
 
 .history-empty {
@@ -2107,6 +2199,19 @@ input:checked + .watch-slider:before {
 @media (max-width: 760px) {
     .learning-status-header {
         flex-direction: column;
+    }
+
+    .learning-history-lock {
+        grid-template-columns: 1fr;
+    }
+
+    .learning-history-lock-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .learning-history-lock-controls input {
+        width: 100%;
     }
 
     .learning-status-grid {

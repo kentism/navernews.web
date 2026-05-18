@@ -8,9 +8,11 @@ from app_logging import get_logger
 from routers.auth import require_auth
 from services.clipping_store import (
     delete_finalization,
+    get_finalization,
     list_finalizations,
     record_clip_event,
     save_final_clipping_snapshot,
+    update_finalization,
 )
 from services.storage_backup import BackupConfigError
 from services.storage_orchestrator import create_storage_backup_result
@@ -31,6 +33,18 @@ class ClipEventRequest(BaseModel):
 
 class FinalClippingRequest(BaseModel):
     content: str
+
+
+async def _attach_auto_backup(response: dict, action: str) -> dict:
+    try:
+        response["auto_backup"] = await create_storage_backup_result()
+    except BackupConfigError as exc:
+        response["backup_warning"] = str(exc)
+        logger.warning(f"Automatic backup skipped after {action}", extra={"error": str(exc)})
+    except RuntimeError as exc:
+        response["backup_warning"] = str(exc)
+        logger.warning(f"Automatic backup failed after {action}", extra={"error": str(exc)})
+    return response
 
 
 @router.post("/clipping-events")
@@ -63,16 +77,7 @@ async def clipping_finalizations(request: Request, data: FinalClippingRequest):
     if result.get("duplicate"):
         return response
 
-    try:
-        response["auto_backup"] = await create_storage_backup_result()
-    except BackupConfigError as exc:
-        response["backup_warning"] = str(exc)
-        logger.warning("Automatic backup skipped", extra={"error": str(exc)})
-    except RuntimeError as exc:
-        response["backup_warning"] = str(exc)
-        logger.warning("Automatic backup failed", extra={"error": str(exc)})
-
-    return response
+    return await _attach_auto_backup(response, "finalization create")
 
 
 @router.get("/clipping-finalizations")
@@ -84,6 +89,34 @@ async def get_clipping_finalizations(request: Request, limit: int = 30):
     return {"status": "success", "items": list_finalizations(limit=limit)}
 
 
+@router.get("/clipping-finalizations/{snapshot_id}")
+async def get_clipping_finalization(request: Request, snapshot_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    item = get_finalization(snapshot_id)
+    if not item:
+        return JSONResponse(content={"error": "Finalization not found"}, status_code=404)
+    return {"status": "success", "item": item}
+
+
+@router.put("/clipping-finalizations/{snapshot_id}")
+async def update_clipping_finalization(request: Request, snapshot_id: int, data: FinalClippingRequest):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    result = update_finalization(snapshot_id, data.content)
+    if result.get("reason") == "not_found":
+        return JSONResponse(content={"error": "Finalization not found"}, status_code=404)
+    if result.get("duplicate"):
+        return JSONResponse(content={"error": "Same finalization already exists", **result}, status_code=409)
+
+    response = {"status": "success", **result}
+    return await _attach_auto_backup(response, "finalization update")
+
+
 @router.delete("/clipping-finalizations/{snapshot_id}")
 async def remove_clipping_finalization(request: Request, snapshot_id: int):
     auth_check = await require_auth(request)
@@ -91,4 +124,7 @@ async def remove_clipping_finalization(request: Request, snapshot_id: int):
         return auth_check
 
     success = delete_finalization(snapshot_id)
-    return {"status": "success", "deleted": success}
+    response = {"status": "success", "deleted": success}
+    if success:
+        return await _attach_auto_backup(response, "finalization delete")
+    return response

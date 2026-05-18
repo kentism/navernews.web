@@ -344,6 +344,19 @@ def list_finalizations(limit: int = 30) -> list[dict]:
         return []
 
 
+def get_finalization(snapshot_id: int) -> Optional[dict]:
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT id, content, created_at, entry_count
+            FROM final_clipping_snapshots
+            WHERE id = ?
+            """,
+            (snapshot_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
 def get_learning_summary() -> dict:
     init_db()
     summary = {
@@ -425,6 +438,93 @@ def delete_finalization(snapshot_id: int) -> bool:
         # 2. Delete snapshot
         cur = conn.execute("DELETE FROM final_clipping_snapshots WHERE id = ?", (snapshot_id,))
         return cur.rowcount > 0
+
+
+def _find_article_id_by_link_conn(conn, link: str) -> Optional[int]:
+    row = conn.execute(
+        """
+        SELECT id FROM articles
+        WHERE link = ? OR original_link = ?
+        ORDER BY last_seen_at DESC
+        LIMIT 1
+        """,
+        (link, link),
+    ).fetchone()
+    return int(row["id"]) if row else None
+
+
+def update_finalization(snapshot_id: int, content: str) -> dict:
+    entries = parse_final_clipping_entries(content)
+    digest = _content_hash(content)
+
+    with _connect() as conn:
+        existing = conn.execute(
+            "SELECT id FROM final_clipping_snapshots WHERE id = ?",
+            (snapshot_id,),
+        ).fetchone()
+        if not existing:
+            return {"updated": False, "reason": "not_found"}
+
+        duplicate = conn.execute(
+            """
+            SELECT id FROM final_clipping_snapshots
+            WHERE content_hash = ? AND id != ?
+            LIMIT 1
+            """,
+            (digest, snapshot_id),
+        ).fetchone()
+        if duplicate:
+            return {
+                "updated": False,
+                "duplicate": True,
+                "snapshot_id": int(duplicate["id"]),
+            }
+
+        conn.execute(
+            """
+            UPDATE final_clipping_snapshots
+            SET content = ?, content_hash = ?, entry_count = ?
+            WHERE id = ?
+            """,
+            (content, digest, len(entries), snapshot_id),
+        )
+        conn.execute("DELETE FROM clipping_events WHERE snapshot_id = ?", (snapshot_id,))
+
+        matched_count = 0
+        unmatched_count = 0
+        for entry in entries:
+            article_id = _find_article_id_by_link_conn(conn, entry["link"])
+            if article_id:
+                matched_count += 1
+            else:
+                unmatched_count += 1
+
+            conn.execute(
+                """
+                INSERT INTO clipping_events (
+                    article_id, snapshot_id, title, link, original_link, source, pub_date, category, action, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'finalized', ?)
+                """,
+                (
+                    article_id,
+                    snapshot_id,
+                    entry["title"],
+                    entry["link"],
+                    entry["original_link"],
+                    entry["source"],
+                    entry["pub_date"],
+                    entry["category"],
+                    to_iso(utc_now()),
+                ),
+            )
+
+        return {
+            "updated": True,
+            "snapshot_id": snapshot_id,
+            "entry_count": len(entries),
+            "matched_count": matched_count,
+            "unmatched_count": unmatched_count,
+        }
 
 
 def _domain_from_link(link: str) -> str:
@@ -548,6 +648,19 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
         reasons.append(f"\ud6c4\ubcf4 \uc120\ubcc4 \uae30\uc900 {CANDIDATE_SCORE_THRESHOLD}\uc810 \ubbf8\ub9cc")
     return final_score, best_category, reasons
 
+def _find_existing_article_id(conn, link: str, original_link: str) -> Optional[int]:
+    row = conn.execute(
+        """
+        SELECT id FROM articles
+        WHERE link IN (?, ?)
+           OR original_link IN (?, ?)
+        LIMIT 1
+        """,
+        (link, original_link, link, original_link),
+    ).fetchone()
+    return int(row["id"]) if row else None
+
+
 def upsert_article(item) -> int:
     now = to_iso(utc_now())
     link = item.link or item.originallink
@@ -555,6 +668,33 @@ def upsert_article(item) -> int:
     domain = item.domain or _domain_from_link(original_link)
 
     with _connect() as conn:
+        existing_id = _find_existing_article_id(conn, link, original_link)
+        if existing_id:
+            conn.execute(
+                """
+                UPDATE articles
+                SET original_link = ?,
+                    title = ?,
+                    description = ?,
+                    source = ?,
+                    domain = ?,
+                    pub_date = ?,
+                    last_seen_at = ?
+                WHERE id = ?
+                """,
+                (
+                    original_link,
+                    item.title,
+                    item.description,
+                    item.source,
+                    domain,
+                    item.pubDate,
+                    now,
+                    existing_id,
+                ),
+            )
+            return existing_id
+
         conn.execute(
             """
             INSERT INTO articles (
@@ -585,6 +725,18 @@ def upsert_article(item) -> int:
         return int(row["id"])
 
 
+def _merge_candidate_keywords(existing_keyword: str, keyword: str) -> str:
+    keywords = [
+        item.strip()
+        for item in str(existing_keyword or "").split(",")
+        if item.strip()
+    ]
+    cleaned_keyword = keyword.strip()
+    if cleaned_keyword and cleaned_keyword not in keywords:
+        keywords.append(cleaned_keyword)
+    return ", ".join(keywords)
+
+
 async def create_candidate(item, keyword: str) -> dict:
     article_id = upsert_article(item)
 
@@ -598,13 +750,23 @@ async def create_candidate(item, keyword: str) -> dict:
             return {"status": "finalized", "created": False, "score": 0}
         existing = conn.execute(
             """
-            SELECT status FROM clipping_candidates
-            WHERE article_id = ? AND keyword = ?
+            SELECT id, keyword, status FROM clipping_candidates
+            WHERE article_id = ?
             LIMIT 1
             """,
-            (article_id, keyword),
+            (article_id,),
         ).fetchone()
         if existing:
+            merged_keyword = _merge_candidate_keywords(existing["keyword"], keyword)
+            if existing["status"] == "pending" and merged_keyword != existing["keyword"]:
+                conn.execute(
+                    """
+                    UPDATE clipping_candidates
+                    SET keyword = ?
+                    WHERE id = ?
+                    """,
+                    (merged_keyword, existing["id"]),
+                )
             return {"status": "duplicate", "created": False, "score": 0}
 
     score, category, reasons = score_article(item.title, item.description, keyword, item.source)

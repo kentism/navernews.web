@@ -7,39 +7,64 @@
     </div>
 
     <section class="learning-status-panel learning-ledger-panel" aria-labelledby="learningStatusTitle">
-        <div class="learning-status-header">
+        <form id="learningHistoryLockPanel" class="learning-history-lock" autocomplete="off">
             <div>
-                <h3 id="learningStatusTitle">학습 이력</h3>
-                <p id="learningStatusSummary">최종본 학습 내역과 백업 상태를 확인하는 중입니다.</p>
+                <h3>학습 이력 잠금</h3>
+                <p>최종본 학습 이력, 백업 복원, 이력 삭제 기능은 관리자 비밀번호 입력 후 사용할 수 있습니다.</p>
             </div>
-            <span id="learningStatusBadge" class="learning-status-badge">확인 중</span>
-        </div>
+            <div class="learning-history-lock-controls">
+                <input id="learningHistoryPassword" type="password" placeholder="관리자 비밀번호" autocomplete="current-password">
+                <button id="unlockLearningHistoryBtn" class="btn-small" type="submit">잠금 해제</button>
+            </div>
+            <p id="learningHistoryLockMessage" class="learning-history-lock-message" role="status"></p>
+        </form>
 
-        <div class="learning-ledger-summary">
-            <span id="learningSnapshotCount">최종본 -</span>
-            <span id="learningArticleCount">학습 기사 -</span>
-            <span id="learningLatestAt">마지막 학습 -</span>
-            <span id="learningBackupStatus">백업 확인 중</span>
-        </div>
-
-        <div id="learningInsightList" class="learning-insight-list"></div>
-
-        <div id="learningRestoreNotice" class="learning-restore-notice" hidden>
-            <span>현재 서버 학습 이력이 비어 있지만 GitHub 백업에 학습 데이터가 있습니다.</span>
-            <button id="restoreLearningBtn" class="btn-small btn-restore-learning" type="button">GitHub 백업에서 복원</button>
-        </div>
-
-        <div class="history-section history-section-embedded">
-            <div class="learning-history-toolbar">
+        <div id="learningHistoryContent" class="learning-history-content" hidden>
+            <div class="learning-status-header">
                 <div>
-                    <strong>최근 최종본</strong>
-                    <span id="learningHistoryMeta">최근 30건 기준</span>
+                    <h3 id="learningStatusTitle">학습 이력</h3>
+                    <p id="learningStatusSummary">최종본 학습 내역과 백업 상태를 확인하는 중입니다.</p>
                 </div>
-                <button id="refreshLearningStatusBtn" class="btn-small" type="button">새로고침</button>
+                <span id="learningStatusBadge" class="learning-status-badge">확인 중</span>
             </div>
-            <div id="historyContainer" class="history-container">
-                <div id="historyList" class="history-list">
-                    <p class="history-empty">이력을 불러오는 중...</p>
+
+            <div class="learning-ledger-summary">
+                <span id="learningSnapshotCount">최종본 -</span>
+                <span id="learningArticleCount">학습 기사 -</span>
+                <span id="learningLatestAt">마지막 학습 -</span>
+                <span id="learningBackupStatus">백업 확인 중</span>
+            </div>
+
+            <div id="learningInsightList" class="learning-insight-list"></div>
+
+            <div id="learningRestoreNotice" class="learning-restore-notice" hidden>
+                <span>현재 서버 학습 이력이 비어 있지만 GitHub 백업에 학습 데이터가 있습니다.</span>
+                <button id="restoreLearningBtn" class="btn-small btn-restore-learning" type="button">GitHub 백업에서 복원</button>
+            </div>
+
+            <div class="history-section history-section-embedded">
+                <div class="learning-history-toolbar">
+                    <div>
+                        <strong>최근 최종본</strong>
+                        <span id="learningHistoryMeta">최근 30건 기준</span>
+                    </div>
+                    <button id="refreshLearningStatusBtn" class="btn-small" type="button">새로고침</button>
+                </div>
+                <form id="finalizationEditPanel" class="finalization-edit-panel" hidden>
+                    <div class="finalization-edit-header">
+                        <strong id="finalizationEditTitle">최종본 수정</strong>
+                        <button id="cancelFinalizationEditBtn" class="btn-small" type="button">닫기</button>
+                    </div>
+                    <textarea id="finalizationEditContent" rows="12" spellcheck="false"></textarea>
+                    <div class="finalization-edit-actions">
+                        <span id="finalizationEditStatus">수정 후 저장하면 학습 이력과 GitHub 백업이 함께 갱신됩니다.</span>
+                        <button id="saveFinalizationEditBtn" class="btn-small btn-primary" type="submit">수정 저장</button>
+                    </div>
+                </form>
+                <div id="historyContainer" class="history-container">
+                    <div id="historyList" class="history-list">
+                        <p class="history-empty">이력을 불러오는 중...</p>
+                    </div>
                 </div>
             </div>
         </div>
