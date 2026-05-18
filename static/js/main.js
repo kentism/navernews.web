@@ -43,6 +43,13 @@ function escapeAttr(s) {
     return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function escapeCssValue(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+        return window.CSS.escape(String(value || ''));
+    }
+    return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 /**
  * Shows a toast message.
  */
@@ -68,10 +75,54 @@ function showToast(message) {
 // Expose to window for inline calls if necessary
 window.showToast = showToast;
 
+function getWatchedKeywords() {
+    return Array.from(window.keywordWatchSet || []);
+}
+
+function persistWatchedKeywords() {
+    localStorage.setItem('watchedKeywords', JSON.stringify(getWatchedKeywords()));
+}
+
+function syncVisibleWatchCheckboxes(keyword = null) {
+    const selector = keyword
+        ? `.watch-checkbox[data-keyword="${escapeCssValue(keyword)}"]`
+        : '.watch-checkbox';
+
+    document.querySelectorAll(selector).forEach(checkbox => {
+        if (window.keywordWatchSet) {
+            checkbox.checked = window.keywordWatchSet.has(checkbox.dataset.keyword);
+        }
+    });
+}
+
+function setWatchStateLocally(keyword, isChecked) {
+    if (!window.keywordWatchSet) {
+        window.keywordWatchSet = new Set();
+    }
+
+    if (isChecked) {
+        window.keywordWatchSet.add(keyword);
+    } else {
+        window.keywordWatchSet.delete(keyword);
+    }
+
+    persistWatchedKeywords();
+    renderActiveAlerts();
+    syncVisibleWatchCheckboxes(keyword);
+}
+
 window.toggleKeywordWatch = async function(el) {
     const keyword = el.dataset.keyword;
+    if (!keyword) return;
+
     const isChecked = el.checked;
     const clientId = window.sseClientId;
+
+    setWatchStateLocally(keyword, isChecked);
+    showToast(isChecked
+        ? `[${keyword}] 실시간 알림을 시작합니다.`
+        : `[${keyword}] 실시간 알림을 중단합니다.`
+    );
 
     const url = isChecked ? '/api/watch' : '/api/unwatch';
     const formData = new FormData();
@@ -80,27 +131,13 @@ window.toggleKeywordWatch = async function(el) {
 
     try {
         const resp = await fetch(url, { method: 'POST', body: formData });
-        if (resp.ok) {
-            if (isChecked) {
-                window.keywordWatchSet.add(keyword);
-                showToast(`🔔 [${keyword}] 실시간 알림을 시작합니다.`);
-            } else {
-                window.keywordWatchSet.delete(keyword);
-                showToast(`🔕 [${keyword}] 실시간 알림을 중단합니다.`);
-            }
-            localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet)));
-            
-            // 🔄 Update manager UI if it exists
-            renderActiveAlerts();
-        } else {
-            console.error('Failed to update watch status:', resp.status);
-            showToast('알림 설정 실패');
-            el.checked = !isChecked;
+        if (!resp.ok || resp.redirected) {
+            throw new Error(`watch sync failed: ${resp.status}`);
         }
     } catch (e) {
         console.error('Watch toggle error:', e);
-        showToast('알림 서버 통신 오류');
-        el.checked = !isChecked;
+        setWatchStateLocally(keyword, !isChecked);
+        showToast('알림 서버 동기화에 실패해 이전 상태로 되돌렸습니다.');
     }
 };
 
@@ -137,21 +174,12 @@ function renderActiveAlerts() {
 window.removeAlertFromManager = async function(keyword) {
     if (!confirm(`[${keyword}] 알림을 중단하시겠습니까?`)) return;
 
-    window.keywordWatchSet.delete(keyword);
-    localStorage.setItem('watchedKeywords', JSON.stringify(Array.from(window.keywordWatchSet)));
+    setWatchStateLocally(keyword, false);
 
     // Sync with server (Absolute Sync)
     syncAlertsWithServer();
 
-    // Update UI
-    renderActiveAlerts();
-    
-    // Sync any visible checkboxes in search tabs
-    document.querySelectorAll(`.watch-checkbox[data-keyword="${keyword}"]`).forEach(cb => {
-        cb.checked = false;
-    });
-
-    showToast(`🔕 [${keyword}] 알림이 중단되었습니다.`);
+    showToast(`[${keyword}] 알림이 중단되었습니다.`);
 };
 
 /**
@@ -162,20 +190,16 @@ async function clearAllAlerts() {
     if (!confirm('정말로 모든 실시간 알림을 초기화하시겠습니까?')) return;
 
     window.keywordWatchSet.clear();
-    localStorage.setItem('watchedKeywords', JSON.stringify([]));
+    persistWatchedKeywords();
 
     // Sync with server (Absolute Sync)
     syncAlertsWithServer();
 
     // Update UI
     renderActiveAlerts();
+    syncVisibleWatchCheckboxes();
 
-    // Sync all visible checkboxes
-    document.querySelectorAll('.watch-checkbox').forEach(cb => {
-        cb.checked = false;
-    });
-
-    showToast('🗑️ 모든 실시간 알림이 초기화되었습니다.');
+    showToast('모든 실시간 알림이 초기화되었습니다.');
 }
 window.clearAllAlerts = clearAllAlerts;
 
@@ -183,7 +207,7 @@ window.clearAllAlerts = clearAllAlerts;
  * Authoritative sync with server
  */
 function syncAlertsWithServer() {
-    const keywords = Array.from(window.keywordWatchSet || []);
+    const keywords = getWatchedKeywords();
     fetch('/api/sync-watch', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
@@ -191,8 +215,12 @@ function syncAlertsWithServer() {
             client_id: window.sseClientId,
             keywords: keywords
         })
-    }).catch(e => console.error('Sync error:', e));
+    }).catch(e => {
+        console.error('Sync error:', e);
+        showToast('알림 서버 동기화에 실패했습니다. 새로고침 후 다시 확인해주세요.');
+    });
 }
+window.renderActiveAlerts = renderActiveAlerts;
 
 
 
@@ -573,6 +601,11 @@ function setupCandidateActions() {
         });
     }
 
+    const addOpenTabsBtn = document.getElementById('addOpenSearchTabsBtn');
+    if (addOpenTabsBtn) {
+        addOpenTabsBtn.addEventListener('click', addOpenSearchTabKeywords);
+    }
+
     const keywordList = document.getElementById('candidateKeywordList');
     if (keywordList) {
         keywordList.addEventListener('click', async (event) => {
@@ -723,6 +756,17 @@ function renderCandidateKeywords(keywords) {
     `).join('');
 }
 
+async function saveCandidateKeyword(keyword) {
+    const resp = await fetch('/api/candidate-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '검색어 추가 실패');
+    return data;
+}
+
 async function addCandidateKeyword(keyword) {
     const cleaned = String(keyword || '').trim();
     const input = document.getElementById('candidateKeywordInput');
@@ -732,13 +776,7 @@ async function addCandidateKeyword(keyword) {
     }
 
     try {
-        const resp = await fetch('/api/candidate-keywords', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keyword: cleaned })
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || '검색어 추가 실패');
+        const data = await saveCandidateKeyword(cleaned);
         candidateKeywords = data.items || [];
         renderCandidateKeywords(candidateKeywords);
         if (input) input.value = '';
@@ -754,6 +792,64 @@ async function addCandidateKeyword(keyword) {
     } catch (e) {
         console.error('Candidate keyword add failed:', e);
         showToast('후보 수집 검색어 추가에 실패했습니다.');
+    }
+}
+
+function getOpenSearchTabKeywords() {
+    const seen = new Set();
+    return Array.from(document.querySelectorAll('.tab-pane[data-keyword]'))
+        .map((panel) => String(panel.dataset.keyword || '').trim())
+        .filter((keyword) => {
+            if (!keyword || seen.has(keyword)) return false;
+            seen.add(keyword);
+            return true;
+        });
+}
+
+async function addOpenSearchTabKeywords() {
+    const btn = document.getElementById('addOpenSearchTabsBtn');
+    const status = document.getElementById('candidateStatus');
+    const openKeywords = getOpenSearchTabKeywords();
+
+    if (!openKeywords.length) {
+        showToast('현재 열린 검색결과 탭이 없습니다.');
+        if (status) status.textContent = '먼저 검색어를 검색해 검색결과 탭을 열어주세요.';
+        return;
+    }
+
+    const existing = new Set(candidateKeywords);
+    const pendingKeywords = openKeywords.filter((keyword) => !existing.has(keyword));
+
+    if (!pendingKeywords.length) {
+        showToast('열린 검색결과 탭 키워드가 이미 모두 등록되어 있습니다.');
+        if (status) status.textContent = '열린 검색결과 탭 키워드가 이미 후보 수집 검색어에 등록되어 있습니다.';
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = `${pendingKeywords.length}개 검색어를 후보 수집 목록에 추가하는 중입니다...`;
+
+    try {
+        let latestData = null;
+        for (const keyword of pendingKeywords) {
+            latestData = await saveCandidateKeyword(keyword);
+        }
+
+        if (latestData) {
+            candidateKeywords = latestData.items || [];
+            renderCandidateKeywords(candidateKeywords);
+        }
+
+        showToast(`열린 검색결과 탭 키워드 ${pendingKeywords.length}개를 추가했습니다.`);
+        if (status) {
+            status.textContent = '후보 수집 검색어가 추가되었습니다. 후보 수집 버튼을 눌러 새 기사를 확인하세요.';
+        }
+    } catch (e) {
+        console.error('Open search tab keyword add failed:', e);
+        showToast('열린 검색결과 탭 키워드 추가에 실패했습니다.');
+        if (status) status.textContent = e.message || '열린 검색결과 탭 키워드 추가에 실패했습니다.';
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -1044,6 +1140,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const recentKeywords = document.getElementById('recentKeywords');
 
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+
+    document.addEventListener('change', (event) => {
+        const checkbox = event.target.closest('.watch-checkbox');
+        if (!checkbox) return;
+        window.toggleKeywordWatch(checkbox);
+    });
 
     if (input) {
         input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });

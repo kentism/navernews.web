@@ -23,7 +23,7 @@
         <ul class="hero-points">
             <li>관련 검색어를 여러 탭으로 나누어 동시에 모니터링할 수 있습니다.</li>
             <li><code>+포함</code>, <code>-제외</code> 조합으로 검색 결과를 더 정밀하게 조정할 수 있습니다.</li>
-            <li>필요한 기사만 클리핑 모음에 넣고 최종본을 학습 데이터로 저장할 수 있습니다.</li>
+            <li>완성된 클리핑 최종본을 기준으로 학습 이력, 후보 선별, 백업 흐름을 이어갈 수 있습니다.</li>
         </ul>
     </div>
 </section>
@@ -37,19 +37,16 @@
 
     <div class="capability-grid">
         <article class="capability-card">
-            <div class="capability-icon">알림</div>
-            <h3>실시간 알림</h3>
-            <p>중요 검색어를 감시하고 새 기사 발생 여부를 클리핑 탭에서 바로 확인합니다.</p>
+            <h3>검색 탭 기반 모니터링</h3>
+            <p>주제별 검색 결과를 탭으로 열어두고, 필요한 검색어는 후보 수집 검색어로 이어서 관리합니다.</p>
         </article>
         <article class="capability-card">
-            <div class="capability-icon">검색</div>
-            <h3>정밀 검색</h3>
-            <p>포함어와 제외어를 조합해 불필요한 결과를 줄이고, 검색 결과를 여러 탭으로 비교합니다.</p>
+            <h3>클리핑 최종본 학습</h3>
+            <p>단순 클릭 기록이 아니라 실제로 완성한 클리핑 내용을 기준으로 기사 선별 패턴을 누적합니다.</p>
         </article>
         <article class="capability-card">
-            <div class="capability-icon">학습</div>
-            <h3>최종본 기반 학습</h3>
-            <p>단순 클릭이 아니라 완성된 클리핑 결과를 기준으로 후보 선별 패턴을 누적합니다.</p>
+            <h3>백업과 복원</h3>
+            <p>최종본 학습 직후 GitHub 백업을 실행하고, 새 배포 후에도 학습 이력을 복원할 수 있도록 구성했습니다.</p>
         </article>
     </div>
 </section>
@@ -58,15 +55,15 @@
     <div class="section-heading">
         <span class="section-kicker">사용 흐름</span>
         <h2>처음에는 이렇게 시작하면 됩니다</h2>
-        <p>검색어를 입력하고, 필요한 기사를 클리핑한 뒤, 완성본을 학습시키는 흐름입니다.</p>
+        <p>검색어를 입력하고, 필요한 기사를 클리핑한 뒤, 완성본을 학습시키고 후보 수집으로 확장하는 흐름입니다.</p>
     </div>
 
     <ol class="workflow-steps">
         <li class="workflow-step">
             <span class="workflow-number">1</span>
             <div>
-                <h3>검색어를 입력합니다</h3>
-                <p>주제별로 탭을 분리해 여러 검색 결과를 동시에 비교합니다.</p>
+                <h3>검색 탭을 구성합니다</h3>
+                <p>주제별로 탭을 분리해 여러 검색 결과를 비교하고, 학습 탭에서 열린 검색어를 일괄 등록할 수 있습니다.</p>
             </div>
         </li>
         <li class="workflow-step">
@@ -81,6 +78,13 @@
             <div>
                 <h3>최종본을 학습시킵니다</h3>
                 <p>완성된 클리핑 내용이 후보 선별 기준으로 누적되고 GitHub 백업에도 반영됩니다.</p>
+            </div>
+        </li>
+        <li class="workflow-step">
+            <span class="workflow-number">4</span>
+            <div>
+                <h3>후보를 수집합니다</h3>
+                <p>학습 탭에서 검색어와 수집 기간을 정한 뒤 새 기사 후보를 확인하고 클리핑 여부를 판단합니다.</p>
             </div>
         </li>
     </ol>
@@ -99,11 +103,11 @@
         </article>
         <article class="note-card">
             <h3>서버 저장소</h3>
-            <p>최종본 학습 이력과 후보 데이터는 서버 DB에 저장됩니다. 현재 Koyeb 환경에서는 재배포 시 초기화될 수 있습니다.</p>
+            <p>최종본 학습 이력, 후보 수집 검색어, 후보 데이터는 서버 DB에서 관리됩니다.</p>
         </article>
         <article class="note-card">
             <h3>GitHub 백업</h3>
-            <p>최종본 학습 직후 자동 백업이 실행됩니다. 데이터가 사라져 보이면 백업 복원을 먼저 확인하세요.</p>
+            <p>최종본 학습 직후 자동 백업이 실행됩니다. 새 배포 후 서버 DB가 비어 있으면 백업 복원을 우선 확인합니다.</p>
         </article>
     </div>
 </section>

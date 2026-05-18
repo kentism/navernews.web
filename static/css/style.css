@@ -1431,19 +1431,6 @@ body {
     border: 1px solid var(--border-color);
 }
 
-.capability-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 16px;
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
-}
-
 .capability-card h3,
 .workflow-step h3,
 .note-card h3 {
@@ -2240,6 +2227,18 @@ input:checked + .watch-slider:before {
     color: var(--action-text);
     font-weight: 800;
     cursor: pointer;
+}
+
+.candidate-keyword-tools {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 8px;
+}
+
+.btn-open-tabs-add {
+    border-color: var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-main);
 }
 
 .compact-keyword-tags {

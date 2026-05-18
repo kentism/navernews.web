@@ -1,14 +1,14 @@
 /**
  * clipping_service.js
  *
- * Handles the clipping editor, final clipping learning history, and the
- * visible learning/backup status panel in the clippings tab.
+ * Handles the clipping editor and final clipping learning actions.
  */
 
 const CLIPPED_TEXT_KEY = 'clippedTextContent';
 const DEFAULT_CLIPPED_TEXT = '■ 위원회 관련\n\n■ 방송·통신 관련\n\n■ 유관기관 관련\n\n■ 기타\n\n';
 
 window.clippingEditor = null;
+let isSyncingClippingEditor = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     const storedText = localStorage.getItem(CLIPPED_TEXT_KEY);
@@ -76,11 +76,24 @@ function getCurrentClippingText() {
 function setEditorText(text) {
     const normalized = persistClippedText(text);
     if (window.clippingEditor) {
-        window.clippingEditor.setMarkdown(normalized);
+        setClippingEditorMarkdown(normalized);
     }
     const textArea = document.getElementById('clippingTextArea');
     if (textArea) {
         textArea.value = normalized;
+    }
+}
+
+function setClippingEditorMarkdown(text) {
+    if (!window.clippingEditor) return;
+
+    isSyncingClippingEditor = true;
+    try {
+        window.clippingEditor.setMarkdown(text);
+    } finally {
+        setTimeout(() => {
+            isSyncingClippingEditor = false;
+        }, 0);
     }
 }
 
@@ -250,9 +263,11 @@ function initializeClippingEditor() {
         ],
         events: {
             change: () => {
-                const normalizedText = persistClippedText(window.clippingEditor.getMarkdown());
-                if (normalizedText !== window.clippingEditor.getMarkdown()) {
-                    window.clippingEditor.setMarkdown(normalizedText);
+                if (isSyncingClippingEditor) return;
+                const currentText = window.clippingEditor.getMarkdown();
+                const normalizedText = persistClippedText(currentText);
+                if (normalizedText !== currentText) {
+                    setClippingEditorMarkdown(normalizedText);
                 }
             }
         }
