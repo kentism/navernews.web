@@ -2048,6 +2048,10 @@ input:checked + .watch-slider:before {
     gap: 15px;
 }
 
+.history-item.is-removing {
+    opacity: 0.6;
+}
+
 .history-info {
     flex: 1;
 }

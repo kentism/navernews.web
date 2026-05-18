@@ -60,8 +60,8 @@ function formatDateTime(value) {
     return date.toLocaleString();
 }
 
-function showToast(message) {
-    if (window.showToast) {
+function notifyClippingToast(message) {
+    if (typeof window.showToast === 'function') {
         window.showToast(message);
     }
 }
@@ -157,7 +157,7 @@ function clipArticleFromData(title, link, content, source, pubDate, originalLink
     const nextText = insertEntryByCategory(currentText, targetCategory, newEntry);
 
     setEditorText(nextText);
-    showToast(`[${targetCategory}] 클리핑에 추가했습니다.`);
+    notifyClippingToast(`[${targetCategory}] 클리핑에 추가했습니다.`);
 
     if (!options.skipRecord) {
         fetch('/api/clipping-events', {
@@ -286,7 +286,7 @@ function bindClippingActions() {
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             setEditorText(DEFAULT_CLIPPED_TEXT);
-            showToast('클리핑 텍스트를 초기화했습니다.');
+            notifyClippingToast('클리핑 텍스트를 초기화했습니다.');
         });
     }
 
@@ -311,7 +311,7 @@ function initializeLearningPanel() {
 
             const snapshotId = delBtn.dataset.snapshotId;
             if (confirm('이 학습 이력을 삭제할까요? 삭제한 기사는 다시 후보에 포함될 수 있습니다.')) {
-                await deleteFinalization(snapshotId);
+                await deleteFinalization(snapshotId, delBtn);
             }
         });
     }
@@ -339,10 +339,10 @@ async function copyClippingText() {
     if (navigator.clipboard && window.isSecureContext) {
         try {
             await navigator.clipboard.writeText(textToCopy);
-            showToast('클리핑 텍스트를 복사했습니다.');
+            notifyClippingToast('클리핑 텍스트를 복사했습니다.');
         } catch (error) {
             console.error('Copy failed:', error);
-            showToast('복사에 실패했습니다.');
+            notifyClippingToast('복사에 실패했습니다.');
         }
         return;
     }
@@ -353,7 +353,7 @@ async function copyClippingText() {
     temp.select();
     try {
         document.execCommand('copy');
-        showToast('클리핑 텍스트를 복사했습니다.');
+        notifyClippingToast('클리핑 텍스트를 복사했습니다.');
     } catch (error) {
         console.error('Copy fallback failed:', error);
         alert('복사에 실패했습니다.');
@@ -365,7 +365,7 @@ async function finalizeCurrentClipping() {
     const finalizeLearningBtn = document.getElementById('finalizeLearningBtn');
     const content = getCurrentClippingText();
     if (!content.trim()) {
-        showToast('학습할 최종본 내용이 없습니다.');
+        notifyClippingToast('학습할 최종본 내용이 없습니다.');
         return;
     }
 
@@ -380,14 +380,14 @@ async function finalizeCurrentClipping() {
         if (!resp.ok) throw new Error(data.error || 'finalization failed');
 
         if (data.duplicate) {
-            showToast('이미 학습된 최종본입니다.');
+            notifyClippingToast('이미 학습된 최종본입니다.');
         } else {
             const matched = data.matched_count ?? 0;
             const unmatched = data.unmatched_count ?? 0;
             const backupText = data.auto_backup ? ' GitHub 백업 완료' : '';
-            showToast(`최종본 ${data.entry_count}건 저장 완료 (기사 매칭 ${matched}건, 직접 입력 ${unmatched}건)${backupText}`);
+            notifyClippingToast(`최종본 ${data.entry_count}건 저장 완료 (기사 매칭 ${matched}건, 직접 입력 ${unmatched}건)${backupText}`);
             if (data.backup_warning) {
-                showToast(`자동 백업 실패: ${data.backup_warning}`);
+                notifyClippingToast(`자동 백업 실패: ${data.backup_warning}`);
             }
         }
 
@@ -395,7 +395,7 @@ async function finalizeCurrentClipping() {
         await refreshLearningStatus();
     } catch (error) {
         console.error('Final clipping learning failed:', error);
-        showToast('최종본 학습 저장에 실패했습니다.');
+        notifyClippingToast('최종본 학습 저장에 실패했습니다.');
     } finally {
         finalizeLearningBtn.disabled = false;
     }
@@ -515,12 +515,12 @@ async function restoreLearningFromBackup() {
         if (!resp.ok) throw new Error(data.error || 'restore failed');
 
         const learning = data.learning || {};
-        showToast(`GitHub 백업을 복원했습니다. 최종본 ${learning.snapshot_count || 0}건이 현재 서버에 반영되었습니다.`);
+        notifyClippingToast(`GitHub 백업을 복원했습니다. 최종본 ${learning.snapshot_count || 0}건이 현재 서버에 반영되었습니다.`);
         await refreshFinalizationHistory();
         await refreshLearningStatus();
     } catch (error) {
         console.error('Learning restore failed:', error);
-        showToast(`백업 복원에 실패했습니다: ${error.message}`);
+        notifyClippingToast(`백업 복원에 실패했습니다: ${error.message}`);
     } finally {
         if (restoreBtn) restoreBtn.disabled = false;
     }
@@ -554,7 +554,7 @@ async function refreshFinalizationHistory() {
             const dateStr = formatDateTime(item.created_at);
             const preview = escapeHtml(item.preview || '');
             return `
-                <div class="history-item">
+                <div class="history-item" data-history-snapshot-id="${item.id}">
                     <div class="history-info">
                         <span class="history-date">${dateStr}</span>
                         <p class="history-preview">${preview}...</p>
@@ -570,17 +570,42 @@ async function refreshFinalizationHistory() {
     }
 }
 
-async function deleteFinalization(snapshotId) {
+async function deleteFinalization(snapshotId, button = null) {
+    const row = button ? button.closest('.history-item') : null;
+    const originalButtonText = button ? button.textContent : '';
+    const historyMeta = document.getElementById('learningHistoryMeta');
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = '삭제 중';
+    }
+    if (row) row.classList.add('is-removing');
+    if (historyMeta) historyMeta.textContent = '학습 이력 삭제를 반영하는 중입니다.';
+
     try {
         const resp = await fetch(`/api/clipping-finalizations/${snapshotId}`, { method: 'DELETE' });
         const data = await resp.json();
         if (!resp.ok || !data.deleted) throw new Error('Delete failed');
-        showToast('학습 이력을 삭제했습니다.');
+
+        if (row) {
+            row.remove();
+            const list = document.getElementById('historyList');
+            if (list && !list.querySelector('.history-item')) {
+                list.innerHTML = '<p class="history-empty">아직 학습된 최종본 이력이 없습니다.</p>';
+            }
+        }
+
+        notifyClippingToast('학습 이력을 삭제했습니다.');
         await refreshFinalizationHistory();
         await refreshLearningStatus();
     } catch (error) {
         console.error('Delete finalization failed:', error);
-        showToast('학습 이력 삭제에 실패했습니다.');
+        if (button) {
+            button.disabled = false;
+            button.textContent = originalButtonText || '삭제';
+        }
+        if (row) row.classList.remove('is-removing');
+        notifyClippingToast('학습 이력 삭제에 실패했습니다.');
     }
 }
 
