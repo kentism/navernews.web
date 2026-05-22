@@ -12,6 +12,7 @@ from app_config import CLIPPING_DB_PATH
 
 DB_PATH = CLIPPING_DB_PATH
 CANDIDATE_SCORE_THRESHOLD = 55
+CANDIDATE_PENDING_RETENTION_DAYS = 7
 STORAGE_TABLES = [
     "articles",
     "final_clipping_snapshots",
@@ -820,6 +821,18 @@ def remove_candidate_keyword(keyword: str) -> bool:
         return cur.rowcount > 0
 
 
+def list_candidate_status_counts() -> dict[str, int]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT status, COUNT(*) AS count
+            FROM clipping_candidates
+            GROUP BY status
+            """
+        ).fetchall()
+        return {row["status"]: int(row["count"] or 0) for row in rows}
+
+
 def list_candidates(status: str = "pending") -> list[dict]:
     with _connect() as conn:
         rows = conn.execute(
@@ -952,6 +965,44 @@ def reject_candidate(candidate_id: int) -> bool:
             (to_iso(utc_now()), candidate_id),
         )
         return cur.rowcount > 0
+
+
+def restore_rejected_candidate(candidate_id: int) -> bool:
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE clipping_candidates
+            SET status = 'pending', reviewed_at = NULL
+            WHERE id = ? AND status = 'rejected'
+            """,
+            (candidate_id,),
+        )
+        return cur.rowcount > 0
+
+
+def delete_candidate(candidate_id: int) -> bool:
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM clipping_candidates WHERE id = ?", (candidate_id,))
+        return cur.rowcount > 0
+
+
+def clear_pending_candidates() -> int:
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM clipping_candidates WHERE status = 'pending'")
+        return cur.rowcount
+
+
+def cleanup_stale_pending_candidates(days: int = CANDIDATE_PENDING_RETENTION_DAYS) -> int:
+    cutoff = to_iso(utc_now() - timedelta(days=days))
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM clipping_candidates
+            WHERE status = 'pending' AND created_at < ?
+            """,
+            (cutoff,),
+        )
+        return cur.rowcount
 
 
 def create_run(cutoff: datetime, keywords: list[str]) -> int:

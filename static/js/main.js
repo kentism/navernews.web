@@ -595,6 +595,12 @@ function switchTab(tabId) {
 let candidateCategories = ['위원회 관련', '방송·통신 관련', '유관기관 관련', '기타'];
 let candidateCache = [];
 let candidateKeywords = [];
+let candidateCurrentStatus = 'pending';
+const candidateStatusLabels = {
+    pending: '대기 후보',
+    rejected: '제외 이력',
+    accepted: '반영 이력'
+};
 
 async function loadCandidatesTab() {
     const candidatesPane = document.getElementById('candidates');
@@ -636,6 +642,11 @@ function setupCandidateActions() {
         runBtn.addEventListener('click', runCandidateCollection);
     }
 
+    const clearPendingBtn = document.getElementById('clearPendingCandidatesBtn');
+    if (clearPendingBtn) {
+        clearPendingBtn.addEventListener('click', clearPendingCandidates);
+    }
+
     const addKeywordBtn = document.getElementById('addCandidateKeywordBtn');
     const keywordInput = document.getElementById('candidateKeywordInput');
     if (addKeywordBtn && keywordInput) {
@@ -650,6 +661,16 @@ function setupCandidateActions() {
     const addOpenTabsBtn = document.getElementById('addOpenSearchTabsBtn');
     if (addOpenTabsBtn) {
         addOpenTabsBtn.addEventListener('click', addOpenSearchTabKeywords);
+    }
+
+    const statusTabs = document.querySelector('.candidate-status-tabs');
+    if (statusTabs) {
+        statusTabs.addEventListener('click', async (event) => {
+            const tab = event.target.closest('[data-candidate-status]');
+            if (!tab) return;
+            candidateCurrentStatus = tab.dataset.candidateStatus || 'pending';
+            await refreshCandidates();
+        });
     }
 
     const keywordList = document.getElementById('candidateKeywordList');
@@ -667,6 +688,8 @@ function setupCandidateActions() {
     list.addEventListener('click', async (event) => {
         const acceptBtn = event.target.closest('[data-candidate-accept]');
         const rejectBtn = event.target.closest('[data-candidate-reject]');
+        const restoreBtn = event.target.closest('[data-candidate-restore]');
+        const deleteBtn = event.target.closest('[data-candidate-delete]');
         const openBtn = event.target.closest('[data-candidate-open]');
         const card = event.target.closest('.candidate-card');
         if (!card) return;
@@ -682,6 +705,16 @@ function setupCandidateActions() {
 
         if (rejectBtn) {
             await rejectCandidate(candidateId);
+            return;
+        }
+
+        if (restoreBtn) {
+            await restoreCandidate(candidateId);
+            return;
+        }
+
+        if (deleteBtn) {
+            await deleteCandidate(candidateId);
             return;
         }
 
@@ -736,14 +769,49 @@ async function runCandidateCollection() {
     }
 }
 
+async function clearPendingCandidates() {
+    const status = document.getElementById('candidateStatus');
+    const btn = document.getElementById('clearPendingCandidatesBtn');
+
+    if (candidateCurrentStatus !== 'pending' || !candidateCache.length) {
+        showToast('비울 대기 후보가 없습니다.');
+        return;
+    }
+
+    if (!confirm('현재 대기 중인 후보를 모두 삭제할까요? 제외한 후보 이력은 유지됩니다.')) {
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = '대기 후보를 비우는 중입니다...';
+
+    try {
+        const resp = await fetch('/api/clipping-candidates/clear-pending', { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '대기 후보 삭제 실패');
+
+        showToast(`대기 후보 ${data.deleted || 0}건을 삭제했습니다.`);
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate clear failed:', e);
+        const message = e.message || '대기 후보 삭제에 실패했습니다.';
+        if (status) status.textContent = message;
+        showToast(message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function refreshCandidates() {
     const list = document.getElementById('candidateList');
     const status = document.getElementById('candidateStatus');
     const cutoffLabel = document.getElementById('currentCutoffLabel');
+    const clearPendingBtn = document.getElementById('clearPendingCandidatesBtn');
     if (!list) return;
 
     try {
-        const resp = await fetch('/api/clipping-candidates');
+        const params = new URLSearchParams({ status: candidateCurrentStatus });
+        const resp = await fetch(`/api/clipping-candidates?${params.toString()}`);
         if (resp.status === 401) {
             if (status) status.innerHTML = '인증이 만료되었습니다. <a href="/login">다시 로그인</a> 해주세요.';
             return;
@@ -756,10 +824,16 @@ async function refreshCandidates() {
         candidateKeywords = data.keywords || [];
 
         renderCandidateKeywords(candidateKeywords);
+        renderCandidateStatusTabs(data.status_counts || {});
         renderCandidates(candidateCache);
+        if (clearPendingBtn) clearPendingBtn.disabled = candidateCurrentStatus !== 'pending' || candidateCache.length === 0;
 
         if (status) {
-            status.textContent = `${candidateKeywords.length}개 검색어, ${candidateCache.length}건의 후보가 대기 중입니다.`;
+            const label = candidateStatusLabels[candidateCurrentStatus] || '후보';
+            const cleanupText = data.cleanup_deleted
+                ? ` 오래된 미검토 후보 ${data.cleanup_deleted}건은 자동 정리되었습니다.`
+                : '';
+            status.textContent = `${candidateKeywords.length}개 검색어, ${label} ${candidateCache.length}건을 표시 중입니다.${cleanupText}`;
         }
 
         if (cutoffLabel) {
@@ -784,6 +858,18 @@ async function refreshCandidates() {
     }
 }
 window.refreshCandidates = refreshCandidates;
+
+function renderCandidateStatusTabs(counts) {
+    document.querySelectorAll('[data-candidate-status]').forEach((tab) => {
+        const status = tab.dataset.candidateStatus;
+        tab.classList.toggle('active', status === candidateCurrentStatus);
+    });
+
+    document.querySelectorAll('[data-candidate-status-count]').forEach((badge) => {
+        const status = badge.dataset.candidateStatusCount;
+        badge.textContent = counts[status] || 0;
+    });
+}
 
 function renderCandidateKeywords(keywords) {
     const list = document.getElementById('candidateKeywordList');
@@ -921,26 +1007,67 @@ async function removeCandidateKeyword(keyword) {
     }
 }
 
+function isNegativeCandidateReason(reason) {
+    const text = String(reason || '');
+    return text.includes('제외한 기사') || /\s-\d+/.test(text);
+}
+
+function renderCandidateReason(reason) {
+    const negative = isNegativeCandidateReason(reason);
+    const badge = negative ? '<span class="candidate-reason-badge">감점</span>' : '';
+    return `<li class="${negative ? 'negative-reason' : ''}">${badge}${escapeHtml(reason)}</li>`;
+}
+
+function renderCandidateActions(item) {
+    if (item.status === 'pending') {
+        return `
+            <button type="button" class="btn-small btn-primary btn-clip-trigger" data-candidate-accept>클리핑</button>
+            <button type="button" class="btn-small" data-candidate-reject>제외하고 학습에 반영</button>
+            <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+        `;
+    }
+
+    if (item.status === 'rejected') {
+        return `
+            <button type="button" class="btn-small btn-primary" data-candidate-restore>대기로 복원</button>
+            <button type="button" class="btn-small btn-danger-light" data-candidate-delete>영구 삭제</button>
+            <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+        `;
+    }
+
+    return `
+        <button type="button" class="btn-small btn-danger-light" data-candidate-delete>이력 삭제</button>
+        <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+    `;
+}
+
 function renderCandidates(items) {
     const list = document.getElementById('candidateList');
     if (!list) return;
 
     if (!items.length) {
-        list.innerHTML = '<div class="empty-state"><p>대기 중인 후보가 없습니다.</p></div>';
+        const label = candidateStatusLabels[candidateCurrentStatus] || '후보';
+        list.innerHTML = `<div class="empty-state"><p>표시할 ${label}가 없습니다.</p></div>`;
         return;
     }
 
     list.innerHTML = items.map((item) => {
-        const categoryOptions = candidateCategories.map((category) => {
+        const categoryOptions = item.status === 'pending' ? candidateCategories.map((category) => {
             const selected = category === item.suggested_category ? 'selected' : '';
             return `<option value="${escapeAttr(category)}" ${selected}>${escapeHtml(category)}</option>`;
-        }).join('');
+        }).join('') : '';
         const similarBadge = item.similar_count > 0
             ? `<span class="candidate-badge">유사 ${item.similar_count}건</span>`
             : '';
+        const negativeApplied = Array.isArray(item.score_reasons) && item.score_reasons.some(isNegativeCandidateReason)
+            ? '<span class="candidate-badge candidate-negative-badge">제외 이력 감점</span>'
+            : '';
         const reasons = Array.isArray(item.score_reasons) && item.score_reasons.length
-            ? `<ul class="candidate-reasons">${item.score_reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join('')}</ul>`
+            ? `<ul class="candidate-reasons">${item.score_reasons.map(renderCandidateReason).join('')}</ul>`
             : '<ul class="candidate-reasons"><li>점수 산정 사유 없음</li></ul>';
+        const categoryControl = item.status === 'pending'
+            ? `<select class="candidate-category-select" aria-label="후보 카테고리">${categoryOptions}</select>`
+            : `<span class="candidate-category-static">${escapeHtml(item.suggested_category || '카테고리 없음')}</span>`;
 
         return `
             <div class="candidate-card" data-candidate-id="${item.id}">
@@ -950,19 +1077,16 @@ function renderCandidates(items) {
                         <span>${escapeHtml(item.pub_date || '')}</span>
                         <span class="candidate-score">${item.score}점</span>
                         ${similarBadge}
+                        ${negativeApplied}
                     </div>
-                    <select class="candidate-category-select" aria-label="후보 카테고리">
-                        ${categoryOptions}
-                    </select>
+                    ${categoryControl}
                 </div>
                 <h3>${escapeHtml(item.title)}</h3>
                 <p>${escapeHtml(item.description || '')}</p>
                 <div class="candidate-keyword">검색어: ${escapeHtml(item.keyword)}</div>
                 ${reasons}
                 <div class="news-actions">
-                    <button type="button" class="btn-small btn-primary btn-clip-trigger" data-candidate-accept>클리핑</button>
-                    <button type="button" class="btn-small" data-candidate-reject>제외</button>
-                    <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+                    ${renderCandidateActions(item)}
                 </div>
             </div>
         `;
@@ -1011,6 +1135,40 @@ async function rejectCandidate(candidateId) {
     } catch (e) {
         console.error('Candidate reject failed:', e);
         showToast('후보 제외에 실패했습니다.');
+    }
+}
+
+async function restoreCandidate(candidateId) {
+    try {
+        const resp = await fetch(`/api/clipping-candidates/${candidateId}/restore`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '후보 복원 실패');
+        showToast('제외 이력을 대기 후보로 복원했습니다.');
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate restore failed:', e);
+        showToast('후보 복원에 실패했습니다.');
+    }
+}
+
+async function deleteCandidate(candidateId) {
+    const item = candidateCache.find((candidate) => candidate.id === candidateId);
+    const isRejected = item && item.status === 'rejected';
+    const message = isRejected
+        ? '이 제외 이력을 영구 삭제할까요? 삭제하면 이후 후보 감점 근거에서도 사라집니다.'
+        : '이 후보 이력을 삭제할까요?';
+
+    if (!confirm(message)) return;
+
+    try {
+        const resp = await fetch(`/api/clipping-candidates/${candidateId}/delete`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '후보 삭제 실패');
+        showToast('후보 이력을 삭제했습니다.');
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate delete failed:', e);
+        showToast('후보 삭제에 실패했습니다.');
     }
 }
 

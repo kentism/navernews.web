@@ -109,11 +109,20 @@
             <button id="runCandidatesBtn" class="btn-run-intelligence" type="button">
                 <span class="btn-text">후보 수집</span>
             </button>
+            <button id="clearPendingCandidatesBtn" class="btn-small btn-clear-pending-candidates" type="button">
+                대기 후보 비우기
+            </button>
         </div>
     </div>
 
     <div id="candidateStatus" class="candidate-status-banner">
         후보 수집 검색어를 추가한 뒤 수집을 실행하세요. 후보마다 점수와 판단 사유가 표시됩니다.
+    </div>
+
+    <div class="candidate-status-tabs" role="tablist" aria-label="후보 상태 필터">
+        <button class="candidate-status-tab active" type="button" data-candidate-status="pending">대기 후보 <span data-candidate-status-count="pending">0</span></button>
+        <button class="candidate-status-tab" type="button" data-candidate-status="rejected">제외 이력 <span data-candidate-status-count="rejected">0</span></button>
+        <button class="candidate-status-tab" type="button" data-candidate-status="accepted">반영 이력 <span data-candidate-status-count="accepted">0</span></button>
     </div>
 
     <div id="candidateList" class="candidate-list-grid"></div>

@@ -9,17 +9,23 @@ from app_logging import get_logger
 from routers.auth import require_auth
 from services.clipping_store import (
     DEFAULT_CATEGORIES,
+    CANDIDATE_PENDING_RETENTION_DAYS,
     accept_candidate,
     add_candidate_keyword,
+    cleanup_stale_pending_candidates,
+    clear_pending_candidates,
     create_candidate,
     create_run,
+    delete_candidate,
     finish_run,
     get_default_cutoff,
     list_candidates,
     list_candidate_keywords,
+    list_candidate_status_counts,
     parse_pub_date,
     remove_candidate_keyword,
     reject_candidate,
+    restore_rejected_candidate,
     to_iso,
 )
 from services.news_service import fetch_news, get_naver_api_headers
@@ -27,6 +33,7 @@ from services.news_service import fetch_news, get_naver_api_headers
 
 logger = get_logger("routers.candidates")
 router = APIRouter(prefix="/api")
+ALLOWED_CANDIDATE_STATUSES = {"pending", "accepted", "rejected"}
 
 
 class CandidateKeywordRequest(BaseModel):
@@ -42,9 +49,16 @@ async def clipping_candidates(request: Request, status: str = "pending"):
     auth_check = await require_auth(request)
     if auth_check:
         return auth_check
+    if status not in ALLOWED_CANDIDATE_STATUSES:
+        return JSONResponse(content={"error": "Invalid candidate status"}, status_code=400)
+
+    cleanup_deleted = cleanup_stale_pending_candidates()
 
     return {
         "items": list_candidates(status=status),
+        "status_counts": list_candidate_status_counts(),
+        "cleanup_deleted": cleanup_deleted,
+        "pending_retention_days": CANDIDATE_PENDING_RETENTION_DAYS,
         "categories": DEFAULT_CATEGORIES,
         "keywords": list_candidate_keywords(),
         "default_cutoff": to_iso(get_default_cutoff()),
@@ -123,6 +137,7 @@ async def run_clipping_candidates(
             "message": "No candidate keywords configured",
         }
 
+    cleanup_deleted = cleanup_stale_pending_candidates()
     run_id = create_run(cutoff, keywords)
     created_count = 0
     total_checked = 0
@@ -170,6 +185,7 @@ async def run_clipping_candidates(
         "skipped_duplicate": skipped_duplicate,
         "cutoff": cutoff.isoformat(),
         "keywords": keywords,
+        "cleanup_deleted": cleanup_deleted,
     }
 
 
@@ -196,3 +212,37 @@ async def reject_clipping_candidate(request: Request, candidate_id: int):
         return JSONResponse(content={"error": "Candidate not found"}, status_code=404)
 
     return {"status": "success"}
+
+
+@router.post("/clipping-candidates/{candidate_id}/restore")
+async def restore_clipping_candidate(request: Request, candidate_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    if not restore_rejected_candidate(candidate_id):
+        return JSONResponse(content={"error": "Rejected candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
+@router.post("/clipping-candidates/{candidate_id}/delete")
+async def delete_clipping_candidate(request: Request, candidate_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    if not delete_candidate(candidate_id):
+        return JSONResponse(content={"error": "Candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
+@router.post("/clipping-candidates/clear-pending")
+async def clear_pending_clipping_candidates(request: Request):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    deleted = clear_pending_candidates()
+    return {"status": "success", "deleted": deleted}
