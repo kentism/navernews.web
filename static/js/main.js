@@ -1467,14 +1467,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function getThemeIcon(isDark) {
+        const path = isDark
+            ? 'M12 3v2.5M12 18.5V21M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M3 12h2.5M18.5 12H21M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8M16.5 12a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z'
+            : 'M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z';
+        return `
+            <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="${path}"></path>
+                </svg>
+            </span>
+        `;
+    }
+
+    function updateThemeButton(isDark) {
+        const btn = document.querySelector('.theme-btn');
+        if (!btn) return;
+
+        btn.innerHTML = getThemeIcon(isDark);
+        const label = isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
+    }
+
     // 6. Theme Toggle (Dark Mode)
     window.toggleTheme = function () {
         document.body.classList.toggle('dark-mode');
         const isDark = document.body.classList.contains('dark-mode');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
 
-        const btn = document.querySelector('.theme-btn');
-        if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+        updateThemeButton(isDark);
 
         // Toggle Toast UI Editor theme class if it exists
         if (window.clippingEditor) {
@@ -1493,9 +1515,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-mode');
-        const btn = document.querySelector('.theme-btn');
-        if (btn) btn.textContent = '☀️';
     }
+    updateThemeButton(document.body.classList.contains('dark-mode'));
 
     // 7. SSE Notifications & Desktop Alerts
     function showBrowserNotification(message) {

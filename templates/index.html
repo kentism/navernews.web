@@ -25,7 +25,13 @@
         <header class="header">
             <div class="header-content">
                 <h1>뉴스 클리핑</h1>
-                <button class="theme-btn" onclick="toggleTheme()" aria-label="테마 전환">테마</button>
+                <button class="theme-btn icon-button" onclick="toggleTheme()" aria-label="다크 모드로 전환" title="다크 모드로 전환" type="button">
+                    <span class="button-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z"></path>
+                        </svg>
+                    </span>
+                </button>
             </div>
 
             <div class="search-box">
@@ -87,8 +93,20 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <div id="scrollControls" class="scroll-controls">
-        <button id="scrollTopBtn" type="button" aria-label="맨 위로">위</button>
-        <button id="scrollBottomBtn" type="button" aria-label="맨 아래로">아래</button>
+        <button id="scrollTopBtn" type="button" aria-label="맨 위로" title="맨 위로">
+            <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="m18 15-6-6-6 6"></path>
+                </svg>
+            </span>
+        </button>
+        <button id="scrollBottomBtn" type="button" aria-label="맨 아래로" title="맨 아래로">
+            <span class="button-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="m6 9 6 6 6-6"></path>
+                </svg>
+            </span>
+        </button>
     </div>
 
     <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
