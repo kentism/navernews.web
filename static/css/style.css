@@ -1384,7 +1384,424 @@ body {
 }
 
 /* ==============================================================================
-   12. HOME TAB & FEATURES
+   12. DASHBOARD TAB
+   ============================================================================== */
+.dashboard-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dashboard-command {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 24px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.dashboard-kicker {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #e8f7f6;
+    color: #0f766e;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+body.dark-mode .dashboard-kicker {
+    background: rgba(20, 184, 166, 0.14);
+    color: #5eead4;
+}
+
+.dashboard-command h2 {
+    margin: 10px 0 8px;
+    font-size: 1.55rem;
+}
+
+.dashboard-command p {
+    margin: 0;
+    color: var(--text-sub);
+    line-height: 1.5;
+}
+
+.dashboard-command-actions {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.btn-dashboard-run,
+.btn-dashboard-save {
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.btn-dashboard-run {
+    background: var(--action-bg);
+    color: var(--action-text);
+    border-color: var(--action-bg);
+}
+
+.btn-dashboard-save {
+    background: #0f766e;
+    color: #ffffff;
+    border-color: #0f766e;
+}
+
+.btn-dashboard-run:disabled,
+.btn-dashboard-save:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.dashboard-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.dashboard-metric {
+    min-height: 84px;
+    padding: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.dashboard-metric span {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-sub);
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.dashboard-metric strong {
+    display: block;
+    color: var(--text-main);
+    font-size: 1.9rem;
+    line-height: 1;
+}
+
+.dashboard-status {
+    padding: 14px 18px;
+    background: var(--card-bg);
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    color: var(--text-sub);
+    line-height: 1.5;
+}
+
+.dashboard-excluded-panel {
+    background: var(--card-bg);
+    border: 1px solid rgba(220, 38, 38, 0.24);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-excluded-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dashboard-excluded-header h3 {
+    margin: 0;
+    font-size: 0.98rem;
+}
+
+.dashboard-excluded-header span {
+    color: #b91c1c;
+    font-weight: 800;
+}
+
+.dashboard-excluded-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+}
+
+.dashboard-excluded-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+}
+
+.dashboard-excluded-item strong {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.dashboard-excluded-item span {
+    color: var(--text-sub);
+    font-size: 0.8rem;
+}
+
+.dashboard-board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+}
+
+.dashboard-section {
+    min-width: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 54px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dashboard-section-header h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.dashboard-section-header span {
+    min-width: 42px;
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-weight: 800;
+}
+
+.dashboard-issue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+}
+
+.dashboard-issue-card {
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+}
+
+.dashboard-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.dashboard-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.dashboard-card-meta span,
+.dashboard-score {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-sub);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.dashboard-score {
+    color: #0f766e;
+}
+
+.dashboard-issue-card select {
+    max-width: 142px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.82rem;
+}
+
+.dashboard-issue-card h4 {
+    margin: 0 0 8px;
+    font-size: 0.98rem;
+    line-height: 1.45;
+}
+
+.dashboard-issue-card p {
+    margin: 0;
+    color: var(--text-sub);
+    line-height: 1.5;
+    font-size: 0.9rem;
+}
+
+.dashboard-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0;
+    margin: 10px 0;
+    list-style: none;
+}
+
+.dashboard-reasons li {
+    padding: 4px 7px;
+    border-radius: 6px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-sub);
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+.dashboard-related {
+    margin-top: 10px;
+    color: var(--text-sub);
+    font-size: 0.85rem;
+}
+
+.dashboard-related summary {
+    cursor: pointer;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.dashboard-related ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+.dashboard-related li {
+    margin-bottom: 6px;
+}
+
+.dashboard-related a {
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.dashboard-related a:hover {
+    text-decoration: underline;
+}
+
+.dashboard-related-empty,
+.dashboard-empty {
+    color: var(--text-sub);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.dashboard-empty {
+    padding: 18px;
+}
+
+.dashboard-final-panel {
+    padding: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.dashboard-final-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.dashboard-final-header h3 {
+    margin: 0 0 6px;
+    font-size: 1.1rem;
+}
+
+.dashboard-final-header p {
+    margin: 0;
+    color: var(--text-sub);
+    line-height: 1.45;
+}
+
+#dashboardFinalContent {
+    width: 100%;
+    min-height: 280px;
+    resize: vertical;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-family: "JetBrains Mono", "Pretendard", monospace;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+@media (max-width: 1300px) {
+    .dashboard-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-command,
+    .dashboard-final-header {
+        flex-direction: column;
+    }
+
+    .dashboard-command-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .btn-dashboard-run,
+    .btn-dashboard-save {
+        flex: 1;
+    }
+
+    .dashboard-metrics,
+    .dashboard-board,
+    .dashboard-excluded-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==============================================================================
+   13. HOME TAB & FEATURES
    ============================================================================== */
 .home-hero {
     background: var(--card-bg);

@@ -40,7 +40,9 @@ function escapeHtml(s) {
  * Escapes attribute values.
  */
 function escapeAttr(s) {
-    return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }
 
 function escapeCssValue(value) {
@@ -1093,6 +1095,385 @@ function renderCandidates(items) {
     }).join('');
 }
 
+let dashboardData = null;
+const dashboardExcludedGroups = new Set();
+const dashboardCategoryOverrides = new Map();
+
+function setupDashboardActions() {
+    const runBtn = document.getElementById('runDashboardBtn');
+    const saveBtn = document.getElementById('saveDashboardFinalBtn');
+    const refreshBtn = document.getElementById('refreshDashboardFinalBtn');
+    const dashboardRoot = document.querySelector('.dashboard-workspace');
+    const finalContent = document.getElementById('dashboardFinalContent');
+
+    if (runBtn && !runBtn.dataset.bound) {
+        runBtn.dataset.bound = 'true';
+        runBtn.addEventListener('click', runDashboard);
+    }
+
+    if (saveBtn && !saveBtn.dataset.bound) {
+        saveBtn.dataset.bound = 'true';
+        saveBtn.addEventListener('click', saveDashboardFinal);
+    }
+
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+        refreshBtn.dataset.bound = 'true';
+        refreshBtn.addEventListener('click', () => updateDashboardFinalContent(true));
+    }
+
+    if (dashboardRoot && !dashboardRoot.dataset.bound) {
+        dashboardRoot.dataset.bound = 'true';
+        dashboardRoot.addEventListener('click', (event) => {
+            const excludeBtn = event.target.closest('[data-dashboard-exclude]');
+            const openBtn = event.target.closest('[data-dashboard-open]');
+            const restoreBtn = event.target.closest('[data-dashboard-restore]');
+            const group = event.target.closest('[data-dashboard-group-id]');
+            if (!group) return;
+
+            const groupId = group.dataset.dashboardGroupId;
+            const item = findDashboardItem(groupId);
+            if (!item) return;
+
+            if (openBtn) {
+                const article = item.article || {};
+                window.open(article.original_link || article.link, '_blank', 'noopener,noreferrer');
+                return;
+            }
+
+            if (excludeBtn) {
+                dashboardExcludedGroups.add(groupId);
+                renderDashboard();
+                updateDashboardFinalContent(true);
+                showToast('대시보드 최종본에서 제외했습니다.');
+                return;
+            }
+
+            if (restoreBtn) {
+                dashboardExcludedGroups.delete(groupId);
+                renderDashboard();
+                updateDashboardFinalContent(true);
+                showToast('제외한 기사를 다시 표시했습니다.');
+            }
+        });
+
+        dashboardRoot.addEventListener('change', (event) => {
+            const select = event.target.closest('[data-dashboard-category]');
+            if (!select) return;
+            const group = select.closest('[data-dashboard-group-id]');
+            if (!group) return;
+            dashboardCategoryOverrides.set(group.dataset.dashboardGroupId, select.value);
+            renderDashboard();
+            updateDashboardFinalContent(true);
+        });
+    }
+
+    if (finalContent && !finalContent.dataset.bound) {
+        finalContent.dataset.bound = 'true';
+        finalContent.addEventListener('input', () => {
+            finalContent.dataset.manualEdit = 'true';
+        });
+    }
+}
+
+async function runDashboard() {
+    const btn = document.getElementById('runDashboardBtn');
+    const status = document.getElementById('dashboardStatus');
+    const saveBtn = document.getElementById('saveDashboardFinalBtn');
+
+    if (btn) btn.disabled = true;
+    if (saveBtn) saveBtn.disabled = true;
+    if (status) status.textContent = '대시보드를 생성하는 중입니다...';
+
+    try {
+        const resp = await fetch('/api/dashboard/run', { method: 'POST', body: new FormData() });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '대시보드 생성 실패');
+
+        dashboardData = data.dashboard || null;
+        dashboardExcludedGroups.clear();
+        dashboardCategoryOverrides.clear();
+        renderDashboard();
+        updateDashboardFinalContent(true);
+
+        if (saveBtn) saveBtn.disabled = !dashboardData || (dashboardData.issue_count || 0) === 0;
+        if (status) {
+            const dashboard = data.dashboard || {};
+            const skipped = [
+                `점수 미달 ${dashboard.skipped_low_score || 0}건`,
+                `이미 학습 ${dashboard.skipped_finalized || 0}건`,
+                `기존 후보 ${dashboard.skipped_duplicate || 0}건`
+            ].join(', ');
+            status.textContent = `${dashboard.checked || 0}건을 검토해 ${dashboard.issue_count || 0}개 이슈를 표시했습니다. (${skipped})`;
+        }
+        showToast('대시보드를 생성했습니다.');
+    } catch (error) {
+        console.error('Dashboard run failed:', error);
+        if (status) status.textContent = error.message || '대시보드 생성에 실패했습니다.';
+        showToast(error.message || '대시보드 생성에 실패했습니다.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function findDashboardItem(groupId) {
+    if (!dashboardData || !Array.isArray(dashboardData.sections)) return null;
+    for (const section of dashboardData.sections) {
+        const found = (section.items || []).find(item => item.group_id === groupId);
+        if (found) return found;
+    }
+    return null;
+}
+
+function getDashboardCategory(item) {
+    return dashboardCategoryOverrides.get(item.group_id) || item.category || item.article?.suggested_category || '기타';
+}
+
+function getDashboardVisibleItems() {
+    if (!dashboardData || !Array.isArray(dashboardData.sections)) return [];
+    const items = [];
+    dashboardData.sections.forEach(section => {
+        (section.items || []).forEach(item => {
+            if (!dashboardExcludedGroups.has(item.group_id)) {
+                items.push(item);
+            }
+        });
+    });
+    return items;
+}
+
+function getDashboardExcludedItems() {
+    return Array.from(dashboardExcludedGroups)
+        .map(groupId => findDashboardItem(groupId))
+        .filter(Boolean);
+}
+
+function formatDashboardDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+}
+
+function formatDashboardEntryDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Seoul',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const month = parts.find(part => part.type === 'month')?.value || '';
+    const day = parts.find(part => part.type === 'day')?.value || '';
+    return ` (${month}.${day}.)`;
+}
+
+function renderDashboard() {
+    const board = document.getElementById('dashboardBoard');
+    const finalPanel = document.getElementById('dashboardFinalPanel');
+    const checkedCount = document.getElementById('dashboardCheckedCount');
+    const issueCount = document.getElementById('dashboardIssueCount');
+    const relatedCount = document.getElementById('dashboardRelatedCount');
+    const createdCount = document.getElementById('dashboardCreatedCount');
+    const windowLabel = document.getElementById('dashboardWindowLabel');
+    if (!board) return;
+
+    if (!dashboardData) {
+        return;
+    }
+
+    const visibleItems = getDashboardVisibleItems();
+    if (checkedCount) checkedCount.textContent = dashboardData.checked || 0;
+    if (issueCount) issueCount.textContent = visibleItems.length;
+    if (relatedCount) {
+        relatedCount.textContent = visibleItems.reduce((sum, item) => sum + (item.related_count || 0), 0);
+    }
+    if (createdCount) createdCount.textContent = dashboardData.created || 0;
+    if (windowLabel) {
+        windowLabel.textContent = `${formatDashboardDate(dashboardData.window_start)} ~ ${formatDashboardDate(dashboardData.window_end)}`;
+    }
+    if (finalPanel) finalPanel.hidden = false;
+    renderDashboardExcluded();
+
+    const sections = candidateCategories.map(category => {
+        const items = visibleItems
+            .filter(item => getDashboardCategory(item) === category)
+            .sort((left, right) => (right.article?.score || 0) - (left.article?.score || 0));
+        return { category, items };
+    });
+
+    board.innerHTML = sections.map(section => renderDashboardSection(section)).join('');
+}
+
+function renderDashboardExcluded() {
+    const panel = document.getElementById('dashboardExcludedPanel');
+    const list = document.getElementById('dashboardExcludedList');
+    const count = document.getElementById('dashboardExcludedCount');
+    if (!panel || !list) return;
+
+    const items = getDashboardExcludedItems();
+    panel.hidden = items.length === 0;
+    if (count) count.textContent = `${items.length}건`;
+    list.innerHTML = items.map(item => {
+        const article = item.article || {};
+        return `
+            <div class="dashboard-excluded-item" data-dashboard-group-id="${escapeAttr(item.group_id)}">
+                <div>
+                    <strong>${escapeHtml(article.title || '제목 없음')}</strong>
+                    <span>${escapeHtml(article.source || '출처 미상')}</span>
+                </div>
+                <button class="btn-small" type="button" data-dashboard-restore>복원</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderDashboardSection(section) {
+    const items = section.items || [];
+    const body = items.length
+        ? items.map(renderDashboardIssueCard).join('')
+        : '<div class="dashboard-empty">표시할 기사가 없습니다.</div>';
+    return `
+        <section class="dashboard-section">
+            <div class="dashboard-section-header">
+                <h3>${escapeHtml(section.category)}</h3>
+                <span>${items.length}건</span>
+            </div>
+            <div class="dashboard-issue-list">
+                ${body}
+            </div>
+        </section>
+    `;
+}
+
+function renderDashboardIssueCard(item) {
+    const article = item.article || {};
+    const reasons = Array.isArray(article.score_reasons) && article.score_reasons.length
+        ? article.score_reasons.slice(0, 4).map(reason => `<li>${escapeHtml(reason)}</li>`).join('')
+        : '<li>점수 산정 사유 없음</li>';
+    const categoryOptions = candidateCategories.map(category => {
+        const selected = category === getDashboardCategory(item) ? 'selected' : '';
+        return `<option value="${escapeAttr(category)}" ${selected}>${escapeHtml(category)}</option>`;
+    }).join('');
+    const related = Array.isArray(item.related_articles) && item.related_articles.length
+        ? `
+            <details class="dashboard-related">
+                <summary>관련기사 ${item.related_articles.length}건</summary>
+                <ul>
+                    ${item.related_articles.map(relatedItem => `
+                        <li>
+                            <a href="${escapeAttr(relatedItem.original_link || relatedItem.link)}" target="_blank" rel="noopener noreferrer">
+                                ${escapeHtml(relatedItem.source || '출처 미상')} · ${escapeHtml(relatedItem.title || '제목 없음')}
+                            </a>
+                        </li>
+                    `).join('')}
+                </ul>
+            </details>
+        `
+        : '<div class="dashboard-related-empty">관련기사 0건</div>';
+
+    return `
+        <article class="dashboard-issue-card" data-dashboard-group-id="${escapeAttr(item.group_id)}">
+            <div class="dashboard-card-top">
+                <div class="dashboard-card-meta">
+                    <span>${escapeHtml(article.source || '출처 미상')}</span>
+                    <span>${escapeHtml(formatDashboardDate(article.pub_date))}</span>
+                    <span class="dashboard-score">${article.score || 0}점</span>
+                </div>
+                <select data-dashboard-category aria-label="대시보드 기사 분류">
+                    ${categoryOptions}
+                </select>
+            </div>
+            <h4>${escapeHtml(article.title || '제목 없음')}</h4>
+            <p>${escapeHtml(article.description || '')}</p>
+            <ul class="dashboard-reasons">${reasons}</ul>
+            ${related}
+            <div class="news-actions">
+                <button class="btn-small" type="button" data-dashboard-open>원문 보기</button>
+                <button class="btn-small btn-danger-light" type="button" data-dashboard-exclude>대시보드에서 제외</button>
+            </div>
+        </article>
+    `;
+}
+
+function buildDashboardFinalContent() {
+    const items = getDashboardVisibleItems();
+    const lines = [];
+    candidateCategories.forEach(category => {
+        lines.push(`■ ${category}`);
+        lines.push('');
+        items
+            .filter(item => getDashboardCategory(item) === category)
+            .sort((left, right) => (right.article?.score || 0) - (left.article?.score || 0))
+            .forEach(item => {
+                const article = item.article || {};
+                const source = article.source || '출처 미상';
+                const title = article.title || '제목 없음';
+                const link = article.original_link || article.link || '';
+                lines.push(`▷ ${source} : ${title}${formatDashboardEntryDate(article.pub_date)}`);
+                if (link) lines.push(`<${link}>`);
+                lines.push('');
+            });
+        lines.push('');
+    });
+    return `${lines.join('\n').trim()}\n`;
+}
+
+function updateDashboardFinalContent(force = false) {
+    const finalContent = document.getElementById('dashboardFinalContent');
+    if (!finalContent || !dashboardData) return;
+    if (!force && finalContent.dataset.manualEdit === 'true') return;
+    finalContent.value = buildDashboardFinalContent();
+    finalContent.dataset.manualEdit = 'false';
+}
+
+async function saveDashboardFinal() {
+    const btn = document.getElementById('saveDashboardFinalBtn');
+    const status = document.getElementById('dashboardStatus');
+    const finalContent = document.getElementById('dashboardFinalContent');
+    const content = finalContent ? finalContent.value : buildDashboardFinalContent();
+    if (!content.trim()) {
+        showToast('저장할 최종본 내용이 없습니다.');
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = '대시보드 최종본을 저장하고 백업에 반영하는 중입니다...';
+
+    try {
+        const resp = await fetch('/api/dashboard/finalize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '최종본 저장 실패');
+
+        if (data.duplicate) {
+            showToast('이미 저장된 대시보드 최종본입니다.');
+            if (status) status.textContent = '이미 학습된 최종본과 동일한 내용입니다.';
+        } else {
+            const backupText = data.auto_backup ? ' GitHub 백업 완료' : '';
+            showToast(`대시보드 최종본 ${data.entry_count || 0}건 저장 완료.${backupText}`);
+            if (status) status.textContent = `최종본 ${data.entry_count || 0}건을 학습 이력에 저장했습니다.${backupText}`;
+            if (data.backup_warning) showToast(`자동 백업 실패: ${data.backup_warning}`);
+        }
+
+        if (typeof window.refreshLearningStatus === 'function') {
+            await window.refreshLearningStatus();
+        }
+        if (typeof window.refreshFinalizationHistory === 'function') {
+            await window.refreshFinalizationHistory();
+        }
+    } catch (error) {
+        console.error('Dashboard final save failed:', error);
+        if (status) status.textContent = error.message || '대시보드 최종본 저장에 실패했습니다.';
+        showToast(error.message || '대시보드 최종본 저장에 실패했습니다.');
+    } finally {
+        if (btn) btn.disabled = !dashboardData || getDashboardVisibleItems().length === 0;
+    }
+}
+
 async function acceptCandidate(item, category, btnEl) {
     try {
         const resp = await fetch(`/api/clipping-candidates/${item.id}/accept`, {
@@ -1410,6 +1791,7 @@ document.addEventListener('DOMContentLoaded', () => {
             switchTab(tabId);
         });
     }
+    setupDashboardActions();
 
     // 4. Load Default Search Tabs
     async function loadDefaultSearch() {

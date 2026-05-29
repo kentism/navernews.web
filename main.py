@@ -29,6 +29,7 @@ from services.monitoring import state
 from services.news_service import fetch_news, get_naver_api_headers
 from routers.candidates import router as candidates_router
 from routers.clippings import router as clippings_router
+from routers.dashboard import router as dashboard_router
 from routers.notifications import router as notifications_router
 from routers.search import router as search_router
 from routers.storage import router as storage_router
@@ -61,6 +62,7 @@ async def verify_access(request: Request):
 app.state.verify_access = verify_access
 app.include_router(candidates_router)
 app.include_router(clippings_router)
+app.include_router(dashboard_router)
 app.include_router(notifications_router)
 app.include_router(search_router)
 app.include_router(storage_router)
@@ -243,7 +245,7 @@ async def home(request: Request):
         name="index.html",
         context={
             "default_keywords": DEFAULT_KEYWORDS,
-            "storage_notice": "클리핑 메모, 최근 검색어, 알림 상태는 현재 사용 중인 브라우저와 서버 저장소에 보관됩니다.",
+            "storage_notice": "대시보드 최종본과 학습 이력은 서버 저장소와 GitHub 백업 흐름에 반영됩니다.",
         },
     )
 

@@ -1,0 +1,65 @@
+<div class="dashboard-workspace">
+    <section class="dashboard-command">
+        <div>
+            <span class="dashboard-kicker">Daily Dashboard</span>
+            <h2>방송미디어통신 대시보드</h2>
+            <p id="dashboardWindowLabel">전날 10:00부터 현재 시각까지의 후보 기사를 업무 분류별로 정리합니다.</p>
+        </div>
+        <div class="dashboard-command-actions">
+            <button id="runDashboardBtn" class="btn-dashboard-run" type="button">대시보드 생성</button>
+            <button id="saveDashboardFinalBtn" class="btn-dashboard-save" type="button" disabled>최종본 저장</button>
+        </div>
+    </section>
+
+    <section class="dashboard-metrics" aria-label="대시보드 요약">
+        <div class="dashboard-metric">
+            <span>검토 기사</span>
+            <strong id="dashboardCheckedCount">-</strong>
+        </div>
+        <div class="dashboard-metric">
+            <span>표시 이슈</span>
+            <strong id="dashboardIssueCount">-</strong>
+        </div>
+        <div class="dashboard-metric">
+            <span>관련기사</span>
+            <strong id="dashboardRelatedCount">-</strong>
+        </div>
+        <div class="dashboard-metric">
+            <span>신규 후보</span>
+            <strong id="dashboardCreatedCount">-</strong>
+        </div>
+    </section>
+
+    <div id="dashboardStatus" class="dashboard-status" role="status">
+        대시보드를 생성하면 후보 탭과 같은 학습 기준으로 선별한 기사가 표시됩니다.
+    </div>
+
+    <section id="dashboardExcludedPanel" class="dashboard-excluded-panel" hidden>
+        <div class="dashboard-excluded-header">
+            <h3>제외한 기사</h3>
+            <span id="dashboardExcludedCount">0건</span>
+        </div>
+        <div id="dashboardExcludedList" class="dashboard-excluded-list"></div>
+    </section>
+
+    <section id="dashboardBoard" class="dashboard-board" aria-label="방송미디어통신 주요 보도 대시보드">
+        <div class="dashboard-section" data-dashboard-empty>
+            <div class="dashboard-section-header">
+                <h3>대시보드 준비 중</h3>
+                <span>0건</span>
+            </div>
+            <div class="dashboard-empty">생성 버튼을 눌러 오늘의 보드를 만드세요.</div>
+        </div>
+    </section>
+
+    <section id="dashboardFinalPanel" class="dashboard-final-panel" hidden>
+        <div class="dashboard-final-header">
+            <div>
+                <h3>최종본 미리보기</h3>
+                <p>제외와 분류 조정을 마친 뒤 저장하면 학습 이력과 GitHub 백업에 반영됩니다.</p>
+            </div>
+            <button id="refreshDashboardFinalBtn" class="btn-small" type="button">미리보기 갱신</button>
+        </div>
+        <textarea id="dashboardFinalContent" rows="14" spellcheck="false"></textarea>
+    </section>
+</div>
