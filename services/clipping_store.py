@@ -36,10 +36,41 @@ DEFAULT_CATEGORIES = [
     "\uae30\ud0c0",
 ]
 
+COMMISSION_SELF_TERMS = [
+    "\ubc29\uc1a1\ubbf8\ub514\uc5b4\ud1b5\uc2e0\uc2ec\uc758\uc704\uc6d0\ud68c",
+    "\ubc29\ubbf8\uc2ec\uc704",
+    "\ubc29\uc1a1\ud1b5\uc2e0\uc2ec\uc758\uc704\uc6d0\ud68c",
+    "\ubc29\uc2ec\uc704",
+    "KCSC",
+]
+RELATED_INSTITUTION_TERMS = [
+    "\ubc29\uc1a1\ubbf8\ub514\uc5b4\ud1b5\uc2e0\uc704\uc6d0\ud68c",
+    "\ubc29\ubbf8\ud1b5\uc704",
+    "\ubc29\uc1a1\ud1b5\uc2e0\uc704\uc6d0\ud68c",
+    "\ubc29\ud1b5\uc704",
+    "KCC",
+]
+
 CATEGORY_TERMS = {
-    "\uc704\uc6d0\ud68c \uad00\ub828": ["\uc704\uc6d0\ud68c", "\uc804\uccb4\ud68c\uc758", "\uc2ec\uc758", "\uc758\uacb0", "\ud68c\uc758"],
-    "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828": ["\ubc29\uc1a1", "\ud1b5\uc2e0", "\ubc29\ud1b5\uc704", "\ubc29\uc1a1\ud1b5\uc2e0", "\ubbf8\ub514\uc5b4", "\ud50c\ub7ab\ud3fc"],
-    "\uc720\uad00\uae30\uad00 \uad00\ub828": ["\uad6d\ud68c", "\uc815\ubd80", "\ub300\ud1b5\ub839\uc2e4", "\uacfc\uae30\uc815\ud1b5\ubd80", "\ubb38\uccb4\ubd80", "KCC"],
+    "\uc704\uc6d0\ud68c \uad00\ub828": COMMISSION_SELF_TERMS,
+    "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828": [
+        "\ubc29\uc1a1",
+        "\ud1b5\uc2e0",
+        "\ubc29\uc1a1\ud1b5\uc2e0",
+        "\ubbf8\ub514\uc5b4",
+        "\ud50c\ub7ab\ud3fc",
+        "\uc628\ub77c\uc778",
+        "OTT",
+        "\uc720\ud29c\ube0c",
+    ],
+    "\uc720\uad00\uae30\uad00 \uad00\ub828": [
+        *RELATED_INSTITUTION_TERMS,
+        "\uad6d\ud68c",
+        "\uc815\ubd80",
+        "\ub300\ud1b5\ub839\uc2e4",
+        "\uacfc\uae30\uc815\ud1b5\ubd80",
+        "\ubb38\uccb4\ubd80",
+    ],
 }
 
 @contextmanager
@@ -584,17 +615,38 @@ def _load_learning_examples(limit: int = 80) -> tuple[list[dict], list[dict]]:
     return finalized, rejected
 
 
-def score_article(title: str, description: str, keyword: str, source: str = "") -> tuple[int, str, list[str]]:
-    text = f"{title} {description} {keyword}".lower()
-    best_category = "\uae30\ud0c0"
-    best_hits = 0
-    reasons: list[str] = []
+def _count_term_hits(text: str, terms: list[str]) -> int:
+    lowered = text.lower()
+    return sum(1 for term in terms if term.lower() in lowered)
 
-    for category, terms in CATEGORY_TERMS.items():
-        hits = sum(1 for term in terms if term.lower() in text)
+
+def classify_article_category(title: str, description: str, keyword: str = "") -> tuple[str, int, list[str]]:
+    text = f"{title} {description} {keyword}"
+    related_hits = _count_term_hits(text, RELATED_INSTITUTION_TERMS)
+    if related_hits:
+        return "유관기관 관련", related_hits, ["방송미디어통신위원회/방미통위는 유관기관으로 분류"]
+
+    self_hits = _count_term_hits(text, COMMISSION_SELF_TERMS)
+    if self_hits:
+        return "위원회 관련", self_hits, ["방송미디어통신심의위원회/방미심위 직접 언급"]
+
+    best_category = "기타"
+    best_hits = 0
+    for category in ["방송·통신 관련", "유관기관 관련"]:
+        hits = _count_term_hits(text, CATEGORY_TERMS[category])
         if hits > best_hits:
             best_category = category
             best_hits = hits
+
+    return best_category, best_hits, []
+
+
+def score_article(title: str, description: str, keyword: str, source: str = "") -> tuple[int, str, list[str]]:
+    text = f"{title} {description} {keyword}".lower()
+    best_category, best_hits, category_reasons = classify_article_category(title, description, keyword)
+    reasons: list[str] = []
+
+    reasons.extend(category_reasons)
 
     keyword_terms = [part.strip('+"-') for part in keyword.split() if part.strip('+"-')]
     keyword_hits = sum(1 for term in keyword_terms if term.lower() in text)
@@ -753,7 +805,7 @@ async def create_candidate(item, keyword: str) -> dict:
             return {"status": "finalized", "created": False, "score": 0, "article_id": article_id}
         existing = conn.execute(
             """
-            SELECT id, keyword, status FROM clipping_candidates
+            SELECT id, keyword, score, status FROM clipping_candidates
             WHERE article_id = ?
             LIMIT 1
             """,
@@ -761,14 +813,24 @@ async def create_candidate(item, keyword: str) -> dict:
         ).fetchone()
         if existing:
             merged_keyword = _merge_candidate_keywords(existing["keyword"], keyword)
-            if existing["status"] == "pending" and merged_keyword != existing["keyword"]:
+            score, category, reasons = score_article(item.title, item.description, merged_keyword, item.source)
+            if existing["status"] == "pending":
                 conn.execute(
                     """
                     UPDATE clipping_candidates
-                    SET keyword = ?
+                    SET keyword = ?,
+                        score = ?,
+                        score_reasons = ?,
+                        suggested_category = ?
                     WHERE id = ?
                     """,
-                    (merged_keyword, existing["id"]),
+                    (
+                        merged_keyword,
+                        max(int(existing["score"] or 0), score),
+                        json.dumps(reasons, ensure_ascii=False),
+                        category,
+                        existing["id"],
+                    ),
                 )
             existing_candidate_id = int(existing["id"])
             existing_status = existing["status"]

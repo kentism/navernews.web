@@ -1574,6 +1574,12 @@ body.dark-mode .dashboard-kicker {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
+    transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.dashboard-section.drag-over {
+    border-color: #0f766e;
+    background: rgba(15, 118, 110, 0.06);
 }
 
 .dashboard-section-header {
@@ -1613,6 +1619,12 @@ body.dark-mode .dashboard-kicker {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--bg-color);
+    cursor: grab;
+}
+
+.dashboard-issue-card.is-dragging {
+    opacity: 0.55;
+    cursor: grabbing;
 }
 
 .dashboard-card-top {

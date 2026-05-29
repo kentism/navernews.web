@@ -1096,6 +1096,7 @@ function renderCandidates(items) {
 }
 
 let dashboardData = null;
+let dashboardDraggedGroupId = null;
 const dashboardExcludedGroups = new Set();
 const dashboardCategoryOverrides = new Map();
 
@@ -1164,6 +1165,57 @@ function setupDashboardActions() {
             dashboardCategoryOverrides.set(group.dataset.dashboardGroupId, select.value);
             renderDashboard();
             updateDashboardFinalContent(true);
+        });
+
+        dashboardRoot.addEventListener('dragstart', (event) => {
+            const card = event.target.closest('.dashboard-issue-card');
+            if (!card) return;
+            dashboardDraggedGroupId = card.dataset.dashboardGroupId;
+            card.classList.add('is-dragging');
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', dashboardDraggedGroupId);
+            }
+        });
+
+        dashboardRoot.addEventListener('dragend', (event) => {
+            const card = event.target.closest('.dashboard-issue-card');
+            if (card) card.classList.remove('is-dragging');
+            dashboardDraggedGroupId = null;
+            document.querySelectorAll('.dashboard-section.drag-over').forEach(section => {
+                section.classList.remove('drag-over');
+            });
+        });
+
+        dashboardRoot.addEventListener('dragover', (event) => {
+            const section = event.target.closest('[data-dashboard-category-target]');
+            if (!section || !dashboardDraggedGroupId) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+            document.querySelectorAll('.dashboard-section.drag-over').forEach(item => {
+                if (item !== section) item.classList.remove('drag-over');
+            });
+            section.classList.add('drag-over');
+        });
+
+        dashboardRoot.addEventListener('dragleave', (event) => {
+            const section = event.target.closest('[data-dashboard-category-target]');
+            if (!section || section.contains(event.relatedTarget)) return;
+            section.classList.remove('drag-over');
+        });
+
+        dashboardRoot.addEventListener('drop', (event) => {
+            const section = event.target.closest('[data-dashboard-category-target]');
+            if (!section) return;
+            event.preventDefault();
+            section.classList.remove('drag-over');
+            const groupId = event.dataTransfer?.getData('text/plain') || dashboardDraggedGroupId;
+            const targetCategory = section.dataset.dashboardCategoryTarget;
+            if (!groupId || !targetCategory) return;
+            dashboardCategoryOverrides.set(groupId, targetCategory);
+            renderDashboard();
+            updateDashboardFinalContent(true);
+            showToast(`[${targetCategory}]로 옮겼습니다.`);
         });
     }
 
@@ -1334,7 +1386,7 @@ function renderDashboardSection(section) {
         ? items.map(renderDashboardIssueCard).join('')
         : '<div class="dashboard-empty">표시할 기사가 없습니다.</div>';
     return `
-        <section class="dashboard-section">
+        <section class="dashboard-section" data-dashboard-category-target="${escapeAttr(section.category)}">
             <div class="dashboard-section-header">
                 <h3>${escapeHtml(section.category)}</h3>
                 <span>${items.length}건</span>
@@ -1373,7 +1425,7 @@ function renderDashboardIssueCard(item) {
         : '<div class="dashboard-related-empty">관련기사 0건</div>';
 
     return `
-        <article class="dashboard-issue-card" data-dashboard-group-id="${escapeAttr(item.group_id)}">
+        <article class="dashboard-issue-card" data-dashboard-group-id="${escapeAttr(item.group_id)}" draggable="true">
             <div class="dashboard-card-top">
                 <div class="dashboard-card-meta">
                     <span>${escapeHtml(article.source || '출처 미상')}</span>

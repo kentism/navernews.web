@@ -87,6 +87,57 @@ class DashboardServiceTests(unittest.TestCase):
             self.assertIn("▷ 테스트뉴스 : 방송 심의 의결 결과 발표", payload["final_content"])
             self.assertNotIn("다른뉴스", payload["final_content"])
 
+    def test_dashboard_groups_near_duplicate_titles(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dashboard_service = self._load_service(tmpdir)
+            window = dashboard_service.get_dashboard_window(datetime(2026, 5, 29, 9, 0, tzinfo=KST))
+            candidates = [
+                {
+                    "id": 1,
+                    "article_id": 1,
+                    "keyword": "방송미디어통신심의위원회",
+                    "score": 81,
+                    "score_reasons": [],
+                    "suggested_category": "위원회 관련",
+                    "status": "pending",
+                    "similar_group_key": "a",
+                    "title": "[단독] 방미심위, 온라인 플랫폼 심의 기준 손본다",
+                    "description": "방미심위가 온라인 플랫폼 심의 기준 개편을 검토하고 있다.",
+                    "source": "테스트뉴스",
+                    "domain": "example.com",
+                    "link": "https://news.example.com/a",
+                    "original_link": "https://press.example.com/a",
+                    "pub_date": "Fri, 29 May 2026 08:00:00 +0900",
+                },
+                {
+                    "id": 2,
+                    "article_id": 2,
+                    "keyword": "방송미디어통신심의위원회",
+                    "score": 76,
+                    "score_reasons": [],
+                    "suggested_category": "위원회 관련",
+                    "status": "pending",
+                    "similar_group_key": "b",
+                    "title": "방미심위 온라인 플랫폼 심의기준 개편 검토",
+                    "description": "온라인 플랫폼 심의 기준을 손보는 방안이 논의된다.",
+                    "source": "다른뉴스",
+                    "domain": "example.org",
+                    "link": "https://news.example.com/b",
+                    "original_link": "https://press.example.com/b",
+                    "pub_date": "Fri, 29 May 2026 08:05:00 +0900",
+                },
+            ]
+
+            payload = dashboard_service.build_dashboard_payload(
+                candidates=candidates,
+                keywords=["방송미디어통신심의위원회"],
+                window=window,
+                collection={"checked": 2, "created": 2},
+            )
+
+            self.assertEqual(payload["issue_count"], 1)
+            self.assertEqual(payload["related_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,5 @@
 import re
+from difflib import SequenceMatcher
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -57,13 +58,40 @@ def _candidate_tokens(candidate: dict) -> set[str]:
     return _tokenize(f"{candidate.get('title', '')} {candidate.get('description', '')}")
 
 
+def _normalized_title(candidate: dict) -> str:
+    title = str(candidate.get("title") or "").lower()
+    title = re.sub(r"\[[^\]]+\]|\([^)]*\)", " ", title)
+    title = re.sub(r"[\"'“”‘’…·,./:;!?~\-_\[\](){}<>]", " ", title)
+    title = re.sub(r"\b(단독|속보|종합|전문|포토|영상)\b", " ", title)
+    return re.sub(r"\s+", "", title)
+
+
+def _title_similarity(left: dict, right: dict) -> float:
+    left_title = _normalized_title(left)
+    right_title = _normalized_title(right)
+    if not left_title or not right_title:
+        return 0.0
+    return SequenceMatcher(None, left_title, right_title).ratio()
+
+
+def _token_containment(left: set[str], right: set[str]) -> float:
+    if not left or not right:
+        return 0.0
+    return len(left & right) / min(len(left), len(right))
+
+
 def _is_related(candidate: dict, group: dict) -> bool:
     representative = group["representative"]
     if _canonical_link(candidate) and _canonical_link(candidate) == _canonical_link(representative):
         return True
     if candidate.get("similar_group_key") and candidate.get("similar_group_key") == representative.get("similar_group_key"):
         return True
-    return _jaccard(_candidate_tokens(candidate), group["tokens"]) >= 0.42
+
+    candidate_tokens = _candidate_tokens(candidate)
+    token_jaccard = _jaccard(candidate_tokens, group["tokens"])
+    title_similarity = _title_similarity(candidate, representative)
+    containment = _token_containment(candidate_tokens, group["tokens"])
+    return title_similarity >= 0.68 or (token_jaccard >= 0.32 and containment >= 0.62)
 
 
 def _candidate_sort_key(candidate: dict) -> tuple:
