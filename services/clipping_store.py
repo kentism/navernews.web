@@ -5,7 +5,7 @@ from email.utils import parsedate_to_datetime
 import re
 import json
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from app_config import CLIPPING_DB_PATH
 
@@ -41,6 +41,25 @@ CATEGORY_TERMS = {
     "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828": ["\ubc29\uc1a1", "\ud1b5\uc2e0", "\ubc29\ud1b5\uc704", "\ubc29\uc1a1\ud1b5\uc2e0", "\ubbf8\ub514\uc5b4", "\ud50c\ub7ab\ud3fc"],
     "\uc720\uad00\uae30\uad00 \uad00\ub828": ["\uad6d\ud68c", "\uc815\ubd80", "\ub300\ud1b5\ub839\uc2e4", "\uacfc\uae30\uc815\ud1b5\ubd80", "\ubb38\uccb4\ubd80", "KCC"],
 }
+TRACKING_QUERY_PREFIXES = ("utm_",)
+
+
+def normalize_article_url(url: str) -> str:
+    """Remove non-functional analytics query parameters while preserving article identifiers."""
+    cleaned_url = str(url or "").strip()
+    if not cleaned_url:
+        return ""
+
+    parsed = urlparse(cleaned_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return cleaned_url
+
+    filtered_params = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.lower().startswith(TRACKING_QUERY_PREFIXES)
+    ]
+    return urlunparse(parsed._replace(query=urlencode(filtered_params, doseq=True)))
 
 @contextmanager
 def _connect():
@@ -442,16 +461,46 @@ def delete_finalization(snapshot_id: int) -> bool:
 
 
 def _find_article_id_by_link_conn(conn, link: str) -> Optional[int]:
+    normalized_link = normalize_article_url(link)
+    links = [value for value in {str(link or "").strip(), normalized_link} if value]
+    if not links:
+        return None
+
+    placeholders = ",".join("?" for _ in links)
     row = conn.execute(
-        """
+        f"""
         SELECT id FROM articles
-        WHERE link = ? OR original_link = ?
+        WHERE link IN ({placeholders}) OR original_link IN ({placeholders})
         ORDER BY last_seen_at DESC
         LIMIT 1
         """,
-        (link, link),
+        (*links, *links),
     ).fetchone()
-    return int(row["id"]) if row else None
+    if row:
+        return int(row["id"])
+
+    parsed = urlparse(normalized_link)
+    prefix = urlunparse(parsed._replace(query="", fragment=""))
+    if not prefix:
+        return None
+
+    rows = conn.execute(
+        """
+        SELECT id, link, original_link FROM articles
+        WHERE link LIKE ? OR original_link LIKE ?
+        ORDER BY last_seen_at DESC
+        LIMIT 50
+        """,
+        (f"{prefix}%", f"{prefix}%"),
+    ).fetchall()
+    for candidate in rows:
+        if (
+            normalize_article_url(candidate["link"]) == normalized_link
+            or normalize_article_url(candidate["original_link"]) == normalized_link
+        ):
+            return int(candidate["id"])
+
+    return None
 
 
 def update_finalization(snapshot_id: int, content: str) -> dict:
@@ -529,7 +578,7 @@ def update_finalization(snapshot_id: int, content: str) -> dict:
 
 
 def _domain_from_link(link: str) -> str:
-    return (urlparse(link or "").netloc or "").replace("www.", "")
+    return (urlparse(normalize_article_url(link)).netloc or "").replace("www.", "")
 
 
 def _group_key(title: str) -> str:
@@ -650,22 +699,17 @@ def score_article(title: str, description: str, keyword: str, source: str = "") 
     return final_score, best_category, reasons
 
 def _find_existing_article_id(conn, link: str, original_link: str) -> Optional[int]:
-    row = conn.execute(
-        """
-        SELECT id FROM articles
-        WHERE link IN (?, ?)
-           OR original_link IN (?, ?)
-        LIMIT 1
-        """,
-        (link, original_link, link, original_link),
-    ).fetchone()
-    return int(row["id"]) if row else None
+    for candidate_url in (link, original_link):
+        article_id = _find_article_id_by_link_conn(conn, candidate_url)
+        if article_id:
+            return article_id
+    return None
 
 
 def upsert_article(item) -> int:
     now = to_iso(utc_now())
-    link = item.link or item.originallink
-    original_link = item.originallink or link
+    link = normalize_article_url(item.link or item.originallink)
+    original_link = normalize_article_url(item.originallink or link)
     domain = item.domain or _domain_from_link(original_link)
 
     with _connect() as conn:
@@ -902,6 +946,8 @@ def record_clip_event(
     article_id: Optional[int] = None,
     snapshot_id: Optional[int] = None,
 ) -> None:
+    link = normalize_article_url(link)
+    original_link = normalize_article_url(original_link or link)
     with _connect() as conn:
         conn.execute(
             """
@@ -1063,7 +1109,7 @@ def parse_final_clipping_entries(content: str) -> list[dict]:
         if not url_match:
             continue
 
-        link = url_match.group(1).rstrip(".,)")
+        link = normalize_article_url(url_match.group(1).rstrip(".,)"))
 
         previous = ""
         for prev_index in range(index - 1, -1, -1):
@@ -1100,16 +1146,7 @@ def parse_final_clipping_entries(content: str) -> list[dict]:
 
 def find_article_id_by_link(link: str) -> Optional[int]:
     with _connect() as conn:
-        row = conn.execute(
-            """
-            SELECT id FROM articles
-            WHERE link = ? OR original_link = ?
-            ORDER BY last_seen_at DESC
-            LIMIT 1
-            """,
-            (link, link),
-        ).fetchone()
-        return int(row["id"]) if row else None
+        return _find_article_id_by_link_conn(conn, link)
 
 
 async def save_final_clipping_snapshot(content: str) -> dict:

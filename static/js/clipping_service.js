@@ -27,9 +27,28 @@ function migrateClippedText(text) {
 }
 
 function normalizeClipUrl(url) {
-    return String(url || '')
+    const cleanedUrl = String(url || '')
         .trim()
         .replace(/\\([()[\]_*])/g, '$1');
+    return removeTrackingQueryParams(cleanedUrl);
+}
+
+function removeTrackingQueryParams(url) {
+    if (!url) return '';
+
+    try {
+        const parsedUrl = new URL(url);
+        const trackingKeys = [];
+        parsedUrl.searchParams.forEach((_, key) => {
+            if (key.toLowerCase().startsWith('utm_')) {
+                trackingKeys.push(key);
+            }
+        });
+        trackingKeys.forEach(key => parsedUrl.searchParams.delete(key));
+        return parsedUrl.toString();
+    } catch (_) {
+        return url;
+    }
 }
 
 function normalizeMarkdownUrls(text) {
