@@ -28,19 +28,6 @@ DEFAULT_KEYWORDS = [
     ).split(",")
     if keyword.strip()
 ]
-DASHBOARD_MAIN_KEYWORDS = [
-    keyword.strip()
-    for keyword in os.getenv(
-        "DASHBOARD_MAIN_KEYWORDS",
-        "방송미디어통신심의위원회,방송미디어통신위원회",
-    ).split(",")
-    if keyword.strip()
-]
-DASHBOARD_EXTRA_KEYWORDS = [
-    keyword.strip()
-    for keyword in os.getenv("DASHBOARD_EXTRA_KEYWORDS", "").split(",")
-    if keyword.strip()
-]
 
 POLLING_INTERVAL = int(os.getenv("POLLING_INTERVAL_SECONDS", "30"))
 WATCHER_STALE_SECONDS = int(os.getenv("WATCHER_STALE_SECONDS", "120"))

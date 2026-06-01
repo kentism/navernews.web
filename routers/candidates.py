@@ -14,6 +14,7 @@ from services.clipping_store import (
     add_candidate_keyword,
     cleanup_stale_pending_candidates,
     clear_pending_candidates,
+    create_candidate,
     create_run,
     delete_candidate,
     finish_run,
@@ -21,13 +22,13 @@ from services.clipping_store import (
     list_candidates,
     list_candidate_keywords,
     list_candidate_status_counts,
+    parse_pub_date,
     remove_candidate_keyword,
     reject_candidate,
     restore_rejected_candidate,
     to_iso,
 )
-from services.candidate_collector import collect_candidates
-from services.news_service import get_naver_api_headers
+from services.news_service import fetch_news, get_naver_api_headers
 
 
 logger = get_logger("routers.candidates")
@@ -138,16 +139,50 @@ async def run_clipping_candidates(
 
     cleanup_deleted = cleanup_stale_pending_candidates()
     run_id = create_run(cutoff, keywords)
-    collection = await collect_candidates(keywords=keywords, headers=headers, cutoff=cutoff)
+    created_count = 0
+    total_checked = 0
+    skipped_low_score = 0
+    skipped_finalized = 0
+    skipped_duplicate = 0
 
-    finish_run(run_id, collection["created"])
+    for keyword in keywords:
+        start = 1
+        for _ in range(5):
+            items = await fetch_news(keyword, headers=headers, start=start, display=100)
+            if not items:
+                break
+
+            total_checked += len(items)
+            reached_cutoff = False
+            for item in items:
+                pub_dt = parse_pub_date(item.pubDate)
+                if pub_dt and pub_dt < cutoff:
+                    reached_cutoff = True
+                    continue
+
+                result = await create_candidate(item, keyword)
+                if result["created"]:
+                    created_count += 1
+                elif result["status"] == "low_score":
+                    skipped_low_score += 1
+                elif result["status"] == "finalized":
+                    skipped_finalized += 1
+                elif result["status"] == "duplicate":
+                    skipped_duplicate += 1
+
+            if reached_cutoff:
+                break
+
+            start += 100
+
+    finish_run(run_id, created_count)
     return {
         "status": "success",
-        "created": collection["created"],
-        "checked": collection["checked"],
-        "skipped_low_score": collection["skipped_low_score"],
-        "skipped_finalized": collection["skipped_finalized"],
-        "skipped_duplicate": collection["skipped_duplicate"],
+        "created": created_count,
+        "checked": total_checked,
+        "skipped_low_score": skipped_low_score,
+        "skipped_finalized": skipped_finalized,
+        "skipped_duplicate": skipped_duplicate,
         "cutoff": cutoff.isoformat(),
         "keywords": keywords,
         "cleanup_deleted": cleanup_deleted,

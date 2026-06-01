@@ -36,41 +36,10 @@ DEFAULT_CATEGORIES = [
     "\uae30\ud0c0",
 ]
 
-COMMISSION_SELF_TERMS = [
-    "\ubc29\uc1a1\ubbf8\ub514\uc5b4\ud1b5\uc2e0\uc2ec\uc758\uc704\uc6d0\ud68c",
-    "\ubc29\ubbf8\uc2ec\uc704",
-    "\ubc29\uc1a1\ud1b5\uc2e0\uc2ec\uc758\uc704\uc6d0\ud68c",
-    "\ubc29\uc2ec\uc704",
-    "KCSC",
-]
-RELATED_INSTITUTION_TERMS = [
-    "\ubc29\uc1a1\ubbf8\ub514\uc5b4\ud1b5\uc2e0\uc704\uc6d0\ud68c",
-    "\ubc29\ubbf8\ud1b5\uc704",
-    "\ubc29\uc1a1\ud1b5\uc2e0\uc704\uc6d0\ud68c",
-    "\ubc29\ud1b5\uc704",
-    "KCC",
-]
-
 CATEGORY_TERMS = {
-    "\uc704\uc6d0\ud68c \uad00\ub828": COMMISSION_SELF_TERMS,
-    "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828": [
-        "\ubc29\uc1a1",
-        "\ud1b5\uc2e0",
-        "\ubc29\uc1a1\ud1b5\uc2e0",
-        "\ubbf8\ub514\uc5b4",
-        "\ud50c\ub7ab\ud3fc",
-        "\uc628\ub77c\uc778",
-        "OTT",
-        "\uc720\ud29c\ube0c",
-    ],
-    "\uc720\uad00\uae30\uad00 \uad00\ub828": [
-        *RELATED_INSTITUTION_TERMS,
-        "\uad6d\ud68c",
-        "\uc815\ubd80",
-        "\ub300\ud1b5\ub839\uc2e4",
-        "\uacfc\uae30\uc815\ud1b5\ubd80",
-        "\ubb38\uccb4\ubd80",
-    ],
+    "\uc704\uc6d0\ud68c \uad00\ub828": ["\uc704\uc6d0\ud68c", "\uc804\uccb4\ud68c\uc758", "\uc2ec\uc758", "\uc758\uacb0", "\ud68c\uc758"],
+    "\ubc29\uc1a1\u00b7\ud1b5\uc2e0 \uad00\ub828": ["\ubc29\uc1a1", "\ud1b5\uc2e0", "\ubc29\ud1b5\uc704", "\ubc29\uc1a1\ud1b5\uc2e0", "\ubbf8\ub514\uc5b4", "\ud50c\ub7ab\ud3fc"],
+    "\uc720\uad00\uae30\uad00 \uad00\ub828": ["\uad6d\ud68c", "\uc815\ubd80", "\ub300\ud1b5\ub839\uc2e4", "\uacfc\uae30\uc815\ud1b5\ubd80", "\ubb38\uccb4\ubd80", "KCC"],
 }
 
 @contextmanager
@@ -615,38 +584,17 @@ def _load_learning_examples(limit: int = 80) -> tuple[list[dict], list[dict]]:
     return finalized, rejected
 
 
-def _count_term_hits(text: str, terms: list[str]) -> int:
-    lowered = text.lower()
-    return sum(1 for term in terms if term.lower() in lowered)
-
-
-def classify_article_category(title: str, description: str, keyword: str = "") -> tuple[str, int, list[str]]:
-    text = f"{title} {description} {keyword}"
-    related_hits = _count_term_hits(text, RELATED_INSTITUTION_TERMS)
-    if related_hits:
-        return "유관기관 관련", related_hits, ["방송미디어통신위원회/방미통위는 유관기관으로 분류"]
-
-    self_hits = _count_term_hits(text, COMMISSION_SELF_TERMS)
-    if self_hits:
-        return "위원회 관련", self_hits, ["방송미디어통신심의위원회/방미심위 직접 언급"]
-
-    best_category = "기타"
+def score_article(title: str, description: str, keyword: str, source: str = "") -> tuple[int, str, list[str]]:
+    text = f"{title} {description} {keyword}".lower()
+    best_category = "\uae30\ud0c0"
     best_hits = 0
-    for category in ["방송·통신 관련", "유관기관 관련"]:
-        hits = _count_term_hits(text, CATEGORY_TERMS[category])
+    reasons: list[str] = []
+
+    for category, terms in CATEGORY_TERMS.items():
+        hits = sum(1 for term in terms if term.lower() in text)
         if hits > best_hits:
             best_category = category
             best_hits = hits
-
-    return best_category, best_hits, []
-
-
-def score_article(title: str, description: str, keyword: str, source: str = "") -> tuple[int, str, list[str]]:
-    text = f"{title} {description} {keyword}".lower()
-    best_category, best_hits, category_reasons = classify_article_category(title, description, keyword)
-    reasons: list[str] = []
-
-    reasons.extend(category_reasons)
 
     keyword_terms = [part.strip('+"-') for part in keyword.split() if part.strip('+"-')]
     keyword_hits = sum(1 for term in keyword_terms if term.lower() in text)
@@ -792,8 +740,6 @@ def _merge_candidate_keywords(existing_keyword: str, keyword: str) -> str:
 
 async def create_candidate(item, keyword: str) -> dict:
     article_id = upsert_article(item)
-    existing_candidate_id = None
-    existing_status = None
 
     # Check if this article was already finalized
     with _connect() as conn:
@@ -802,10 +748,10 @@ async def create_candidate(item, keyword: str) -> dict:
             (article_id,)
         ).fetchone()
         if already_finalized:
-            return {"status": "finalized", "created": False, "score": 0, "article_id": article_id}
+            return {"status": "finalized", "created": False, "score": 0}
         existing = conn.execute(
             """
-            SELECT id, keyword, score, status FROM clipping_candidates
+            SELECT id, keyword, status FROM clipping_candidates
             WHERE article_id = ?
             LIMIT 1
             """,
@@ -813,53 +759,22 @@ async def create_candidate(item, keyword: str) -> dict:
         ).fetchone()
         if existing:
             merged_keyword = _merge_candidate_keywords(existing["keyword"], keyword)
-            score, category, reasons = score_article(item.title, item.description, merged_keyword, item.source)
-            if existing["status"] == "pending":
+            if existing["status"] == "pending" and merged_keyword != existing["keyword"]:
                 conn.execute(
                     """
                     UPDATE clipping_candidates
-                    SET keyword = ?,
-                        score = ?,
-                        score_reasons = ?,
-                        suggested_category = ?
+                    SET keyword = ?
                     WHERE id = ?
                     """,
-                    (
-                        merged_keyword,
-                        max(int(existing["score"] or 0), score),
-                        json.dumps(reasons, ensure_ascii=False),
-                        category,
-                        existing["id"],
-                    ),
+                    (merged_keyword, existing["id"]),
                 )
-            existing_candidate_id = int(existing["id"])
-            existing_status = existing["status"]
-
-    if existing_candidate_id:
-        candidate = get_candidate(existing_candidate_id)
-        return {
-            "status": "duplicate",
-            "created": False,
-            "score": candidate["score"] if candidate else 0,
-            "article_id": article_id,
-            "candidate_id": existing_candidate_id,
-            "existing_status": existing_status,
-            "candidate": candidate,
-        }
+            return {"status": "duplicate", "created": False, "score": 0}
 
     score, category, reasons = score_article(item.title, item.description, keyword, item.source)
     if score < CANDIDATE_SCORE_THRESHOLD:
-        return {
-            "status": "low_score",
-            "created": False,
-            "score": score,
-            "article_id": article_id,
-            "suggested_category": category,
-            "score_reasons": reasons,
-        }
+        return {"status": "low_score", "created": False, "score": score}
 
     now = to_iso(utc_now())
-    candidate_id = None
 
     with _connect() as conn:
         cur = conn.execute(
@@ -870,29 +785,7 @@ async def create_candidate(item, keyword: str) -> dict:
             """,
             (article_id, keyword, score, json.dumps(reasons, ensure_ascii=False), category, _group_key(item.title), now),
         )
-        if cur.rowcount > 0:
-            candidate_id = int(cur.lastrowid)
-
-    if candidate_id:
-        return {
-            "status": "created",
-            "created": True,
-            "score": score,
-            "article_id": article_id,
-            "candidate_id": candidate_id,
-            "candidate": get_candidate(candidate_id),
-        }
-
-    candidate = get_candidate_by_article_id(article_id)
-    return {
-        "status": "duplicate",
-        "created": False,
-        "score": score,
-        "article_id": article_id,
-        "candidate_id": candidate["id"] if candidate else None,
-        "existing_status": candidate["status"] if candidate else None,
-        "candidate": candidate,
-    }
+        return {"status": "created" if cur.rowcount > 0 else "duplicate", "created": cur.rowcount > 0, "score": score}
 
 
 def list_candidate_keywords() -> list[str]:
@@ -983,79 +876,18 @@ def list_candidates(status: str = "pending") -> list[dict]:
         return candidates
 
 
-def _hydrate_candidate_row(row) -> Optional[dict]:
-    if not row:
-        return None
-    candidate = dict(row)
-    try:
-        candidate["score_reasons"] = json.loads(candidate.get("score_reasons") or "[]")
-    except Exception:
-        candidate["score_reasons"] = []
-    return candidate
-
-
 def get_candidate(candidate_id: int) -> Optional[dict]:
     with _connect() as conn:
         row = conn.execute(
             """
-            SELECT
-                c.id,
-                c.article_id,
-                c.keyword,
-                c.score,
-                c.score_reasons,
-                c.suggested_category,
-                c.similar_group_key,
-                c.status,
-                c.created_at,
-                c.reviewed_at,
-                a.title,
-                a.link,
-                a.original_link,
-                a.description,
-                a.source,
-                a.domain,
-                a.pub_date
+            SELECT c.*, a.title, a.link, a.original_link, a.source, a.pub_date
             FROM clipping_candidates c
             JOIN articles a ON a.id = c.article_id
             WHERE c.id = ?
             """,
             (candidate_id,),
         ).fetchone()
-        return _hydrate_candidate_row(row)
-
-
-def get_candidate_by_article_id(article_id: int) -> Optional[dict]:
-    with _connect() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                c.id,
-                c.article_id,
-                c.keyword,
-                c.score,
-                c.score_reasons,
-                c.suggested_category,
-                c.similar_group_key,
-                c.status,
-                c.created_at,
-                c.reviewed_at,
-                a.title,
-                a.link,
-                a.original_link,
-                a.description,
-                a.source,
-                a.domain,
-                a.pub_date
-            FROM clipping_candidates c
-            JOIN articles a ON a.id = c.article_id
-            WHERE c.article_id = ?
-            ORDER BY c.created_at DESC
-            LIMIT 1
-            """,
-            (article_id,),
-        ).fetchone()
-        return _hydrate_candidate_row(row)
+        return dict(row) if row else None
 
 
 def record_clip_event(
