@@ -515,7 +515,7 @@ function isStandaloneUrlLine(line) {
     const markdownLink = trimmed.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (!markdownLink) return false;
 
-    return isUrlOnlyText(markdownLink[1]) && isUrlOnlyText(markdownLink[2]);
+    return isUrlOnlyText(markdownLink[2]);
 }
 
 function isUrlOnlyText(text) {
