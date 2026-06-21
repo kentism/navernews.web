@@ -364,6 +364,11 @@ function bindClippingActions() {
         copyBtn.addEventListener('click', copyClippingText);
     }
 
+    const copyWithoutUrlsBtn = document.getElementById('copyTextWithoutUrlsBtn');
+    if (copyWithoutUrlsBtn) {
+        copyWithoutUrlsBtn.addEventListener('click', copyClippingTextWithoutUrls);
+    }
+
     const clearBtn = document.getElementById('clearTextBtn');
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
@@ -463,6 +468,49 @@ async function copyClippingText() {
         alert('복사에 실패했습니다.');
     }
     document.body.removeChild(temp);
+}
+
+async function copyClippingTextWithoutUrls() {
+    const textToCopy = stripStandaloneUrlLines(getCurrentClippingText());
+    if (!textToCopy) return;
+
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            notifyClippingToast('URL을 제외한 클리핑 텍스트를 복사했습니다.');
+        } catch (error) {
+            console.error('Copy without URLs failed:', error);
+            notifyClippingToast('복사에 실패했습니다.');
+        }
+        return;
+    }
+
+    const temp = document.createElement('textarea');
+    temp.value = textToCopy;
+    document.body.appendChild(temp);
+    temp.select();
+    try {
+        document.execCommand('copy');
+        notifyClippingToast('URL을 제외한 클리핑 텍스트를 복사했습니다.');
+    } catch (error) {
+        console.error('Copy without URLs fallback failed:', error);
+        alert('복사에 실패했습니다.');
+    }
+    document.body.removeChild(temp);
+}
+
+function stripStandaloneUrlLines(text) {
+    return String(text || '')
+        .split(/\r?\n/)
+        .filter(line => !isStandaloneUrlLine(line))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function isStandaloneUrlLine(line) {
+    const trimmed = String(line || '').trim();
+    return /^<?https?:\/\/[^\s<>]+>?$/i.test(trimmed);
 }
 
 async function finalizeCurrentClipping() {
