@@ -510,7 +510,17 @@ function stripStandaloneUrlLines(text) {
 
 function isStandaloneUrlLine(line) {
     const trimmed = String(line || '').trim();
-    return /^<?https?:\/\/[^\s<>]+>?$/i.test(trimmed);
+    if (isUrlOnlyText(trimmed)) return true;
+
+    const markdownLink = trimmed.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (!markdownLink) return false;
+
+    return isUrlOnlyText(markdownLink[1]) && isUrlOnlyText(markdownLink[2]);
+}
+
+function isUrlOnlyText(text) {
+    const trimmed = String(text || '').trim().replace(/^<|>$/g, '');
+    return /^https?:\/\/\S+$/i.test(trimmed);
 }
 
 async function finalizeCurrentClipping() {
