@@ -442,7 +442,7 @@ function initializeLearningPanel() {
 }
 
 async function copyClippingText() {
-    const textToCopy = getCurrentClippingText();
+    const textToCopy = formatClippingTextForCopy(true);
     if (!textToCopy) return;
 
     if (navigator.clipboard && window.isSecureContext) {
@@ -471,7 +471,7 @@ async function copyClippingText() {
 }
 
 async function copyClippingTextWithoutUrls() {
-    const textToCopy = stripStandaloneUrlLines(getCurrentClippingText());
+    const textToCopy = formatClippingTextForCopy(false);
     if (!textToCopy) return;
 
     if (navigator.clipboard && window.isSecureContext) {
@@ -499,28 +499,14 @@ async function copyClippingTextWithoutUrls() {
     document.body.removeChild(temp);
 }
 
-function stripStandaloneUrlLines(text) {
-    return String(text || '')
-        .split(/\r?\n/)
-        .filter(line => !isStandaloneUrlLine(line))
-        .join('\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-}
+function formatClippingTextForCopy(includeUrls) {
+    const formatter = window.ClippingCopyFormatter;
+    if (!formatter?.formatClippingText) {
+        console.error('Clipping copy formatter is unavailable.');
+        return getCurrentClippingText();
+    }
 
-function isStandaloneUrlLine(line) {
-    const trimmed = String(line || '').trim();
-    if (isUrlOnlyText(trimmed)) return true;
-
-    const markdownLink = trimmed.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (!markdownLink) return false;
-
-    return isUrlOnlyText(markdownLink[2]);
-}
-
-function isUrlOnlyText(text) {
-    const trimmed = String(text || '').trim().replace(/^<|>$/g, '');
-    return /^https?:\/\/\S+$/i.test(trimmed);
+    return formatter.formatClippingText(getCurrentClippingText(), { includeUrls });
 }
 
 async function finalizeCurrentClipping() {
