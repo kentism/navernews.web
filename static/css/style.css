@@ -1260,6 +1260,12 @@ body {
     gap: 14px;
 }
 
+.candidate-list-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
 .candidate-card {
     padding: 20px;
     background: var(--card-bg);
@@ -1304,6 +1310,12 @@ body {
     color: #b91c1c;
 }
 
+.candidate-representative-badge {
+    background: var(--text-main);
+    border-color: var(--text-main);
+    color: var(--card-bg);
+}
+
 .candidate-category-select {
     min-width: 150px;
     height: 34px;
@@ -1335,6 +1347,84 @@ body {
     margin: 0 0 12px;
     color: var(--text-sub);
     line-height: 1.55;
+}
+
+.candidate-cluster-context {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+    color: var(--text-sub);
+    font-size: 0.86rem;
+}
+
+.candidate-cluster-context strong {
+    color: var(--text-main);
+}
+
+.candidate-related-disclosure {
+    margin-top: 18px;
+    border-top: 1px solid var(--border-color);
+}
+
+.candidate-related-disclosure summary {
+    padding: 14px 0 4px;
+    color: var(--text-main);
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.candidate-related-list {
+    margin-top: 8px;
+}
+
+.candidate-related-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.candidate-related-row:first-child {
+    border-top: 0;
+}
+
+.candidate-related-main {
+    min-width: 0;
+}
+
+.candidate-related-main h4 {
+    margin: 8px 0 6px;
+    font-size: 0.98rem;
+    line-height: 1.45;
+}
+
+.candidate-related-main p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0 0 8px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.9rem;
+}
+
+.candidate-related-controls {
+    display: flex;
+    width: min(360px, 34vw);
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 10px;
+}
+
+.candidate-related-controls .news-actions {
+    justify-content: flex-end;
+}
+
+.candidate-related-category {
+    min-width: 180px;
 }
 
 .candidate-reasons {
@@ -2316,9 +2406,10 @@ input:checked + .watch-slider:before {
    ============================================================================== */
 .candidate-control-center {
     display: grid;
-    grid-template-columns: 1fr 1fr 200px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(160px, 200px);
     gap: 20px;
     margin-bottom: 30px;
+    min-width: 0;
     animation: fadeInScale 0.4s ease-out;
 }
 
@@ -2329,6 +2420,7 @@ input:checked + .watch-slider:before {
     padding: 20px;
     display: flex;
     gap: 16px;
+    min-width: 0;
     box-shadow: none;
     transition: border-color 0.2s ease, background 0.2s ease;
 }
@@ -2356,6 +2448,7 @@ input:checked + .watch-slider:before {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
 }
 
 .control-label {
@@ -2405,6 +2498,7 @@ input:checked + .watch-slider:before {
 
 .keyword-input-wrapper input {
     flex: 1;
+    min-width: 0;
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
@@ -2430,9 +2524,12 @@ input:checked + .watch-slider:before {
 }
 
 .btn-open-tabs-add {
+    width: 100%;
     border-color: var(--border-color);
     background: var(--bg-color);
     color: var(--text-main);
+    line-height: 1.35;
+    white-space: normal;
 }
 
 .compact-keyword-tags {
@@ -2540,7 +2637,7 @@ input:checked + .watch-slider:before {
 
 @media (max-width: 1100px) {
     .candidate-control-center {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .control-action-card {
         grid-column: span 2;
@@ -2549,10 +2646,28 @@ input:checked + .watch-slider:before {
 
 @media (max-width: 768px) {
     .candidate-control-center {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
     .control-action-card {
         grid-column: span 1;
+    }
+
+    .candidate-related-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .candidate-related-controls {
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .candidate-related-controls .news-actions {
+        justify-content: flex-start;
+    }
+
+    .candidate-related-category {
+        width: 100%;
     }
 }
 

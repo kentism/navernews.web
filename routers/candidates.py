@@ -19,14 +19,19 @@ from services.clipping_store import (
     delete_candidate,
     finish_run,
     get_default_cutoff,
-    list_candidates,
+    list_candidate_groups,
     list_candidate_keywords,
     list_candidate_status_counts,
     parse_pub_date,
     remove_candidate_keyword,
     reject_candidate,
+    recluster_pending_candidates,
     restore_rejected_candidate,
+    restore_candidate_auto_grouping,
+    restore_covered_candidate,
+    set_candidate_representative,
     to_iso,
+    ungroup_candidate,
 )
 from services.news_service import fetch_news, get_naver_api_headers
 
@@ -54,8 +59,12 @@ async def clipping_candidates(request: Request, status: str = "pending"):
 
     cleanup_deleted = cleanup_stale_pending_candidates()
 
+    items = list_candidate_groups(status=status)
     return {
-        "items": list_candidates(status=status),
+        "items": items,
+        "group_count": len(items),
+        "article_count": sum(int(item.get("cluster_size") or 1) for item in items),
+        "related_article_count": sum(int(item.get("related_count") or 0) for item in items),
         "status_counts": list_candidate_status_counts(),
         "cleanup_deleted": cleanup_deleted,
         "pending_retention_days": CANDIDATE_PENDING_RETENTION_DAYS,
@@ -176,6 +185,7 @@ async def run_clipping_candidates(
             start += 100
 
     finish_run(run_id, created_count)
+    cluster_summary = recluster_pending_candidates()
     return {
         "status": "success",
         "created": created_count,
@@ -186,6 +196,7 @@ async def run_clipping_candidates(
         "cutoff": cutoff.isoformat(),
         "keywords": keywords,
         "cleanup_deleted": cleanup_deleted,
+        "cluster_summary": cluster_summary,
     }
 
 
@@ -214,6 +225,42 @@ async def reject_clipping_candidate(request: Request, candidate_id: int):
     return {"status": "success"}
 
 
+@router.post("/clipping-candidates/{candidate_id}/representative")
+async def set_clipping_candidate_representative(request: Request, candidate_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    if not set_candidate_representative(candidate_id):
+        return JSONResponse(content={"error": "Pending candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
+@router.post("/clipping-candidates/{candidate_id}/ungroup")
+async def ungroup_clipping_candidate(request: Request, candidate_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    if not ungroup_candidate(candidate_id):
+        return JSONResponse(content={"error": "Pending candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
+@router.post("/clipping-candidates/{candidate_id}/restore-grouping")
+async def restore_clipping_candidate_grouping(request: Request, candidate_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    if not restore_candidate_auto_grouping(candidate_id):
+        return JSONResponse(content={"error": "Pending candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
 @router.post("/clipping-candidates/{candidate_id}/restore")
 async def restore_clipping_candidate(request: Request, candidate_id: int):
     auth_check = await require_auth(request)
@@ -222,6 +269,18 @@ async def restore_clipping_candidate(request: Request, candidate_id: int):
 
     if not restore_rejected_candidate(candidate_id):
         return JSONResponse(content={"error": "Rejected candidate not found"}, status_code=404)
+
+    return {"status": "success"}
+
+
+@router.post("/clipping-candidates/{candidate_id}/restore-covered")
+async def restore_covered_clipping_candidate(request: Request, candidate_id: int):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
+
+    if not restore_covered_candidate(candidate_id):
+        return JSONResponse(content={"error": "Covered candidate not found"}, status_code=404)
 
     return {"status": "success"}
 

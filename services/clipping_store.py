@@ -8,6 +8,12 @@ from typing import Optional
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from app_config import CLIPPING_DB_PATH
+from services.candidate_cluster_service import (
+    candidate_event_similarity,
+    cluster_candidate_articles,
+    cluster_common_keywords,
+    select_cluster_representative,
+)
 
 
 DB_PATH = CLIPPING_DB_PATH
@@ -98,6 +104,10 @@ def init_db() -> None:
                 score_reasons TEXT,
                 suggested_category TEXT NOT NULL,
                 similar_group_key TEXT,
+                cluster_similarity REAL NOT NULL DEFAULT 1,
+                cluster_representative INTEGER NOT NULL DEFAULT 0,
+                representative_override INTEGER NOT NULL DEFAULT 0,
+                cluster_excluded INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'pending',
                 created_at TEXT NOT NULL,
                 reviewed_at TEXT,
@@ -161,8 +171,17 @@ def init_db() -> None:
             row["name"]
             for row in conn.execute("PRAGMA table_info(clipping_candidates)").fetchall()
         }
-        if "score_reasons" not in candidate_columns:
-            conn.execute("ALTER TABLE clipping_candidates ADD COLUMN score_reasons TEXT")
+        candidate_column_definitions = {
+            "score_reasons": "TEXT",
+            "similar_group_key": "TEXT",
+            "cluster_similarity": "REAL NOT NULL DEFAULT 1",
+            "cluster_representative": "INTEGER NOT NULL DEFAULT 0",
+            "representative_override": "INTEGER NOT NULL DEFAULT 0",
+            "cluster_excluded": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for column, definition in candidate_column_definitions.items():
+            if column not in candidate_columns:
+                conn.execute(f"ALTER TABLE clipping_candidates ADD COLUMN {column} {definition}")
 
 
 def get_storage_status() -> dict:
@@ -581,15 +600,6 @@ def _domain_from_link(link: str) -> str:
     return (urlparse(normalize_article_url(link)).netloc or "").replace("www.", "")
 
 
-def _group_key(title: str) -> str:
-    tokens = [
-        token
-        for token in "".join(ch if ch.isalnum() or ch.isspace() else " " for ch in title.lower()).split()
-        if len(token) > 1
-    ]
-    return " ".join(tokens[:6]) or title[:24].lower()
-
-
 def _tokenize(text: str) -> set[str]:
     cleaned = re.sub(r"[^\w가-힣]+", " ", (text or "").lower())
     return {token for token in cleaned.split() if len(token) >= 2}
@@ -827,7 +837,7 @@ async def create_candidate(item, keyword: str) -> dict:
                 article_id, keyword, score, score_reasons, suggested_category, similar_group_key, status, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
             """,
-            (article_id, keyword, score, json.dumps(reasons, ensure_ascii=False), category, _group_key(item.title), now),
+            (article_id, keyword, score, json.dumps(reasons, ensure_ascii=False), category, None, now),
         )
         return {"status": "created" if cur.rowcount > 0 else "duplicate", "created": cur.rowcount > 0, "score": score}
 
@@ -877,47 +887,250 @@ def list_candidate_status_counts() -> dict[str, int]:
         return {row["status"]: int(row["count"] or 0) for row in rows}
 
 
-def list_candidates(status: str = "pending") -> list[dict]:
+def _deserialize_candidate(row) -> dict:
+    candidate = dict(row)
+    try:
+        candidate["score_reasons"] = json.loads(candidate.get("score_reasons") or "[]")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        candidate["score_reasons"] = []
+    candidate["cluster_representative"] = bool(candidate.get("cluster_representative"))
+    candidate["representative_override"] = bool(candidate.get("representative_override"))
+    candidate["cluster_excluded"] = bool(candidate.get("cluster_excluded"))
+    return candidate
+
+
+def _load_candidate_rows(status: str) -> list[dict]:
+    if status == "accepted":
+        where_clause = """
+            c.status = 'accepted'
+            OR (
+                c.status = 'covered'
+                AND c.similar_group_key IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM clipping_candidates accepted
+                    WHERE accepted.similar_group_key = c.similar_group_key
+                    AND accepted.status = 'accepted'
+                )
+            )
+        """
+        params: tuple = ()
+    else:
+        where_clause = "c.status = ?"
+        params = (status,)
+
     with _connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT
                 c.id,
+                c.article_id,
                 c.keyword,
                 c.score,
                 c.score_reasons,
                 c.suggested_category,
                 c.similar_group_key,
+                c.cluster_similarity,
+                c.cluster_representative,
+                c.representative_override,
+                c.cluster_excluded,
                 c.status,
                 c.created_at,
+                c.reviewed_at,
                 a.title,
                 a.link,
                 a.original_link,
                 a.description,
                 a.source,
                 a.domain,
-                a.pub_date,
-                COUNT(peer.id) - 1 AS similar_count
+                a.pub_date
             FROM clipping_candidates c
             JOIN articles a ON a.id = c.article_id
-            LEFT JOIN clipping_candidates peer
-                ON peer.similar_group_key = c.similar_group_key
-                AND peer.status = c.status
-            WHERE c.status = ?
-            GROUP BY c.id
+            WHERE {where_clause}
             ORDER BY c.score DESC, a.pub_date DESC, c.created_at DESC
             """,
-            (status,),
+            params,
         ).fetchall()
-        candidates = []
-        for row in rows:
-            candidate = dict(row)
-            try:
-                candidate["score_reasons"] = json.loads(candidate.get("score_reasons") or "[]")
-            except Exception:
-                candidate["score_reasons"] = []
-            candidates.append(candidate)
-        return candidates
+        return [_deserialize_candidate(row) for row in rows]
+
+
+def list_candidates(status: str = "pending") -> list[dict]:
+    candidates = _load_candidate_rows(status)
+    group_counts: dict[str, int] = {}
+    for candidate in candidates:
+        group_key = candidate.get("similar_group_key")
+        if group_key:
+            group_counts[group_key] = group_counts.get(group_key, 0) + 1
+    for candidate in candidates:
+        group_key = candidate.get("similar_group_key")
+        candidate["similar_count"] = max(0, group_counts.get(group_key, 1) - 1) if group_key else 0
+    return candidates
+
+
+def _load_finalized_source_counts(conn) -> dict[str, int]:
+    rows = conn.execute(
+        """
+        SELECT source, COUNT(*) AS count
+        FROM clipping_events
+        WHERE action = 'finalized' AND source IS NOT NULL AND source != ''
+        GROUP BY source
+        """
+    ).fetchall()
+    return {str(row["source"]): int(row["count"] or 0) for row in rows}
+
+
+def recluster_pending_candidates() -> dict:
+    """Rebuild pending event clusters without deleting individual candidates."""
+    candidates = _load_candidate_rows("pending")
+    clusters = cluster_candidate_articles(candidates)
+
+    with _connect() as conn:
+        source_counts = _load_finalized_source_counts(conn)
+        for cluster in clusters:
+            representative = select_cluster_representative(cluster, source_counts)
+            representative_id = int(representative["id"])
+            minimum_id = min(int(candidate["id"]) for candidate in cluster)
+            group_key = f"story:{minimum_id}" if len(cluster) > 1 else f"single:{minimum_id}"
+
+            for candidate in cluster:
+                candidate_id = int(candidate["id"])
+                similarity = 1.0
+                if candidate_id != representative_id:
+                    similarity = candidate_event_similarity(candidate, representative)[0]
+                conn.execute(
+                    """
+                    UPDATE clipping_candidates
+                    SET similar_group_key = ?,
+                        cluster_similarity = ?,
+                        cluster_representative = ?
+                    WHERE id = ?
+                    """,
+                    (group_key, round(similarity, 4), int(candidate_id == representative_id), candidate_id),
+                )
+
+    return {
+        "group_count": len(clusters),
+        "article_count": len(candidates),
+        "related_article_count": sum(max(0, len(cluster) - 1) for cluster in clusters),
+    }
+
+
+def ensure_candidate_clusters() -> None:
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM clipping_candidates
+            WHERE status = 'pending'
+              AND (
+                  similar_group_key IS NULL
+                  OR (similar_group_key NOT LIKE 'story:%' AND similar_group_key NOT LIKE 'single:%')
+              )
+            LIMIT 1
+            """
+        ).fetchone()
+    if row:
+        recluster_pending_candidates()
+
+
+def list_candidate_groups(status: str = "pending") -> list[dict]:
+    """Return one representative per event with the remaining articles nested beneath it."""
+    if status == "pending":
+        ensure_candidate_clusters()
+
+    candidates = _load_candidate_rows(status)
+    grouped: dict[str, list[dict]] = {}
+    for candidate in candidates:
+        if status == "rejected":
+            group_key = f"candidate:{candidate['id']}"
+        else:
+            group_key = candidate.get("similar_group_key") or f"candidate:{candidate['id']}"
+        grouped.setdefault(group_key, []).append(candidate)
+
+    groups: list[dict] = []
+    for group_key, members in grouped.items():
+        if status == "accepted":
+            representative = next((item for item in members if item.get("status") == "accepted"), members[0])
+        else:
+            representative = next((item for item in members if item.get("cluster_representative")), members[0])
+
+        related_items = [item for item in members if item["id"] != representative["id"]]
+        related_items.sort(key=lambda item: (-int(item.get("score") or 0), int(item.get("id") or 0)))
+        group = dict(representative)
+        group["similar_group_key"] = group_key
+        group["related_items"] = related_items
+        group["related_count"] = len(related_items)
+        group["cluster_size"] = len(members)
+        group["cluster_keywords"] = cluster_common_keywords(members)
+        groups.append(group)
+
+    return groups
+
+
+def set_candidate_representative(candidate_id: int) -> bool:
+    ensure_candidate_clusters()
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT similar_group_key FROM clipping_candidates
+            WHERE id = ? AND status = 'pending'
+            """,
+            (candidate_id,),
+        ).fetchone()
+        if not row or not row["similar_group_key"]:
+            return False
+        conn.execute(
+            """
+            UPDATE clipping_candidates
+            SET representative_override = 0
+            WHERE similar_group_key = ? AND status = 'pending'
+            """,
+            (row["similar_group_key"],),
+        )
+        conn.execute(
+            "UPDATE clipping_candidates SET representative_override = 1 WHERE id = ?",
+            (candidate_id,),
+        )
+    recluster_pending_candidates()
+    return True
+
+
+def ungroup_candidate(candidate_id: int) -> bool:
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE clipping_candidates
+            SET cluster_excluded = 1,
+                representative_override = 0,
+                similar_group_key = ?,
+                cluster_similarity = 1,
+                cluster_representative = 1
+            WHERE id = ? AND status = 'pending'
+            """,
+            (f"single:{candidate_id}", candidate_id),
+        )
+    if cur.rowcount:
+        recluster_pending_candidates()
+        return True
+    return False
+
+
+def restore_candidate_auto_grouping(candidate_id: int) -> bool:
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE clipping_candidates
+            SET cluster_excluded = 0,
+                similar_group_key = NULL,
+                cluster_similarity = 1,
+                cluster_representative = 0
+            WHERE id = ? AND status = 'pending'
+            """,
+            (candidate_id,),
+        )
+    if cur.rowcount:
+        recluster_pending_candidates()
+        return True
+    return False
 
 
 def get_candidate(candidate_id: int) -> Optional[dict]:
@@ -972,19 +1185,41 @@ def record_clip_event(
 
 def accept_candidate(candidate_id: int, category: Optional[str] = None) -> Optional[dict]:
     candidate = get_candidate(candidate_id)
-    if not candidate:
+    if not candidate or candidate.get("status") != "pending":
         return None
 
     final_category = category or candidate["suggested_category"]
+    reviewed_at = to_iso(utc_now())
+    covered_count = 0
     with _connect() as conn:
         conn.execute(
             """
             UPDATE clipping_candidates
-            SET status = 'accepted', suggested_category = ?, reviewed_at = ?
-            WHERE id = ?
+            SET status = 'accepted',
+                suggested_category = ?,
+                reviewed_at = ?,
+                cluster_representative = 1,
+                representative_override = 1
+            WHERE id = ? AND status = 'pending'
             """,
-            (final_category, to_iso(utc_now()), candidate_id),
+            (final_category, reviewed_at, candidate_id),
         )
+        group_key = candidate.get("similar_group_key")
+        if group_key and str(group_key).startswith("story:"):
+            covered = conn.execute(
+                """
+                UPDATE clipping_candidates
+                SET status = 'covered',
+                    reviewed_at = ?,
+                    cluster_representative = 0,
+                    representative_override = 0
+                WHERE similar_group_key = ?
+                  AND status = 'pending'
+                  AND id != ?
+                """,
+                (reviewed_at, group_key, candidate_id),
+            )
+            covered_count = int(covered.rowcount or 0)
 
     record_clip_event(
         article_id=candidate["article_id"],
@@ -997,6 +1232,8 @@ def accept_candidate(candidate_id: int, category: Optional[str] = None) -> Optio
         action="draft_candidate",
     )
     candidate["suggested_category"] = final_category
+    candidate["status"] = "accepted"
+    candidate["related_covered_count"] = covered_count
     return candidate
 
 
@@ -1005,12 +1242,15 @@ def reject_candidate(candidate_id: int) -> bool:
         cur = conn.execute(
             """
             UPDATE clipping_candidates
-            SET status = 'rejected', reviewed_at = ?
-            WHERE id = ?
+            SET status = 'rejected', reviewed_at = ?, cluster_representative = 0
+            WHERE id = ? AND status = 'pending'
             """,
             (to_iso(utc_now()), candidate_id),
         )
-        return cur.rowcount > 0
+        updated = cur.rowcount > 0
+    if updated:
+        recluster_pending_candidates()
+    return updated
 
 
 def restore_rejected_candidate(candidate_id: int) -> bool:
@@ -1018,18 +1258,74 @@ def restore_rejected_candidate(candidate_id: int) -> bool:
         cur = conn.execute(
             """
             UPDATE clipping_candidates
-            SET status = 'pending', reviewed_at = NULL
+            SET status = 'pending',
+                reviewed_at = NULL,
+                similar_group_key = NULL,
+                cluster_similarity = 1,
+                cluster_representative = 0,
+                representative_override = 0,
+                cluster_excluded = 0
             WHERE id = ? AND status = 'rejected'
             """,
             (candidate_id,),
         )
-        return cur.rowcount > 0
+        updated = cur.rowcount > 0
+    if updated:
+        recluster_pending_candidates()
+    return updated
+
+
+def restore_covered_candidate(candidate_id: int) -> bool:
+    """Return a neutrally covered related article to the pending review queue."""
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE clipping_candidates
+            SET status = 'pending',
+                reviewed_at = NULL,
+                similar_group_key = NULL,
+                cluster_similarity = 1,
+                cluster_representative = 0,
+                representative_override = 0,
+                cluster_excluded = 0
+            WHERE id = ? AND status = 'covered'
+            """,
+            (candidate_id,),
+        )
+        updated = cur.rowcount > 0
+    if updated:
+        recluster_pending_candidates()
+    return updated
 
 
 def delete_candidate(candidate_id: int) -> bool:
     with _connect() as conn:
+        candidate = conn.execute(
+            "SELECT status, similar_group_key FROM clipping_candidates WHERE id = ?",
+            (candidate_id,),
+        ).fetchone()
+        if not candidate:
+            return False
+        if candidate["status"] == "accepted" and candidate["similar_group_key"]:
+            conn.execute(
+                """
+                UPDATE clipping_candidates
+                SET status = 'pending',
+                    reviewed_at = NULL,
+                    similar_group_key = NULL,
+                    cluster_similarity = 1,
+                    cluster_representative = 0,
+                    representative_override = 0
+                WHERE similar_group_key = ? AND status = 'covered'
+                """,
+                (candidate["similar_group_key"],),
+            )
         cur = conn.execute("DELETE FROM clipping_candidates WHERE id = ?", (candidate_id,))
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+        should_recluster = candidate["status"] in {"pending", "accepted"}
+    if deleted and should_recluster:
+        recluster_pending_candidates()
+    return deleted
 
 
 def clear_pending_candidates() -> int:
@@ -1048,7 +1344,10 @@ def cleanup_stale_pending_candidates(days: int = CANDIDATE_PENDING_RETENTION_DAY
             """,
             (cutoff,),
         )
-        return cur.rowcount
+        deleted = int(cur.rowcount or 0)
+    if deleted:
+        recluster_pending_candidates()
+    return deleted
 
 
 def create_run(cutoff: datetime, keywords: list[str]) -> int:

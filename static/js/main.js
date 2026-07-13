@@ -602,6 +602,16 @@ const candidateStatusLabels = {
     accepted: '반영 이력'
 };
 
+function getCandidateById(candidateId) {
+    for (const group of candidateCache) {
+        if (group.id === candidateId) return group;
+        const related = Array.isArray(group.related_items) ? group.related_items : [];
+        const match = related.find((item) => item.id === candidateId);
+        if (match) return match;
+    }
+    return null;
+}
+
 async function loadCandidatesTab() {
     const candidatesPane = document.getElementById('candidates');
     if (!candidatesPane) return;
@@ -689,13 +699,17 @@ function setupCandidateActions() {
         const acceptBtn = event.target.closest('[data-candidate-accept]');
         const rejectBtn = event.target.closest('[data-candidate-reject]');
         const restoreBtn = event.target.closest('[data-candidate-restore]');
+        const restoreCoveredBtn = event.target.closest('[data-candidate-restore-covered]');
         const deleteBtn = event.target.closest('[data-candidate-delete]');
         const openBtn = event.target.closest('[data-candidate-open]');
-        const card = event.target.closest('.candidate-card');
-        if (!card) return;
+        const representativeBtn = event.target.closest('[data-candidate-representative]');
+        const ungroupBtn = event.target.closest('[data-candidate-ungroup]');
+        const restoreGroupingBtn = event.target.closest('[data-candidate-restore-grouping]');
+        const candidateNode = event.target.closest('[data-candidate-id]');
+        if (!candidateNode) return;
 
-        const candidateId = Number(card.dataset.candidateId);
-        const item = candidateCache.find((candidate) => candidate.id === candidateId);
+        const candidateId = Number(candidateNode.dataset.candidateId);
+        const item = getCandidateById(candidateId);
         if (!item) return;
 
         if (openBtn) {
@@ -713,13 +727,33 @@ function setupCandidateActions() {
             return;
         }
 
+        if (restoreCoveredBtn) {
+            await restoreCoveredCandidate(candidateId);
+            return;
+        }
+
+        if (representativeBtn) {
+            await updateCandidateGrouping(candidateId, 'representative', '대표 기사를 변경했습니다.');
+            return;
+        }
+
+        if (ungroupBtn) {
+            await updateCandidateGrouping(candidateId, 'ungroup', '관련 보도 묶음에서 분리했습니다.');
+            return;
+        }
+
+        if (restoreGroupingBtn) {
+            await updateCandidateGrouping(candidateId, 'restore-grouping', '자동 사건 묶음을 다시 적용했습니다.');
+            return;
+        }
+
         if (deleteBtn) {
             await deleteCandidate(candidateId);
             return;
         }
 
         if (acceptBtn) {
-            const select = card.querySelector('.candidate-category-select');
+            const select = candidateNode.querySelector('.candidate-category-select');
             const category = select ? select.value : item.suggested_category;
             await acceptCandidate(item, category, acceptBtn);
         }
@@ -755,7 +789,11 @@ async function runCandidateCollection() {
             `이미 학습 ${data.skipped_finalized || 0}건`,
             `기존 후보 ${data.skipped_duplicate || 0}건`
         ].join(', ');
-        status.textContent = `${data.keywords.length}개 검색어에서 ${data.checked || 0}건을 검토했고, 새 후보 ${data.created || 0}건을 수집했습니다. (${skipped}, 기준: ${cutoffStr} 이후)`;
+        const clusterSummary = data.cluster_summary || {};
+        const clusterText = clusterSummary.article_count
+            ? ` 사건 ${clusterSummary.group_count || 0}개로 정리했고 관련 보도 ${clusterSummary.related_article_count || 0}건을 묶었습니다.`
+            : '';
+        status.textContent = `${data.keywords.length}개 검색어에서 ${data.checked || 0}건을 검토했고, 새 후보 ${data.created || 0}건을 수집했습니다.${clusterText} (${skipped}, 기준: ${cutoffStr} 이후)`;
         
         showToast(`클리핑 후보 ${data.created}건 수집 완료`);
         await refreshCandidates();
@@ -826,14 +864,20 @@ async function refreshCandidates() {
         renderCandidateKeywords(candidateKeywords);
         renderCandidateStatusTabs(data.status_counts || {});
         renderCandidates(candidateCache);
-        if (clearPendingBtn) clearPendingBtn.disabled = candidateCurrentStatus !== 'pending' || candidateCache.length === 0;
+        if (clearPendingBtn) clearPendingBtn.disabled = candidateCurrentStatus !== 'pending' || (data.article_count || 0) === 0;
 
         if (status) {
             const label = candidateStatusLabels[candidateCurrentStatus] || '후보';
             const cleanupText = data.cleanup_deleted
                 ? ` 오래된 미검토 후보 ${data.cleanup_deleted}건은 자동 정리되었습니다.`
                 : '';
-            status.textContent = `${candidateKeywords.length}개 검색어, ${label} ${candidateCache.length}건을 표시 중입니다.${cleanupText}`;
+            if (candidateCurrentStatus === 'pending') {
+                status.textContent = `${candidateKeywords.length}개 검색어에서 대기 후보 ${data.article_count || 0}건을 ${data.group_count || 0}개 사건으로 표시 중입니다. 관련 보도 ${data.related_article_count || 0}건이 묶여 있습니다.${cleanupText}`;
+            } else if (candidateCurrentStatus === 'accepted') {
+                status.textContent = `반영 이력 ${data.group_count || 0}건과 함께 보존된 관련 보도 ${data.related_article_count || 0}건을 표시 중입니다.${cleanupText}`;
+            } else {
+                status.textContent = `${label} ${data.article_count || 0}건을 표시 중입니다.${cleanupText}`;
+            }
         }
 
         if (cutoffLabel) {
@@ -1018,12 +1062,33 @@ function renderCandidateReason(reason) {
     return `<li class="${negative ? 'negative-reason' : ''}">${badge}${escapeHtml(reason)}</li>`;
 }
 
-function renderCandidateActions(item) {
+function renderCandidateCategory(item, compact = false) {
+    if (item.status !== 'pending') {
+        return `<span class="candidate-category-static">${escapeHtml(item.suggested_category || '카테고리 없음')}</span>`;
+    }
+
+    const options = candidateCategories.map((category) => {
+        const selected = category === item.suggested_category ? 'selected' : '';
+        return `<option value="${escapeAttr(category)}" ${selected}>${escapeHtml(category)}</option>`;
+    }).join('');
+    return `<select class="candidate-category-select ${compact ? 'candidate-related-category' : ''}" aria-label="후보 카테고리">${options}</select>`;
+}
+
+function renderCandidateActions(item, { related = false } = {}) {
     if (item.status === 'pending') {
+        const groupingActions = related
+            ? `
+                <button type="button" class="btn-small" data-candidate-representative>대표로 지정</button>
+                <button type="button" class="btn-small" data-candidate-ungroup>묶음 해제</button>
+            `
+            : (item.cluster_excluded
+                ? '<button type="button" class="btn-small" data-candidate-restore-grouping>자동 묶음 복원</button>'
+                : '');
         return `
             <button type="button" class="btn-small btn-primary btn-clip-trigger" data-candidate-accept>클리핑</button>
-            <button type="button" class="btn-small" data-candidate-reject>제외하고 학습에 반영</button>
+            <button type="button" class="btn-small" data-candidate-reject>부적합 제외</button>
             <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+            ${groupingActions}
         `;
     }
 
@@ -1035,9 +1100,49 @@ function renderCandidateActions(item) {
         `;
     }
 
+    if (item.status === 'covered') {
+        return `
+            <button type="button" class="btn-small btn-primary" data-candidate-restore-covered>대기 후보로 복원</button>
+            <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+        `;
+    }
+
     return `
         <button type="button" class="btn-small btn-danger-light" data-candidate-delete>이력 삭제</button>
         <button type="button" class="btn-small" data-candidate-open>원문 보기</button>
+    `;
+}
+
+function renderCandidateReasons(item) {
+    return Array.isArray(item.score_reasons) && item.score_reasons.length
+        ? `<ul class="candidate-reasons">${item.score_reasons.map(renderCandidateReason).join('')}</ul>`
+        : '<ul class="candidate-reasons"><li>점수 산정 사유 없음</li></ul>';
+}
+
+function renderRelatedCandidate(item) {
+    const similarity = Number(item.cluster_similarity);
+    const similarityBadge = Number.isFinite(similarity)
+        ? `<span>대표 기사와 유사도 ${Math.round(similarity * 100)}%</span>`
+        : '';
+
+    return `
+        <div class="candidate-related-row" data-candidate-id="${item.id}">
+            <div class="candidate-related-main">
+                <div class="candidate-meta">
+                    <span>${escapeHtml(item.source || item.domain || '출처 미상')}</span>
+                    <span>${escapeHtml(item.pub_date || '')}</span>
+                    <span class="candidate-score">${item.score}점</span>
+                    ${similarityBadge}
+                </div>
+                <h4>${escapeHtml(item.title)}</h4>
+                <p>${escapeHtml(item.description || '')}</p>
+                <div class="candidate-keyword">검색어: ${escapeHtml(item.keyword)}</div>
+            </div>
+            <div class="candidate-related-controls">
+                ${renderCandidateCategory(item, true)}
+                <div class="news-actions">${renderCandidateActions(item, { related: true })}</div>
+            </div>
+        </div>
     `;
 }
 
@@ -1052,22 +1157,27 @@ function renderCandidates(items) {
     }
 
     list.innerHTML = items.map((item) => {
-        const categoryOptions = item.status === 'pending' ? candidateCategories.map((category) => {
-            const selected = category === item.suggested_category ? 'selected' : '';
-            return `<option value="${escapeAttr(category)}" ${selected}>${escapeHtml(category)}</option>`;
-        }).join('') : '';
-        const similarBadge = item.similar_count > 0
-            ? `<span class="candidate-badge">유사 ${item.similar_count}건</span>`
+        const relatedItems = Array.isArray(item.related_items) ? item.related_items : [];
+        const relatedBadge = relatedItems.length > 0
+            ? `<span class="candidate-badge">관련 보도 ${relatedItems.length}건</span>`
+            : '';
+        const representativeBadge = relatedItems.length > 0
+            ? '<span class="candidate-badge candidate-representative-badge">대표 기사</span>'
             : '';
         const negativeApplied = Array.isArray(item.score_reasons) && item.score_reasons.some(isNegativeCandidateReason)
             ? '<span class="candidate-badge candidate-negative-badge">제외 이력 감점</span>'
             : '';
-        const reasons = Array.isArray(item.score_reasons) && item.score_reasons.length
-            ? `<ul class="candidate-reasons">${item.score_reasons.map(renderCandidateReason).join('')}</ul>`
-            : '<ul class="candidate-reasons"><li>점수 산정 사유 없음</li></ul>';
-        const categoryControl = item.status === 'pending'
-            ? `<select class="candidate-category-select" aria-label="후보 카테고리">${categoryOptions}</select>`
-            : `<span class="candidate-category-static">${escapeHtml(item.suggested_category || '카테고리 없음')}</span>`;
+        const clusterKeywords = Array.isArray(item.cluster_keywords) && item.cluster_keywords.length
+            ? `<div class="candidate-cluster-context"><strong>공통 핵심어</strong><span>${item.cluster_keywords.map(escapeHtml).join(' · ')}</span></div>`
+            : '';
+        const relatedSection = relatedItems.length
+            ? `
+                <details class="candidate-related-disclosure">
+                    <summary>관련 보도 ${relatedItems.length}건 비교</summary>
+                    <div class="candidate-related-list">${relatedItems.map(renderRelatedCandidate).join('')}</div>
+                </details>
+            `
+            : '';
 
         return `
             <div class="candidate-card" data-candidate-id="${item.id}">
@@ -1076,18 +1186,21 @@ function renderCandidates(items) {
                         <span>${escapeHtml(item.source || item.domain || '출처 미상')}</span>
                         <span>${escapeHtml(item.pub_date || '')}</span>
                         <span class="candidate-score">${item.score}점</span>
-                        ${similarBadge}
+                        ${representativeBadge}
+                        ${relatedBadge}
                         ${negativeApplied}
                     </div>
-                    ${categoryControl}
+                    ${renderCandidateCategory(item)}
                 </div>
                 <h3>${escapeHtml(item.title)}</h3>
                 <p>${escapeHtml(item.description || '')}</p>
                 <div class="candidate-keyword">검색어: ${escapeHtml(item.keyword)}</div>
-                ${reasons}
+                ${clusterKeywords}
+                ${renderCandidateReasons(item)}
                 <div class="news-actions">
                     ${renderCandidateActions(item)}
                 </div>
+                ${relatedSection}
             </div>
         `;
     }).join('');
@@ -1117,7 +1230,10 @@ async function acceptCandidate(item, category, btnEl) {
             );
         }
 
-        showToast('후보를 클리핑에 반영했습니다.');
+        const coveredCount = Number(data.item.related_covered_count || 0);
+        showToast(coveredCount > 0
+            ? `후보를 클리핑하고 관련 보도 ${coveredCount}건을 중립 보존했습니다.`
+            : '후보를 클리핑에 반영했습니다.');
         await refreshCandidates();
     } catch (e) {
         console.error('Candidate accept failed:', e);
@@ -1151,8 +1267,34 @@ async function restoreCandidate(candidateId) {
     }
 }
 
+async function restoreCoveredCandidate(candidateId) {
+    try {
+        const resp = await fetch(`/api/clipping-candidates/${candidateId}/restore-covered`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '관련 보도 복원 실패');
+        showToast('관련 보도를 대기 후보로 복원했습니다.');
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Covered candidate restore failed:', e);
+        showToast('관련 보도 복원에 실패했습니다.');
+    }
+}
+
+async function updateCandidateGrouping(candidateId, action, successMessage) {
+    try {
+        const resp = await fetch(`/api/clipping-candidates/${candidateId}/${action}`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '사건 묶음 변경 실패');
+        showToast(successMessage);
+        await refreshCandidates();
+    } catch (e) {
+        console.error('Candidate grouping update failed:', e);
+        showToast('사건 묶음 변경에 실패했습니다.');
+    }
+}
+
 async function deleteCandidate(candidateId) {
-    const item = candidateCache.find((candidate) => candidate.id === candidateId);
+    const item = getCandidateById(candidateId);
     const isRejected = item && item.status === 'rejected';
     const message = isRejected
         ? '이 제외 이력을 영구 삭제할까요? 삭제하면 이후 후보 감점 근거에서도 사라집니다.'
