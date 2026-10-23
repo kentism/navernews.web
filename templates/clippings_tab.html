@@ -1,22 +1,24 @@
-<div class="clipping-text-wrapper">
-    <h2 class="clipping-header">클리핑 모음</h2>
-
-    <p id="clippingSaveStatus" class="clipping-save-status" role="status" aria-live="polite"></p>
+{% from 'icons.html' import icon %}
+<section class="clipping-text-wrapper">
+    <div class="workspace-heading clipping-heading">
+        <h2 class="clipping-header">클리핑 모음</h2>
+        <p id="clippingSaveStatus" class="clipping-save-status" role="status" aria-live="polite"></p>
+    </div>
 
     <div class="clipping-actions">
-        <button id="copyTextBtn" class="btn-copy" type="button">텍스트 복사</button>
-        <button id="copyTextWithoutUrlsBtn" class="btn-copy" type="button">텍스트 복사(URL 제외)</button>
-        <button id="downloadClippingBtn" class="btn-copy" type="button">파일 저장</button>
-        <button id="clearTextBtn" class="btn-clear" type="button">비우기</button>
+        <button id="copyTextBtn" class="btn btn-primary" type="button">{{ icon('copy') }}텍스트 복사</button>
+        <button id="copyTextWithoutUrlsBtn" class="btn" type="button">{{ icon('copy') }}텍스트 복사(URL 제외)</button>
+        <button id="downloadClippingBtn" class="btn" type="button">{{ icon('download') }}파일 저장</button>
+        <button id="clearTextBtn" class="icon-button btn-danger-quiet" type="button" title="클리핑 비우기" aria-label="클리핑 비우기">{{ icon('trash-2') }}</button>
     </div>
+
+    <div id="editor" class="clipping-editor-container"></div>
+    <p class="local-save-status">초안은 현재 브라우저에 저장됩니다.</p>
 
     <details class="inline-alert-panel">
         <summary>
-            <span>실시간 알림 관리</span>
-            <small>감시 중인 검색어를 클리핑 작업 중 바로 확인합니다.</small>
+            <span>실시간 알림 관리</span>{{ icon('chevron-down') }}
         </summary>
         {% include 'alerts_tab.html' %}
     </details>
-
-    <div id="editor" class="clipping-editor-container"></div>
-</div>
+</section>

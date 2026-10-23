@@ -1,15 +1,25 @@
-<section class="home-section">
-    <div class="section-heading">
-        <span class="section-kicker">KCSC News Monitoring Workspace</span>
-        <h1>뉴스 클리핑</h1>
+<section class="home-workspace" aria-labelledby="homeHeading">
+    <div class="workspace-heading">
+        <div><p class="section-label">검색 작업공간</p><h2 id="homeHeading">검색어 모음</h2></div>
+        <button id="searchSavedKeywordsBtn" type="button" class="btn btn-primary">
+            {{ icon('search') }}전체 검색<span id="batchSearchCount" class="button-count">0</span>
+        </button>
     </div>
-    <div class="hero-chips" aria-label="검색어">
-        {% for keyword in default_keywords %}
-        <button type="button" class="hero-chip" data-home-keyword="{{ keyword }}">{{ keyword }}</button>
-        {% endfor %}
-    </div>
-    <div class="hero-actions">
-        <button type="button" class="btn-hero-secondary" onclick="switchTab('clippings')">클리핑 모음</button>
+    <div class="home-columns">
+        <section class="saved-searches" aria-label="저장 검색어">
+            <div class="subsection-heading"><h3>저장 검색어</h3><span id="homeKeywordCount" class="muted-count">0 / 8</span></div>
+            <ol id="homeKeywordList" class="saved-keyword-list"></ol>
+            <p id="homeKeywordsEmpty" class="empty-msg" hidden>저장된 검색어가 없습니다.</p>
+            <form id="homeKeywordForm" class="keyword-add-form">
+                <input id="homeKeywordInput" type="text" maxlength="300" autocomplete="off" placeholder="새 검색어" aria-label="저장할 검색어">
+                <button type="submit" class="icon-button" title="검색어 추가" aria-label="검색어 추가">{{ icon('plus') }}</button>
+            </form>
+            <p id="homeKeywordsStatus" class="local-save-status" role="status"></p>
+        </section>
+        <section class="home-recent" aria-labelledby="recentSearchHeading">
+            <div class="subsection-heading"><h3 id="recentSearchHeading">최근 검색</h3></div>
+            <ul id="homeRecentKeywords" class="home-recent-list"></ul>
+        </section>
     </div>
 </section>
-<footer class="home-footer"><p>2026 kentism | Internal News Monitoring Workspace</p></footer>
+<footer class="home-footer"><span>KCSC · News Clipping</span></footer>

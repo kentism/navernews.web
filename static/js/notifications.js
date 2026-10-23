@@ -25,7 +25,8 @@
             const row = document.createElement('div'); row.className = 'alert-item';
             const label = document.createElement('span'); label.textContent = keyword;
             const button = document.createElement('button'); button.type = 'button';
-            button.className = 'btn-remove-alert'; button.textContent = '×'; button.title = `${keyword} 알림 끄기`;
+            button.className = 'btn-remove-alert icon-button'; button.append(ui.icon('x')); button.title = `${keyword} 알림 끄기`;
+            button.setAttribute('aria-label', `${keyword} 알림 끄기`);
             button.addEventListener('click', () => changeWatch(keyword, false));
             row.append(label, button); list.append(row);
         }
@@ -61,7 +62,7 @@
                 setTimeout(() => notification.close(), 8000);
             }
             document.querySelectorAll('.tab-pane[data-keyword]').forEach(panel => {
-                if (panel.dataset.keyword === keyword && panel.dataset.mode === 'latest' && !panel.querySelector('.news-select:checked')) {
+                if (panel.dataset.keyword === keyword && panel.dataset.mode === 'latest') {
                     window.refreshSearchTab(panel.id);
                 }
             });

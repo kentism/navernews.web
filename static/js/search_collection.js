@@ -1,25 +1,31 @@
 (function () {
     'use strict';
     const ui = window.NewsUI;
-    function updateSelection(panel) {
-        const boxes = [...panel.querySelectorAll('.news-select')];
-        const count = boxes.filter(box => box.checked).length;
-        const all = panel.querySelector('[data-select-all]');
-        if (all) { all.checked = boxes.length > 0 && count === boxes.length; all.indeterminate = count > 0 && count < boxes.length; }
-        const label = panel.querySelector('[data-selection-count]');
-        if (label) label.textContent = `${count} / ${boxes.length}건 선택`;
-        const button = panel.querySelector('[data-clip-selected]');
-        if (button) button.disabled = !count;
+    function updateCount(panel) {
+        const label = panel.querySelector('[data-results-count]');
+        if (label) label.textContent = `${panel.querySelectorAll('.news-card').length}건 표시`;
+    }
+    function initialize(panel) {
+        const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
+        const yesterday = new Date(`${today}T00:00:00+09:00`);
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+        const since = panel.querySelector('[data-date-since]');
+        const until = panel.querySelector('[data-date-until]');
+        if (!since.value) since.value = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(yesterday);
+        if (!until.value) until.value = today;
+        updateCount(panel);
     }
     async function collect(panel) {
         const since = panel.querySelector('[data-date-since]').value;
         const until = panel.querySelector('[data-date-until]').value;
         if (!since) { ui.toast('조회 시작일을 입력해주세요.'); return; }
+        if (until && since > until) { ui.toast('종료일은 시작일보다 빠를 수 없습니다.'); return; }
         const form = new FormData();
         form.set('keyword', panel.dataset.keyword); form.set('since', since); form.set('until', until);
         const controller = window.NewsSearch.beginRequest(panel);
         const button = panel.querySelector('[data-collect-search]');
         button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
         const status = panel.querySelector('[data-collection-status]');
         status.textContent = '기간 내 기사를 조회하는 중...';
         status.classList.remove('status-warning');
@@ -42,29 +48,21 @@
                 window.NewsSearch.resume(panel);
             }
         } finally {
-            if (controller === panel.searchController) panel.querySelector('[data-collect-search]').disabled = false;
+            if (controller === panel.searchController) {
+                const current = panel.querySelector('[data-collect-search]');
+                if (current) { current.disabled = false; current.removeAttribute('aria-busy'); }
+            }
         }
     }
-    document.addEventListener('change', event => {
-        const panel = event.target.closest('.tab-pane');
-        if (!panel) return;
-        if (event.target.matches('[data-select-all]')) {
-            panel.querySelectorAll('.news-select').forEach(box => { box.checked = event.target.checked; });
-        }
-        if (event.target.matches('.news-select, [data-select-all]')) updateSelection(panel);
+    document.addEventListener('submit', event => {
+        if (!event.target.matches('.search-period-controls')) return;
+        event.preventDefault();
+        collect(event.target.closest('.tab-pane'));
     });
     document.addEventListener('click', event => {
         const panel = event.target.closest('.tab-pane');
         if (!panel) return;
-        if (event.target.closest('[data-collect-search]')) collect(panel);
         if (event.target.closest('[data-show-latest]')) window.NewsSearch.latest(panel);
-        if (event.target.closest('[data-clip-selected]')) {
-            const items = [...panel.querySelectorAll('.news-select:checked')].map(box => {
-                const data = box.closest('.news-card').dataset;
-                return { title: data.title, link: data.link, source: data.source, pubDate: data.pubdate, originalLink: data.originallink };
-            });
-            window.clipArticles(items, panel.querySelector('[data-bulk-category]').value);
-        }
     });
-    window.NewsSearchCollection = { updateSelection, collect };
+    window.NewsSearchCollection = { initialize, updateCount, collect };
 }());

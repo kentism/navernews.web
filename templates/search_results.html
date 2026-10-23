@@ -1,16 +1,17 @@
-<div class="search-results-list" data-mode="{{ mode }}"
+{% from 'icons.html' import icon %}
+<section class="search-results-list" data-mode="{{ mode }}"
      data-next-start="{{ page.next_start if page is defined else 1 }}"
      data-has-more="{{ 'true' if page is defined and page.has_more else 'false' }}"
      data-limit-reached="{{ 'true' if page is defined and not page.source_exhausted and not page.has_more else 'false' }}">
     <div class="results-toolbar">
         <div class="results-toolbar-copy">
-            <span class="results-toolbar-label">현재 검색어</span>
+            <span class="results-toolbar-label">검색 결과</span>
             <h2>{{ keyword }}</h2>
         </div>
         <div class="results-toolbar-actions">
-            <div class="results-layout-toggle" aria-label="검색 결과 보기 방식">
-                <button type="button" class="layout-toggle-btn active" data-layout="list" onclick="setSearchLayout('list')">1열</button>
-                <button type="button" class="layout-toggle-btn" data-layout="grid" onclick="setSearchLayout('grid')">2열</button>
+            <div class="results-layout-toggle" role="group" aria-label="검색 결과 보기 방식">
+                <button type="button" class="layout-toggle-btn icon-button active" data-layout="list" aria-label="1열 보기" title="1열 보기" aria-pressed="true" onclick="setSearchLayout('list')">{{ icon('list') }}</button>
+                <button type="button" class="layout-toggle-btn icon-button" data-layout="grid" aria-label="2열 보기" title="2열 보기" aria-pressed="false" onclick="setSearchLayout('grid')">{{ icon('columns-2') }}</button>
             </div>
             <div class="watch-toggle-container">
                 <label class="watch-switch">
@@ -19,38 +20,38 @@
                 </label>
                 <span class="watch-label">실시간 알림</span>
             </div>
-            <button type="button" class="btn-panel-refresh" data-search-refresh>
-                새로고침
+            <button type="button" class="btn-panel-refresh icon-button" data-search-refresh title="검색 결과 새로고침" aria-label="검색 결과 새로고침">
+                {{ icon('refresh-cw') }}
             </button>
         </div>
     </div>
 
     <div class="search-workbench">
-        <div class="search-period-controls" role="group" aria-label="기사 조회 기간">
-            <label>시작일 <input type="date" data-date-since value="{{ since|default('') }}"></label>
-            <span aria-hidden="true">~</span>
-            <label>종료일 <input type="date" data-date-until value="{{ until|default('') }}"></label>
-            <button type="button" class="btn-small" data-collect-search>기간 조회</button>
-            <button type="button" class="btn-small" data-show-latest>최신순</button>
+        <form class="search-period-controls" aria-label="기사 조회 기간">
+            <div class="date-range-fields">
+                <label><span>시작일</span><input type="date" data-date-since required value="{{ since|default('') }}"></label>
+                <span class="date-separator" aria-hidden="true">{{ icon('chevron-right') }}</span>
+                <label><span>종료일</span><input type="date" data-date-until value="{{ until|default('') }}"></label>
+            </div>
+            <div class="period-actions">
+                <button type="submit" class="btn btn-primary" data-collect-search>기간 조회</button>
+                <button type="button" class="btn btn-quiet" data-show-latest {% if mode == 'latest' %}disabled{% endif %}>최신순</button>
+            </div>
+        </form>
+        <div class="results-summary">
+            <span class="results-mode">{{ '기간 조회' if mode == 'period' else '최신순' }}</span>
+            <span data-results-count>{{ items|length }}건 표시</span>
         </div>
-        <div class="search-bulk-controls" role="group" aria-label="기사 일괄 클리핑">
-            <label class="selection-toggle"><input type="checkbox" data-select-all> 전체 선택</label>
-            <span data-selection-count aria-live="polite">0건 선택</span>
-            <select data-bulk-category aria-label="일괄 클리핑 분류">
-                <option>위원회 관련</option><option>방송·통신 관련</option><option>유관기관 관련</option><option>기타</option>
-            </select>
-            <button type="button" class="btn-small btn-primary" data-clip-selected disabled>선택 기사 클리핑</button>
-        </div>
-        <p class="collection-status" data-collection-status role="status" aria-live="polite"></p>
     </div>
+    <p class="collection-status" data-collection-status role="status" aria-live="polite"></p>
 
+    <div class="news-items">
     {% for item in items %}
     <div class="news-card" data-title="{{ item.title | escape }}" data-link="{{ item.link }}"
         data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}" data-originallink="{{ item.originallink }}"
         data-domain="{{ item.domain }}">
 
         <div class="news-header">
-            <label class="article-selection"><input type="checkbox" class="news-select" aria-label="{{ item.title }} 선택"><span>선택</span></label>
             <span class="news-source">{{ item.source }}</span>
             <span class="news-date" title="{{ item.formatted_pubdate }}">{{ item.pubDate | time_ago }}</span>
         </div>
@@ -89,10 +90,11 @@
         </div>
     </div>
     {% endfor %}
+    </div>
 
     {% if items|length == 0 %}
     <div class="empty-state">
         <p>{{ '현재 구간에 일치하는 기사가 없습니다. 다음 결과를 확인해주세요.' if page is defined and page.has_more else '검색 결과가 없습니다.' }}</p>
     </div>
     {% endif %}
-</div>
+</section>

@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
+from bs4 import BeautifulSoup
 
 from app_config import APP_ACCESS_KEY
 from main import app
@@ -39,6 +40,26 @@ class AppTests(unittest.TestCase):
         self.assertNotIn('finalizeLearningBtn', clipping)
         self.assertIn('downloadClippingBtn', clipping)
 
+    def test_home_has_saved_search_workspace_and_local_icons(self):
+        self.login()
+        home = BeautifulSoup(self.client.get('/').text, 'html.parser')
+        for control in ['homeKeywordList', 'homeKeywordInput', 'searchSavedKeywordsBtn', 'homeRecentKeywords']:
+            self.assertIsNotNone(home.find(id=control), control)
+        self.assertTrue(home.select('svg use[href="/static/icons.svg#search"]'))
+        self.assertFalse(home.select('.storage-notice'))
+
+    def test_search_toolbar_is_outside_article_grid_without_selection_controls(self):
+        self.login()
+        item = NewsItem(title='기사', link='https://example.com/new', description='요약')
+        with patch('routers.search.fetch_news_page', new=AsyncMock(return_value=NewsPage([item], 1, 1, 1, 20))):
+            response = self.client.post('/search-results', data={'keyword': '기사'})
+        html = BeautifulSoup(response.text, 'html.parser')
+        articles = html.select_one('.news-items')
+        self.assertEqual(len(articles.select('.news-card')), 1)
+        self.assertFalse(articles.select('.results-toolbar, .search-workbench'))
+        self.assertFalse(html.select('.news-select, [data-select-all], [data-clip-selected]'))
+        self.assertEqual(len(html.select('.search-period-controls input[type="date"]')), 2)
+
     def test_search_failure_is_502_not_an_empty_success(self):
         self.login()
         with patch('routers.search.fetch_news_page', new=AsyncMock(side_effect=NewsServiceError('검색 실패'))):
@@ -72,7 +93,8 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['limit_reached'])
         self.assertFalse(response.json()['complete'])
-        self.assertIn('data-select-all', response.json()['html'])
+        self.assertIn('data-date-since', response.json()['html'])
+        self.assertNotIn('data-select-all', response.json()['html'])
 
     def test_invalid_period_is_a_validation_error(self):
         self.login()

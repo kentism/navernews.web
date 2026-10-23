@@ -5,8 +5,9 @@ FastAPI + Jinja2 + vanilla JavaScript 기반의 내부 뉴스 검색/클리핑 �
 ## 현재 기능
 
 - 검색어별 탭, 포함/제외 검색, 최신순 추가 조회.
+- 홈에서 검색어 최대 8개 저장/수정/삭제와 전체 검색. 접속 시 자동 검색하지 않는다.
 - 한국 시간 기준 날짜 범위 조회와 조회 한도/완료 여부 표시.
-- 기사 선택과 분류별 일괄 클리핑. 동일 URL은 정리하고 서로 다른 기사는 유지한다.
+- 기사별 분류 지정 클리핑. 동일 URL은 정리하고 서로 다른 기사는 유지한다.
 - 기존 WYSIWYG 편집, 일반 텍스트 복사, URL 제외 복사, TXT 파일 저장.
 - 브라우저 초안 저장 상태 표시와 편집기 외부 리소스 실패 시 텍스트 편집 대체.
 - 검색어 추적, 토스트/브라우저 알림, 클리핑 탭 내 알림 관리.
@@ -29,7 +30,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 ```powershell
 python -m unittest discover -s tests -p "test_*.py"
-node --test tests/clipping_copy_formatter.test.js tests/clipping_document.test.js
+node --test tests/clipping_copy_formatter.test.js tests/clipping_document.test.js tests/home_keywords.test.js
 ```
 
 GitHub Actions는 Python/Node 테스트와 JS 문법 검사 통과 후 Docker 이미지를 생성한다.
@@ -39,6 +40,7 @@ GitHub Actions는 Python/Node 테스트와 JS 문법 검사 통과 후 Docker �
 작성 중인 클리핑은 현재 브라우저에 저장된다. 브라우저 데이터 삭제나 다른 기기로의 이동에 대비하려면 클리핑 탭의 `파일 저장`을 사용한다. 이전 SQLite와 GitHub 백업은 새로운 학습에 사용하지 않는다.
 
 - [검색과 클리핑](docs/search-and-clipping.md)
+- [검색 작업공간과 UI](docs/workspace-ui.md)
 - [구조 개선과 이전 버전 복구](docs/learning-retirement.md)
 - [배포 설정](DEPLOYMENT.md)
 - [복사 형식](docs/clipping-copy-formats.md)

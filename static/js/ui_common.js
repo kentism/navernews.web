@@ -19,6 +19,7 @@
         item.className = 'toast';
         item.textContent = message;
         container.append(item);
+        while (container.children.length > 2) container.firstElementChild.remove();
         requestAnimationFrame(() => item.classList.add('show'));
         setTimeout(() => { item.classList.remove('show'); setTimeout(() => item.remove(), 300); }, 4500);
     }
@@ -43,6 +44,14 @@
         link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
-    window.NewsUI = { read, write, readArray, toast, request, download };
+    function icon(name) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('icon'); svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', `/static/icons.svg#${name}`); svg.append(use);
+        return svg;
+    }
+    window.NewsUI = { read, write, readArray, toast, request, download, icon };
     window.showToast = toast;
 }());

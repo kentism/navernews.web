@@ -1,3 +1,4 @@
+{% from 'icons.html' import icon %}
 <!DOCTYPE html>
 <html lang="ko">
 
@@ -14,7 +15,7 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=workspace-2">
     <script>
         window.defaultSearchKeywords = {{ default_keywords|tojson }};
     </script>
@@ -24,20 +25,13 @@
     <div class="sticky-top-wrapper">
         <header class="header">
             <div class="header-content">
-                <h1>뉴스 클리핑</h1>
-                <button class="theme-btn icon-button" onclick="toggleTheme()" aria-label="다크 모드로 전환" title="다크 모드로 전환" type="button">
-                    <span class="button-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z"></path>
-                        </svg>
-                    </span>
-                </button>
+                <h1><a href="/" onclick="switchTab('homeTab'); return false;">{{ icon('newspaper') }}뉴스 클리핑</a></h1>
             </div>
 
             <div class="search-box">
-                <input type="text" id="keyword" placeholder="검색어 입력 (Enter)" autocomplete="off" aria-label="뉴스 검색어 입력">
-                <button id="searchBtn" aria-label="검색 실행">검색</button>
-                <button id="advancedSearchToggleBtn" title="고급 검색" class="btn-icon" aria-label="고급 검색 열기">필터</button>
+                <input type="text" id="keyword" placeholder="뉴스 검색" autocomplete="off" maxlength="300" aria-label="뉴스 검색어 입력">
+                <button id="searchBtn" class="icon-button" title="검색" aria-label="검색 실행" type="button">{{ icon('search') }}</button>
+                <button id="advancedSearchToggleBtn" title="검색 필터" class="icon-button" aria-label="고급 검색 열기" aria-expanded="false" type="button">{{ icon('sliders-horizontal') }}</button>
 
                 <div id="recentKeywords" class="recent-keywords-dropdown"></div>
 
@@ -55,6 +49,7 @@
                     </div>
                 </div>
             </div>
+            <button class="theme-btn icon-button" onclick="toggleTheme()" aria-label="다크 모드로 전환" title="다크 모드로 전환" type="button">{{ icon('moon') }}</button>
         </header>
 
         <div class="tabs-nav-wrapper">
@@ -66,8 +61,6 @@
     </div>
 
     <div class="container">
-        <div class="storage-notice" role="status">{{ storage_notice }}</div>
-
         <div class="tabs-content">
             <div id="homeTab" class="tab-pane active">
                 {% include 'home.html' %}
@@ -87,29 +80,22 @@
 
     <div id="scrollControls" class="scroll-controls">
         <button id="scrollTopBtn" type="button" aria-label="맨 위로" title="맨 위로">
-            <span class="button-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                    <path d="m18 15-6-6-6 6"></path>
-                </svg>
-            </span>
+            {{ icon('arrow-up') }}
         </button>
         <button id="scrollBottomBtn" type="button" aria-label="맨 아래로" title="맨 아래로">
-            <span class="button-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                    <path d="m6 9 6 6 6-6"></path>
-                </svg>
-            </span>
+            {{ icon('arrow-down') }}
         </button>
     </div>
 
     <script src="https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js"></script>
-    <script src="{{ url_for('static', path='js/ui_common.js') }}"></script>
+    <script src="{{ url_for('static', path='js/ui_common.js') }}?v=workspace-2"></script>
     <script src="{{ url_for('static', path='js/clipping_copy_formatter.js') }}"></script>
     <script src="{{ url_for('static', path='js/clipping_document.js') }}"></script>
-    <script src="{{ url_for('static', path='js/clipping_service.js') }}"></script>
-    <script src="{{ url_for('static', path='js/notifications.js') }}"></script>
-    <script src="{{ url_for('static', path='js/search_collection.js') }}"></script>
-    <script src="{{ url_for('static', path='js/main.js') }}"></script>
+    <script src="{{ url_for('static', path='js/clipping_service.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/notifications.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/search_collection.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/home_keywords.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v=workspace-2"></script>
 </body>
 
 </html>

@@ -11,6 +11,9 @@
     function beginRequest(panel) {
         disconnect(panel);
         panel.searchController?.abort();
+        panel.querySelectorAll('[data-search-refresh], [data-collect-search]').forEach(button => {
+            button.disabled = false; button.removeAttribute('aria-busy');
+        });
         panel.loadingMore = false;
         panel.searchController = new AbortController();
         return panel.searchController;
@@ -18,7 +21,10 @@
     function applyLayout() {
         const grid = ui.read('navernews_search_layout') === 'grid';
         document.querySelectorAll('.search-results-list').forEach(list => list.classList.toggle('layout-grid', grid));
-        document.querySelectorAll('.layout-toggle-btn').forEach(button => button.classList.toggle('active', (button.dataset.layout === 'grid') === grid));
+        document.querySelectorAll('.layout-toggle-btn').forEach(button => {
+            const active = (button.dataset.layout === 'grid') === grid;
+            button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+        });
     }
     window.setSearchLayout = layout => { ui.write('navernews_search_layout', layout); applyLayout(); };
 
@@ -26,6 +32,7 @@
         document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.toggle('active', pane.id === id));
         document.querySelectorAll('.tabs-nav .tab-btn').forEach(button => button.classList.toggle('active', button.dataset.tab === id));
         if (id === 'clippings') window.loadClippingsTab();
+        document.querySelector(`.tabs-nav [data-tab="${id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     window.switchTab = switchTab;
 
@@ -38,7 +45,7 @@
         panel.dataset.mode = list.dataset.mode || 'latest';
         window.syncVisibleWatchCheckboxes?.();
         applyLayout();
-        window.NewsSearchCollection.updateSelection(panel);
+        window.NewsSearchCollection.initialize(panel);
         installSentinel(panel);
     }
 
@@ -92,16 +99,15 @@
             if (controller !== panel.searchController || !panel.isConnected) return;
             const next = wrapper.querySelector('.search-results-list');
             const current = panel.querySelector('.search-results-list');
-            const sentinel = current.querySelector('.panel-sentinel');
             const links = new Set([...current.querySelectorAll('.news-card')].map(card => card.dataset.link));
             next.querySelectorAll('.news-card').forEach(card => {
-                if (!links.has(card.dataset.link)) { links.add(card.dataset.link); sentinel.before(card); }
+                if (!links.has(card.dataset.link)) { links.add(card.dataset.link); current.querySelector('.news-items').append(card); }
             });
             panel.dataset.start = next.dataset.nextStart;
             panel.dataset.hasMore = next.dataset.hasMore;
             current.dataset.limitReached = next.dataset.limitReached;
             disconnect(panel);
-            window.NewsSearchCollection.updateSelection(panel);
+            window.NewsSearchCollection.updateCount(panel);
             installSentinel(panel);
         } catch (error) {
             if (error.name !== 'AbortError' && controller === panel.searchController) {
@@ -114,7 +120,7 @@
     async function refreshLatest(panel) {
         const controller = beginRequest(panel);
         const button = panel.querySelector('[data-search-refresh]');
-        if (button) button.disabled = true;
+        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
         const form = new FormData();
         form.set('keyword', panel.dataset.keyword);
         form.set('start', '1');
@@ -139,7 +145,7 @@
             } else installSentinel(panel);
         } finally {
             const refresh = panel.querySelector('[data-search-refresh]');
-            if (refresh && controller === panel.searchController) refresh.disabled = false;
+            if (refresh && controller === panel.searchController) { refresh.disabled = false; refresh.removeAttribute('aria-busy'); }
         }
     }
 
@@ -150,6 +156,10 @@
     };
 
     async function openSearch(keyword, activate = true) {
+        keyword = keyword.trim();
+        if (!keyword || keyword.length > 300) { ui.toast('검색어는 1~300자로 입력해주세요.'); return; }
+        ui.write('navernews_recent_keywords', JSON.stringify([keyword, ...ui.readArray('navernews_recent_keywords').filter(item => item !== keyword)].slice(0, 10)));
+        recentKeywords();
         const existing = [...document.querySelectorAll('.tab-pane')].find(panel => panel.dataset.keyword === keyword);
         if (existing) { if (activate) switchTab(existing.id); return; }
         const id = `search-${++counter}`;
@@ -163,7 +173,7 @@
         label.textContent = keyword;
         const close = document.createElement('span');
         close.className = 'tab-btn-close';
-        close.textContent = '×';
+        close.append(ui.icon('x'));
         close.setAttribute('role', 'button');
         close.setAttribute('tabindex', '0');
         close.setAttribute('aria-label', `${keyword} 탭 닫기`);
@@ -201,11 +211,29 @@
             row.className = 'recent-keyword-item';
             const button = document.createElement('button');
             button.type = 'button'; button.textContent = keyword;
-            button.addEventListener('click', () => { document.getElementById('keyword').value = keyword; window.handleSearch(); });
+            button.addEventListener('click', () => {
+                container.classList.remove('show'); openSearch(keyword);
+            });
             const remove = document.createElement('button');
-            remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', `${keyword} 최근 검색어 삭제`);
+            remove.type = 'button'; remove.className = 'icon-button'; remove.append(ui.icon('x'));
+            remove.setAttribute('aria-label', `${keyword} 최근 검색어 삭제`); remove.title = '최근 검색어 삭제';
             remove.addEventListener('click', () => { ui.write('navernews_recent_keywords', JSON.stringify(ui.readArray('navernews_recent_keywords').filter(item => item !== keyword))); recentKeywords(); });
             row.append(button, remove); container.append(row);
+        });
+        const home = document.getElementById('homeRecentKeywords');
+        home.replaceChildren();
+        const recent = ui.readArray('navernews_recent_keywords');
+        if (!recent.length) {
+            const empty = document.createElement('li'); empty.className = 'empty-msg';
+            empty.textContent = '최근 검색 내역이 없습니다.'; home.append(empty);
+        }
+        recent.forEach(keyword => {
+            const row = document.createElement('li');
+            const button = document.createElement('button'); button.type = 'button';
+            const label = document.createElement('span'); label.textContent = keyword;
+            button.append(label, ui.icon('arrow-up-right'));
+            button.addEventListener('click', () => openSearch(keyword));
+            row.append(button); home.append(row);
         });
     }
 
@@ -218,9 +246,9 @@
         const exclude = document.getElementById('advExclude').value.trim();
         if (include) keyword += ` +"${include}"`;
         if (exclude) keyword += exclude.split(/\s+/).map(term => ` -${term}`).join('');
-        ui.write('navernews_recent_keywords', JSON.stringify([base, ...ui.readArray('navernews_recent_keywords').filter(item => item !== base)].slice(0, 10)));
         document.getElementById('recentKeywords').classList.remove('show');
         document.getElementById('advancedSearchPanel').classList.remove('show');
+        document.getElementById('advancedSearchToggleBtn').setAttribute('aria-expanded', 'false');
         input.value = '';
         await openSearch(keyword);
     };
@@ -230,13 +258,15 @@
         const label = dark ? '라이트 모드로 전환' : '다크 모드로 전환';
         const button = document.querySelector('.theme-btn');
         button.setAttribute('aria-label', label); button.title = label;
-        button.querySelector('path').setAttribute('d', dark
-            ? 'M12 3v2.5M12 18.5V21M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M3 12h2.5M18.5 12H21M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8M16.5 12a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z'
-            : 'M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z');
+        button.replaceChildren(ui.icon(dark ? 'sun' : 'moon'));
         document.querySelector('.toastui-editor-defaultUI')?.classList.toggle('toastui-editor-dark', dark);
     }
     window.toggleTheme = () => { document.body.classList.toggle('dark-mode'); ui.write('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); updateTheme(); };
-    window.NewsSearch = { beginRequest, replaceResults, disconnect, openSearch, latest: refreshLatest, resume: installSentinel };
+    async function openMany(keywords) {
+        const unique = [...new Set(keywords.map(keyword => keyword.trim()).filter(Boolean))].slice(0, 8);
+        await Promise.allSettled(unique.map((keyword, index) => openSearch(keyword, index === 0)));
+    }
+    window.NewsSearch = { beginRequest, replaceResults, disconnect, openSearch, openMany, latest: refreshLatest, resume: installSentinel };
 
     document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.toggle('dark-mode', ui.read('theme') === 'dark');
@@ -249,24 +279,27 @@
             recentKeywords();
             if (ui.readArray('navernews_recent_keywords').length) document.getElementById('recentKeywords').classList.add('show');
         });
-        document.getElementById('advancedSearchToggleBtn').addEventListener('click', () => document.getElementById('advancedSearchPanel').classList.toggle('show'));
+        recentKeywords();
+        const filterButton = document.getElementById('advancedSearchToggleBtn');
+        filterButton.addEventListener('click', () => {
+            const expanded = document.getElementById('advancedSearchPanel').classList.toggle('show');
+            filterButton.setAttribute('aria-expanded', String(expanded));
+        });
         document.querySelector('.tabs-nav').addEventListener('click', event => {
             const button = event.target.closest('button[data-tab]');
             if (button) switchTab(button.dataset.tab);
         });
         document.addEventListener('click', event => {
-            const homeKeyword = event.target.closest('[data-home-keyword]');
-            if (homeKeyword) { document.getElementById('keyword').value = homeKeyword.dataset.homeKeyword; window.handleSearch(); }
             const refresh = event.target.closest('[data-search-refresh]');
             if (refresh) window.refreshSearchTab(refresh.closest('.tab-pane').id);
             if (!event.target.closest('.search-box')) {
                 document.getElementById('recentKeywords').classList.remove('show');
                 document.getElementById('advancedSearchPanel').classList.remove('show');
+                filterButton.setAttribute('aria-expanded', 'false');
             }
         });
         document.getElementById('scrollTopBtn').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
         document.getElementById('scrollBottomBtn').addEventListener('click', () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }));
         window.addEventListener('scroll', () => document.getElementById('scrollControls').classList.toggle('show', window.scrollY > 300), { passive: true });
-        (async () => { for (const keyword of (window.defaultSearchKeywords || [])) await openSearch(keyword, false); })();
     });
 }());

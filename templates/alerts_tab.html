@@ -1,19 +1,17 @@
 <div class="alert-management-wrapper" id="alertManagerSection">
     <div class="alert-header-row">
         <div>
-            <h2 class="clipping-header">실시간 알림</h2>
-            <p class="clipping-main">현재 감시 중인 검색어를 확인하고, 필요하면 바로 중단하거나 전체 초기화할 수 있습니다.</p>
+            <h3>감시 중인 검색어</h3>
         </div>
         <div class="alert-summary-badge" id="alertSummaryBadge">0개 활성</div>
     </div>
-    <p class="storage-notice storage-notice-inline">{{ storage_notice }}</p>
 
     <div id="activeAlertList" class="active-alert-list">
         <p class="empty-msg">활성화된 알림이 없습니다.</p>
     </div>
 
     <div class="alert-actions-row">
-        <button id="clearAllAlertsBtn" class="btn-clear btn-alert-clear" type="button">
+        <button id="clearAllAlertsBtn" class="btn btn-quiet" type="button">
             모든 알림 초기화
         </button>
     </div>
