@@ -15,7 +15,7 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=motion-1">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=recent-1">
     <script>
         window.defaultSearchKeywords = {{ default_keywords|tojson }};
     </script>
@@ -96,6 +96,11 @@
         </div>
     </div>
 
+    <footer class="site-footer">
+        <span>KCSC · News Clipping</span>
+        <span>사이트 문의 <a href="mailto:knh@kocsc.or.kr">knh@kocsc.or.kr</a></span>
+    </footer>
+
     <div id="toastContainer" class="toast-container"></div>
 
     <div id="scrollControls" class="scroll-controls">
@@ -118,7 +123,7 @@
     <script src="{{ url_for('static', path='js/search_batch.js') }}?v=workspace-3"></script>
     <script src="{{ url_for('static', path='js/home_keywords.js') }}?v=workspace-3"></script>
     <script src="{{ url_for('static', path='js/search_tabs.js') }}?v=motion-1"></script>
-    <script src="{{ url_for('static', path='js/main.js') }}?v=motion-1"></script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v=recent-1"></script>
 </body>
 
 </html>

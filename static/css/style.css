@@ -160,11 +160,16 @@ input::placeholder { color: var(--text-sub); }
 .keyword-add-form input { flex: 1; width: 100%; height: 38px; padding: 0 12px; background: transparent; border-style: dashed; }
 .keyword-add-form .icon-button { width: 38px; height: 38px; }
 .home-recent { padding-left: 28px; border-left: 1px solid var(--border-color); }
-.home-recent-list button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 44px; padding: 8px 0; color: var(--text-sub); border: none; background: transparent; text-align: left; }
-.home-recent-list button:hover { color: var(--text-main); }
-.home-recent-list button span { overflow-wrap: anywhere; }
+.home-recent-row { display: flex; align-items: center; gap: 8px; }
+.home-recent-search { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 1; min-width: 0; min-height: 44px; padding: 8px 0; color: var(--text-sub); border: none; background: transparent; text-align: left; }
+.home-recent-search:hover { color: var(--text-main); }
+.home-recent-search span { min-width: 0; overflow-wrap: anywhere; }
+.home-recent-row > .icon-button { width: 32px; height: 32px; color: var(--text-sub); border-color: transparent; background: transparent; }
+.home-recent-row > .icon-button:hover { color: var(--text-main); background: var(--hover-bg); }
 .home-recent-list .icon { width: 14px; height: 14px; flex-basis: 14px; }
-.home-footer { max-width: 1080px; margin: 60px auto 0; padding-top: 18px; border-top: 1px solid var(--border-color); color: var(--text-sub); font-size: 11px; }
+.site-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px; width: calc(100% - 2 * var(--app-gutter)); max-width: 1480px; margin: 0 auto; padding: 18px 0 24px; border-top: 1px solid var(--border-color); color: var(--text-sub); font-size: 11px; }
+.site-footer a { color: inherit; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.site-footer a:hover { color: var(--text-main); }
 
 /* Only .news-items becomes a grid; controls never consume an article column. */
 .search-results-list { max-width: 1480px; margin: 0 auto; }

@@ -262,6 +262,21 @@
         return 'reused';
     }
 
+    function recentKeywordDeleteButton(keyword) {
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'icon-button'; button.append(ui.icon('x'));
+        button.setAttribute('aria-label', `${keyword} 최근 검색어 삭제`); button.title = '최근 검색어 삭제';
+        button.addEventListener('click', () => {
+            const remaining = ui.readArray('navernews_recent_keywords').filter(item => item !== keyword);
+            if (!ui.write('navernews_recent_keywords', JSON.stringify(remaining))) {
+                ui.toast('최근 검색어를 삭제하지 못했습니다. 브라우저 저장 공간 설정을 확인해주세요.');
+                return;
+            }
+            recentKeywords();
+        });
+        return button;
+    }
+
     function recentKeywords() {
         const container = document.getElementById('recentKeywords');
         container.replaceChildren();
@@ -277,11 +292,7 @@
             button.addEventListener('click', () => {
                 container.classList.remove('show'); openSearch(keyword);
             });
-            const remove = document.createElement('button');
-            remove.type = 'button'; remove.className = 'icon-button'; remove.append(ui.icon('x'));
-            remove.setAttribute('aria-label', `${keyword} 최근 검색어 삭제`); remove.title = '최근 검색어 삭제';
-            remove.addEventListener('click', () => { ui.write('navernews_recent_keywords', JSON.stringify(ui.readArray('navernews_recent_keywords').filter(item => item !== keyword))); recentKeywords(); });
-            row.append(button, remove); container.append(row);
+            row.append(button, recentKeywordDeleteButton(keyword)); container.append(row);
         });
         const home = document.getElementById('homeRecentKeywords');
         home.replaceChildren();
@@ -292,11 +303,13 @@
         }
         recent.forEach(keyword => {
             const row = document.createElement('li');
+            row.className = 'home-recent-row';
             const button = document.createElement('button'); button.type = 'button';
+            button.className = 'home-recent-search';
             const label = document.createElement('span'); label.textContent = keyword;
             button.append(label, ui.icon('arrow-up-right'));
             button.addEventListener('click', () => openSearch(keyword));
-            row.append(button); home.append(row);
+            row.append(button, recentKeywordDeleteButton(keyword)); home.append(row);
         });
     }
 
