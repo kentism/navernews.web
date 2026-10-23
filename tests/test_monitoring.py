@@ -33,11 +33,34 @@ class MonitoringTests(unittest.IsolatedAsyncioTestCase):
     async def test_offline_stale_watch_does_not_make_api_calls(self):
         state.watch_registry['오프라인'] = {'client'}
         with patch('services.monitoring.fetch_news', new=AsyncMock()) as fetch, \
+                patch('services.monitoring.WATCHER_STALE_SECONDS', 10**12), \
                 patch('services.monitoring.asyncio.sleep', new=AsyncMock(side_effect=asyncio.CancelledError)):
             with self.assertRaises(asyncio.CancelledError):
                 await poll_naver_news_task()
         fetch.assert_not_awaited()
         self.assertEqual(state.watch_registry, {})
+
+    async def test_recent_offline_watch_waits_for_reconnection(self):
+        state.watch_registry['재연결'] = {'client'}
+        state.last_seen_clients['client'] = asyncio.get_running_loop().time()
+        with patch('services.monitoring.fetch_news', new=AsyncMock()) as fetch, \
+                patch('services.monitoring.asyncio.sleep', new=AsyncMock(side_effect=asyncio.CancelledError)):
+            with self.assertRaises(asyncio.CancelledError):
+                await poll_naver_news_task()
+        fetch.assert_not_awaited()
+        self.assertEqual(state.watch_registry, {'재연결': {'client'}})
+
+    async def test_expired_offline_watch_is_removed(self):
+        state.watch_registry['만료'] = {'client'}
+        state.last_seen_clients['client'] = asyncio.get_running_loop().time() - 121
+        with patch('services.monitoring.fetch_news', new=AsyncMock()) as fetch, \
+                patch('services.monitoring.WATCHER_STALE_SECONDS', 120), \
+                patch('services.monitoring.asyncio.sleep', new=AsyncMock(side_effect=asyncio.CancelledError)):
+            with self.assertRaises(asyncio.CancelledError):
+                await poll_naver_news_task()
+        fetch.assert_not_awaited()
+        self.assertEqual(state.watch_registry, {})
+        self.assertEqual(state.last_seen_clients, {})
 
     def test_search_cache_is_bounded(self):
         for index in range(150):

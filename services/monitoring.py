@@ -38,7 +38,9 @@ async def poll_naver_news_task():
             watchers = set(state.watch_registry.get(keyword, set()))
             online = watchers.intersection(state.sse_connections)
             if not online:
-                if all(now - state.last_seen_clients.get(cid, 0) >= WATCHER_STALE_SECONDS for cid in watchers):
+                if all(cid not in state.last_seen_clients
+                       or now - state.last_seen_clients[cid] >= WATCHER_STALE_SECONDS
+                       for cid in watchers):
                     state.watch_registry.pop(keyword, None)
                 continue
             try:
