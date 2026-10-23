@@ -57,7 +57,7 @@ def normalized(value):
 
 
 def compare_title(api_title, candidate):
-    """Only accept exact matches or long, matching truncated prefixes."""
+    """Accept exact matches or long matching prefixes, even without an ellipsis."""
     original, proposed = normalized(api_title), normalized(candidate)
     if original == proposed:
         if ENDING.search(api_title):
@@ -65,10 +65,9 @@ def compare_title(api_title, candidate):
                 return 'unverified'
             return 'source_also_short' if ENDING.search(candidate) else 'punctuation_only'
         return 'matched'
-    if ENDING.search(api_title):
-        prefix = normalized(ENDING.sub('', api_title))
-        if len(prefix) >= 12 and proposed.startswith(prefix) and len(proposed) > len(prefix):
-            return 'source_also_short' if ENDING.search(candidate) else 'extended'
+    prefix = normalized(ENDING.sub('', api_title))
+    if len(prefix) >= 12 and proposed.startswith(prefix) and len(proposed) > len(prefix):
+        return 'source_also_short' if ENDING.search(candidate) else 'extended'
     return 'unverified'
 
 
@@ -147,6 +146,14 @@ async def resolve_public_ip(hostname):
 
 def apply_candidates(result, content):
     candidates = extract_candidates(content)
+    if not ENDING.search(result.api_title):
+        # Prefer an exact article heading over longer SEO/browser-title variants.
+        for source, title in candidates:
+            if source in {'json_ld', 'headline', 'heading'} and compare_title(result.api_title, title) == 'matched':
+                result.status, result.candidate_title, result.evidence = 'matched', title, source
+                return
+        if len(candidates) > 1:
+            candidates = [(source, title) for source, title in candidates if source != 'title_tag']
     extensions = [(source, title) for source, title in candidates if compare_title(result.api_title, title) == 'extended']
     if len({normalized(title) for _, title in extensions}) > 1:
         result.status = 'conflict'

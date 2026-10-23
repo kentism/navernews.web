@@ -43,6 +43,9 @@
             <span data-results-count>{{ items|length }}건 표시</span>
         </div>
     </div>
+    {% if items %}
+    <p class="collection-status">제목이 잘린 경우 ‘제목 확인’을 이용하세요.</p>
+    {% endif %}
     <p class="collection-status" data-collection-status role="status" aria-live="polite"></p>
 
     <div class="news-items">
@@ -58,7 +61,6 @@
         </div>
 
         <h3 class="news-title">{{ item.title | highlight(keyword) }}</h3>
-        {% if confirmation %}
         <div class="article-title-result" data-title-result role="region" aria-label="제목 확인 결과" hidden>
             <div data-confirmed-content hidden>
                 <div class="confirmed-title-heading"><span>확인한 제목</span><a data-title-source target="_blank" rel="noopener noreferrer"></a></div>
@@ -67,7 +69,6 @@
             </div>
             <p class="title-confirm-status" data-title-status role="status" aria-live="polite"></p>
         </div>
-        {% endif %}
         <p class="news-desc">{{ item.description | highlight(keyword) }}</p>
 
         <div class="news-actions">
@@ -98,13 +99,11 @@
                 원문 보기
             </a>
             {% endif %}
-            {% if confirmation %}
             <button type="button" class="btn-small btn-quiet btn-title-confirm" data-title-confirm
-                data-title-token="{{ confirmation.token }}" data-title-key="{{ confirmation.key }}"
+                data-title-token="{{ confirmation.token if confirmation else '' }}" data-title-key="{{ confirmation.key if confirmation else '' }}"
                 aria-expanded="false" title="기사 전체 제목 확인">
                 {{ icon('search') }}<span data-title-button-label>제목 확인</span>
             </button>
-            {% endif %}
         </div>
     </div>
     {% endfor %}

@@ -31,8 +31,14 @@ class CapabilityTests(unittest.TestCase):
         self.assertEqual((sample.url, sample.api_title), (URL, SHORT))
         self.assertEqual(len(capability['key']), 64)
 
-    def test_no_button_capability_for_normal_short_or_unsupported_articles(self):
-        for item in [article(title=FULL), article(title='방송...'),
+    def test_supported_articles_get_capabilities_without_an_ellipsis_or_minimum_length(self):
+        for title in [FULL, SHORT.removesuffix('...'), '방송...']:
+            with self.subTest(title=title):
+                capability = issue_confirmation(article(title=title))
+                self.assertEqual(verify_confirmation(capability['token']).api_title, title)
+
+    def test_no_fetch_capability_for_invalid_title_lengths_or_unsupported_urls(self):
+        for item in [article(title=''), article(title='가' * 401),
                      article(link='https://evil.test/a', originallink='https://evil.test/a')]:
             self.assertIsNone(issue_confirmation(item))
 
@@ -149,19 +155,24 @@ class ConfirmationRouteTests(unittest.TestCase):
 
     def test_latest_and_period_cards_include_opt_in_controls_without_fetching_titles(self):
         self.login()
-        items = [article(), article(title=FULL)]
-        page = NewsPage(items, 2, 2, 1, 20)
+        items = [article(), article(title=FULL), article(link='https://unsupported.test/a', originallink='https://unsupported.test/a')]
+        page = NewsPage(items, 3, 3, 1, 20)
         with patch('routers.search.fetch_news_page', new=AsyncMock(return_value=page)), \
                 patch.object(TitleConfirmationService, 'confirm', new=AsyncMock()) as confirm:
             response = self.client.post('/search-results', data={'keyword': '방송'})
             confirm.assert_not_awaited()
         parsed = BeautifulSoup(response.text, 'html.parser')
-        self.assertEqual(len(parsed.select('[data-title-confirm]')), 1)
+        buttons = parsed.select('[data-title-confirm]')
+        self.assertEqual(len(buttons), 3)
+        self.assertTrue(buttons[0]['data-title-token'])
+        self.assertTrue(buttons[1]['data-title-token'])
+        self.assertEqual(buttons[2]['data-title-token'], '')
+        self.assertIn('제목이 잘린 경우', parsed.get_text())
         self.assertIn(SHORT, parsed.select_one('.news-title').get_text())
         checkbox = parsed.select_one('[data-use-confirmed-title]')
         self.assertFalse(checkbox.has_attr('checked'))
         self.assertTrue(parsed.select_one('[data-title-result]').has_attr('hidden'))
         self.assertEqual(parsed.select_one('.btn-clip-trigger')['data-title'], SHORT)
-        with patch('routers.search.collect_articles', new=AsyncMock(return_value=CollectionResult(items, 2, 0, 0, True, False))):
+        with patch('routers.search.collect_articles', new=AsyncMock(return_value=CollectionResult(items, 3, 0, 0, True, False))):
             period = self.client.post('/api/search/collect', data={'keyword': '방송', 'since': '2026-10-23'})
-        self.assertEqual(len(BeautifulSoup(period.json()['html'], 'html.parser').select('[data-title-confirm]')), 1)
+        self.assertEqual(len(BeautifulSoup(period.json()['html'], 'html.parser').select('[data-title-confirm]')), 3)

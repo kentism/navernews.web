@@ -11,7 +11,7 @@ import time
 
 import httpx
 
-from services.article_titles import DEADLINE, ENDING, ProbeFailure, TitleSample, normalized, probe_one, validate_url
+from services.article_titles import DEADLINE, ProbeFailure, TitleSample, probe_one, validate_url
 
 TOKEN_TTL = 1800
 _FALLBACK_KEY = secrets.token_bytes(32)
@@ -24,9 +24,9 @@ def _sign(value):
 
 
 def issue_confirmation(item):
-    """Issue a short-lived capability only for a supported, possibly cut title."""
+    """Issue a capability for supported URLs without guessing title truncation."""
     title = item.title
-    if not 8 <= len(title) <= 400 or not ENDING.search(title) or len(normalized(title)) < 12:
+    if not 1 <= len(title) <= 400:
         return None
     for value in [item.originallink, item.link]:
         try:
@@ -57,7 +57,7 @@ def verify_confirmation(token):
         now = int(time.time())
         if type(claims['e']) is not int or not now < claims['e'] <= now + TOKEN_TTL + 5:
             raise ValueError
-        if not isinstance(claims['t'], str) or not 8 <= len(claims['t']) <= 400 or not ENDING.search(claims['t']):
+        if not isinstance(claims['t'], str) or not 1 <= len(claims['t']) <= 400:
             raise ValueError
         if not isinstance(claims['u'], str) or len(claims['u']) > 2048:
             raise ValueError

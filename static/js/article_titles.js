@@ -54,8 +54,14 @@
             const checkbox = panel.querySelector('[data-use-confirmed-title]');
             checkbox.checked = false;
             const status = panel.querySelector('[data-title-status]');
-            status.textContent = '제목 확인 중';
             button.setAttribute('aria-expanded', 'true');
+            if (!button.dataset.titleToken) {
+                state.phase = 'unsupported';
+                status.textContent = '이 기사는 제목 확인을 지원하지 않습니다. 원문 보기에서 확인해주세요.';
+                updateLabel(card, button, state);
+                return;
+            }
+            status.textContent = '제목 확인 중';
             button.querySelector('[data-title-button-label]').textContent = '확인 중';
             button.disabled = true;
             motion.setBusy(button, true);

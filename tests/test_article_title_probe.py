@@ -9,6 +9,7 @@ from prototypes.article_title_probe import (
     MAX_BYTES, ProbeFailure, Sample, compare_title, extract_candidates,
     probe_one, public_ip, run_samples, validate_url,
 )
+from services.article_titles import TitleResult, apply_candidates
 
 
 TITLE = '방송 정책 개선을 위한 새로운 제도와 향후 추진 계획 발표'
@@ -42,6 +43,22 @@ class TitleExtractionTests(unittest.TestCase):
         self.assertEqual(compare_title(TITLE, TITLE), 'matched')
         self.assertEqual(compare_title(SHORT, '관계없는 기사 제목에 대한 보도 내용'), 'unverified')
         self.assertEqual(compare_title('방송...', TITLE), 'unverified')
+
+    def test_a_cut_title_does_not_require_a_trailing_ellipsis(self):
+        self.assertEqual(compare_title(SHORT.removesuffix('...'), TITLE), 'extended')
+
+    def test_exact_heading_wins_over_an_extended_seo_title_without_ellipsis(self):
+        result = TitleResult(URL, TITLE, 'test')
+        markup = f'<meta property="og:title" content="{TITLE} | KBS"><h1>{TITLE}</h1>'
+        apply_candidates(result, markup.encode())
+        self.assertEqual(result.status, 'matched')
+        self.assertEqual(result.candidate_title, TITLE)
+
+    def test_browser_title_suffix_is_not_an_extension_when_metadata_matches(self):
+        result = TitleResult(URL, TITLE, 'test')
+        markup = f'<meta property="og:title" content="{TITLE}"><title>{TITLE} - KBS</title>'
+        apply_candidates(result, markup.encode())
+        self.assertEqual(result.status, 'matched')
 
     def test_ellipsis_is_not_itself_evidence_of_truncation(self):
         title = '방송 정책 바뀐다…시민 의견 반영'

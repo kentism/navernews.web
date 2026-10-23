@@ -45,6 +45,21 @@ test('초기화와 카드 표시만으로 외부 조회를 하지 않는다', ()
     assert.equal(c.panel.hidden, true);
 });
 
+test('미지원 기사도 버튼은 제공하되 클릭 시 네트워크 요청 없이 안내한다', async () => {
+    const f = fixture(), c = f.makeCard();
+    c.button.dataset.titleToken = '';
+    await f.checks.confirm(c.button);
+    assert.equal(f.calls.length, 0);
+    assert.equal(f.timers.size, 0);
+    assert.equal(c.panel.hidden, false);
+    assert.match(c.status.textContent, /지원하지 않습니다/);
+    assert.equal(c.content.hidden, true);
+    assert.equal(f.checks.clippingTitle(c.clipButton, short), short);
+    await f.checks.confirm(c.button);
+    assert.equal(c.panel.hidden, true);
+    assert.equal(f.calls.length, 0);
+});
+
 test('확인 결과는 평문과 출처로 표시하고 선택 전에는 원래 제목을 클리핑한다', async () => {
     const f = fixture(), c = f.makeCard();
     await f.checks.confirm(c.button);
