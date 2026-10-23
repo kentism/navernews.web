@@ -21,6 +21,46 @@ class AppTests(unittest.TestCase):
     def login(self):
         self.client.cookies.set('access_token', APP_ACCESS_KEY)
 
+    def test_login_uses_shared_ui_and_preserves_password_form(self):
+        response = self.client.get('/login')
+        self.assertEqual(response.status_code, 200)
+        page = BeautifulSoup(response.text, 'html.parser')
+        self.assertIn('login-page', page.body.get('class', []))
+        self.assertIsNone(page.find('style'))
+        self.assertTrue(page.select('svg use[href="/static/icons.svg?v=motion-1#newspaper"]'))
+        form = page.select_one('form[action="/login"][method="POST"]')
+        password = form.select_one('input[name="password"][type="password"]')
+        self.assertEqual(password['autocomplete'], 'current-password')
+        self.assertEqual(password['maxlength'], '256')
+        self.assertTrue(password.has_attr('required'))
+        self.assertEqual(page.select_one('label[for="loginPassword"]').get_text(), '비밀번호')
+        self.assertIsNone(page.select_one('[role="alert"]'))
+        self.assertIsNotNone(page.select_one('a[href="mailto:knh@kocsc.or.kr"]'))
+
+    def test_login_error_is_accessible_and_does_not_render_query_text(self):
+        response = self.client.get('/login', params={'error': '<script>unexpected()</script>'})
+        page = BeautifulSoup(response.text, 'html.parser')
+        error = page.select_one('#loginError[role="alert"]')
+        self.assertEqual(error.get_text(strip=True), '비밀번호를 확인해주세요.')
+        password = page.select_one('input[name="password"]')
+        self.assertEqual(password['aria-invalid'], 'true')
+        self.assertEqual(password['aria-describedby'], 'loginError')
+        self.assertNotIn('unexpected()', response.text)
+
+    def test_login_still_rejects_an_incorrect_password(self):
+        response = self.client.post('/login', data={'password': APP_ACCESS_KEY + '-invalid'}, follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers['location'], '/login?error=Invalid+Password')
+        self.assertNotIn('access_token', self.client.cookies)
+
+    def test_login_still_accepts_configured_password_and_sets_http_only_cookie(self):
+        response = self.client.post('/login', data={'password': APP_ACCESS_KEY}, follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers['location'], '/')
+        self.assertEqual(self.client.cookies.get('access_token'), APP_ACCESS_KEY)
+        self.assertIn('HttpOnly', response.headers['set-cookie'])
+        self.assertIn('SameSite=lax', response.headers['set-cookie'])
+
     def test_notification_and_archive_endpoints_require_authentication(self):
         for url in ['/api/stream/notifications?client_id=test', '/api/storage/export', '/api/storage/status']:
             self.assertEqual(self.client.get(url).status_code, 401, url)
