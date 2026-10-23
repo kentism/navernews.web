@@ -47,6 +47,7 @@
 
     <div class="news-items">
     {% for item in items %}
+    {% set confirmation = item | title_confirmation %}
     <div class="news-card" data-title="{{ item.title | escape }}" data-link="{{ item.link }}"
         data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}" data-originallink="{{ item.originallink }}"
         data-domain="{{ item.domain }}">
@@ -57,6 +58,16 @@
         </div>
 
         <h3 class="news-title">{{ item.title | highlight(keyword) }}</h3>
+        {% if confirmation %}
+        <div class="article-title-result" data-title-result role="region" aria-label="제목 확인 결과" hidden>
+            <div data-confirmed-content hidden>
+                <div class="confirmed-title-heading"><span>확인한 제목</span><a data-title-source target="_blank" rel="noopener noreferrer"></a></div>
+                <p class="confirmed-title" data-confirmed-title></p>
+                <label class="confirmed-title-choice"><input type="checkbox" data-use-confirmed-title>확인한 제목을 클리핑에 사용</label>
+            </div>
+            <p class="title-confirm-status" data-title-status role="status" aria-live="polite"></p>
+        </div>
+        {% endif %}
         <p class="news-desc">{{ item.description | highlight(keyword) }}</p>
 
         <div class="news-actions">
@@ -86,6 +97,13 @@
             <a class="btn-small" href="{{ item.originallink }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
                 원문 보기
             </a>
+            {% endif %}
+            {% if confirmation %}
+            <button type="button" class="btn-small btn-quiet btn-title-confirm" data-title-confirm
+                data-title-token="{{ confirmation.token }}" data-title-key="{{ confirmation.key }}"
+                aria-expanded="false" title="기사 전체 제목 확인">
+                {{ icon('search') }}<span data-title-button-label>제목 확인</span>
+            </button>
             {% endif %}
         </div>
     </div>

@@ -15,7 +15,7 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=recent-1">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=title-confirm-1">
     <script>
         window.defaultSearchKeywords = {{ default_keywords|tojson }};
     </script>
@@ -117,7 +117,8 @@
     <script src="{{ url_for('static', path='js/ui_motion.js') }}?v=motion-1"></script>
     <script src="{{ url_for('static', path='js/clipping_copy_formatter.js') }}"></script>
     <script src="{{ url_for('static', path='js/clipping_document.js') }}"></script>
-    <script src="{{ url_for('static', path='js/clipping_service.js') }}?v=motion-1"></script>
+    <script src="{{ url_for('static', path='js/article_titles.js') }}?v=title-confirm-1"></script>
+    <script src="{{ url_for('static', path='js/clipping_service.js') }}?v=title-confirm-1"></script>
     <script src="{{ url_for('static', path='js/notifications.js') }}?v=workspace-2"></script>
     <script src="{{ url_for('static', path='js/search_collection.js') }}?v=motion-1"></script>
     <script src="{{ url_for('static', path='js/search_batch.js') }}?v=workspace-3"></script>

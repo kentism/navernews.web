@@ -45,6 +45,7 @@
     }
     window.clipArticles = clipArticles;
     window.clipArticleFromData = function (title, link, content, source, pubDate, originalLink, button, category) {
+        title = window.NewsArticleTitles?.clippingTitle(button, title) ?? title;
         if (clipArticles([{ title, link, source, pubDate, originalLink }], category)) window.NewsMotion.success(button);
     };
     window.toggleClipMenu = function (button) {

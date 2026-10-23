@@ -15,6 +15,7 @@ exports/
 .venv*/
 .maintenance*/
 tests/
+prototypes/
 cookies.txt
 data/
 *.db

@@ -241,6 +241,17 @@ mark { background: #efedb9; color: inherit; border-radius: 2px; }
 .news-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: auto; }
 .news-actions .btn-small { height: 30px; padding: 0 10px; font-size: 12px; }
 .news-actions a { color: var(--text-sub); border-color: transparent; background: transparent; }
+.news-actions .btn-title-confirm { width: 128px; border-color: transparent; background: transparent; color: var(--text-sub); }
+.news-actions .btn-title-confirm[aria-expanded="true"] { color: var(--text-main); }
+.btn-title-confirm .icon { width: 14px; height: 14px; flex-basis: 14px; }
+.article-title-result { margin: 0 0 14px; padding: 4px 0 4px 12px; border-left: 2px solid var(--border-color); min-width: 0; }
+.confirmed-title-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; color: var(--text-sub); font-size: 11px; }
+.confirmed-title-heading a { color: inherit; text-underline-offset: 3px; }
+.confirmed-title { margin: 6px 0 10px; font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
+.confirmed-title-choice { display: flex; align-items: flex-start; gap: 7px; color: var(--text-sub); font-size: 12px; }
+.confirmed-title-choice input { flex: 0 0 14px; width: 14px; height: 14px; margin: 3px 0 0; accent-color: var(--text-main); }
+.title-confirm-status { margin: 6px 0 0; color: var(--text-sub); font-size: 12px; overflow-wrap: anywhere; }
+.title-confirm-status:empty { display: none; }
 .clip-selector-wrapper { position: relative; }
 .clip-popup-menu { display: none; position: absolute; left: 0; bottom: calc(100% + 7px); min-width: 160px; padding: 5px; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: var(--shadow-md); background: var(--card-bg); z-index: 100; }
 .clip-popup-menu.show { display: grid; }

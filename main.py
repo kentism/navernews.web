@@ -10,11 +10,13 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app_config import STATIC_DIR, TEMPLATES_DIR
 from app_logging import configure_logging, get_logger
 from routers.auth import router as auth_router
+from routers.article_titles import router as article_titles_router
 from routers.notifications import router as notifications_router
 from routers.pages import router as pages_router
 from routers.search import router as search_router
 from routers.storage import router as storage_router
 from services.monitoring import poll_naver_news_task
+from services.article_title_confirmation import issue_confirmation
 from utils.template_filters import highlight_keyword, time_ago
 
 configure_logging()
@@ -31,6 +33,10 @@ async def lifespan(app):
         task.cancel()
         with suppress(asyncio.CancelledError):
             await task
+        title_service = getattr(app.state, 'title_confirmation', None)
+        if title_service is not None:
+            await title_service.close()
+            del app.state.title_confirmation
 
 
 app = FastAPI(lifespan=lifespan)
@@ -38,8 +44,9 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 templates.env.filters.update(time_ago=time_ago, highlight=highlight_keyword)
+templates.env.filters['title_confirmation'] = issue_confirmation
 app.state.templates = templates
-for router in (auth_router, pages_router, search_router, notifications_router, storage_router):
+for router in (auth_router, pages_router, search_router, article_titles_router, notifications_router, storage_router):
     app.include_router(router)
 
 
