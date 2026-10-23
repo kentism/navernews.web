@@ -30,6 +30,7 @@
         if (!panels.length) closeMenu();
     }
     function closeMenu() {
+        window.NewsMotion.stop(document.getElementById('searchTabsMenu'));
         document.getElementById('searchTabsMenu').hidden = true;
         document.getElementById('searchTabsMenuBtn').setAttribute('aria-expanded', 'false');
     }
@@ -41,7 +42,7 @@
             const opening = menu.hidden;
             menu.hidden = !opening;
             button.setAttribute('aria-expanded', String(opening));
-            if (opening) { filter.value = ''; update(); filter.focus(); }
+            if (opening) { filter.value = ''; update(); filter.focus(); window.NewsMotion.reveal(menu, 'menu'); }
         });
         filter.addEventListener('input', update);
         document.addEventListener('click', event => { if (!event.target.closest('.search-tabs-picker')) closeMenu(); });

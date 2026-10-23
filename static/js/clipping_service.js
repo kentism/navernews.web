@@ -45,7 +45,7 @@
     }
     window.clipArticles = clipArticles;
     window.clipArticleFromData = function (title, link, content, source, pubDate, originalLink, button, category) {
-        clipArticles([{ title, link, source, pubDate, originalLink }], category);
+        if (clipArticles([{ title, link, source, pubDate, originalLink }], category)) window.NewsMotion.success(button);
     };
     window.toggleClipMenu = function (button) {
         const menu = button.closest('.clip-selector-wrapper').querySelector('.clip-popup-menu');
@@ -53,7 +53,7 @@
         menu.classList.toggle('show');
     };
 
-    async function copy(includeUrls) {
+    async function copy(includeUrls, button) {
         const value = window.ClippingCopyFormatter.formatClippingText(currentText(), { includeUrls });
         try {
             if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(value);
@@ -66,6 +66,7 @@
                 finally { area.remove(); }
             }
             ui.toast(includeUrls ? '클리핑 텍스트를 복사했습니다.' : 'URL을 제외한 클리핑 텍스트를 복사했습니다.');
+            window.NewsMotion.success(button);
         } catch (_) { ui.toast('복사하지 못했습니다. 파일 저장을 이용해주세요.'); }
     }
 
@@ -103,8 +104,8 @@
                     area.addEventListener('input', () => persist(area.value));
                     document.getElementById('editor').replaceChildren(area);
                 }
-                document.getElementById('copyTextBtn').addEventListener('click', () => copy(true));
-                document.getElementById('copyTextWithoutUrlsBtn').addEventListener('click', () => copy(false));
+                document.getElementById('copyTextBtn').addEventListener('click', event => copy(true, event.currentTarget));
+                document.getElementById('copyTextWithoutUrlsBtn').addEventListener('click', event => copy(false, event.currentTarget));
                 document.getElementById('downloadClippingBtn').addEventListener('click', () => {
                     const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
                     ui.download(window.ClippingCopyFormatter.formatClippingText(currentText(), { includeUrls: true }), `clipping-${day}.txt`);

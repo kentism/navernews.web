@@ -1,6 +1,7 @@
 (function () {
     'use strict';
     const ui = window.NewsUI;
+    const motion = window.NewsMotion;
     const observers = new Map();
     let counter = 0;
     let batchPromise = null;
@@ -10,9 +11,11 @@
 
     function setSearchState(panel, state) {
         panel.dataset.searchState = state;
+        panel.querySelector('.search-results-list')?.setAttribute('aria-busy', String(state === 'loading'));
         const button = document.querySelector(`.tabs-nav [data-tab="${panel.id}"]`);
         if (button) button.dataset.searchState = state;
         window.NewsSearchTabs?.update();
+        motion.syncLoading(panel);
     }
 
     function disconnect(panel) {
@@ -22,8 +25,9 @@
     function beginRequest(panel) {
         disconnect(panel);
         panel.searchController?.abort();
+        motion.endLoading(panel);
         panel.querySelectorAll('[data-search-refresh], [data-collect-search]').forEach(button => {
-            button.disabled = false; button.removeAttribute('aria-busy');
+            button.disabled = false; motion.setBusy(button, false);
         });
         panel.loadingMore = false;
         panel.searchController = new AbortController();
@@ -40,16 +44,24 @@
     window.setSearchLayout = layout => { ui.write('navernews_search_layout', layout); applyLayout(); };
 
     function switchTab(id) {
+        const previous = document.querySelector('.tab-pane.active');
+        const next = document.getElementById(id);
+        if (!next) return;
+        if (previous && previous !== next) motion.deactivate(previous);
         document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.toggle('active', pane.id === id));
         document.querySelectorAll('.tabs-nav-wrapper .tab-btn').forEach(button => button.classList.toggle('active', button.dataset.tab === id));
         if (id === 'clippings') window.loadClippingsTab();
-        document.querySelector(`.tabs-nav [data-tab="${id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        if (previous !== next) motion.reveal(next);
+        motion.syncLoading(next);
+        motion.scrollTab(document.querySelector(`.tabs-nav [data-tab="${id}"]`));
+        motion.updateIndicator();
         window.NewsSearchTabs?.update();
     }
     window.switchTab = switchTab;
 
     function replaceResults(panel, html) {
         disconnect(panel);
+        motion.endLoading(panel);
         panel.querySelector('.search-panel-content').innerHTML = html;
         const list = panel.querySelector('.search-results-list');
         panel.dataset.start = list.dataset.nextStart || '1';
@@ -59,6 +71,7 @@
         applyLayout();
         window.NewsSearchCollection.initialize(panel);
         installSentinel(panel);
+        motion.revealResults(panel);
     }
 
     function sentinelMessage(panel, text, action) {
@@ -113,8 +126,9 @@
             const next = wrapper.querySelector('.search-results-list');
             const current = panel.querySelector('.search-results-list');
             const links = new Set([...current.querySelectorAll('.news-card')].map(card => card.dataset.link));
+            const added = [];
             next.querySelectorAll('.news-card').forEach(card => {
-                if (!links.has(card.dataset.link)) { links.add(card.dataset.link); current.querySelector('.news-items').append(card); }
+                if (!links.has(card.dataset.link)) { links.add(card.dataset.link); current.querySelector('.news-items').append(card); added.push(card); }
             });
             panel.dataset.start = next.dataset.nextStart;
             panel.dataset.hasMore = next.dataset.hasMore;
@@ -122,6 +136,7 @@
             disconnect(panel);
             window.NewsSearchCollection.updateCount(panel);
             installSentinel(panel);
+            motion.revealResults(panel, added);
         } catch (error) {
             if (error.name !== 'AbortError' && controller === panel.searchController) {
                 disconnect(panel);
@@ -132,11 +147,10 @@
 
     async function refreshLatest(panel) {
         const controller = beginRequest(panel);
+        motion.mountLoading(panel);
         setSearchState(panel, 'loading');
-        const loading = panel.querySelector('.search-panel-content > p[role="status"]');
-        if (loading) loading.textContent = '검색 중...';
         const button = panel.querySelector('[data-search-refresh]');
-        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+        if (button) { button.disabled = true; motion.setBusy(button, true); }
         const form = new FormData();
         form.set('keyword', panel.dataset.keyword);
         form.set('start', '1');
@@ -156,17 +170,19 @@
                 const content = panel.querySelector('.search-panel-content');
                 const message = document.createElement('p');
                 message.textContent = error.message;
+                message.setAttribute('role', 'alert');
                 const retry = document.createElement('button');
                 retry.type = 'button';
                 retry.className = 'btn-small';
                 retry.textContent = '다시 검색';
                 retry.addEventListener('click', () => refreshLatest(panel));
-                content.replaceChildren(message, retry);
+                const errorState = document.createElement('div'); errorState.className = 'search-error-state';
+                errorState.append(message, retry); content.replaceChildren(errorState);
             } else installSentinel(panel);
             return 'failed';
         } finally {
             const refresh = panel.querySelector('[data-search-refresh]');
-            if (refresh && controller === panel.searchController) { refresh.disabled = false; refresh.removeAttribute('aria-busy'); }
+            if (refresh && controller === panel.searchController) { refresh.disabled = false; motion.setBusy(refresh, false); }
         }
     }
 
@@ -203,15 +219,18 @@
         panel.id = id;
         panel.className = 'tab-pane';
         panel.dataset.keyword = keyword;
-        panel.innerHTML = '<div class="search-panel-shell"><div class="search-panel-content"><p role="status">검색 대기 중...</p></div></div>';
+        panel.innerHTML = '<div class="search-panel-shell"><div class="search-panel-content"></div></div>';
+        motion.mountLoading(panel);
         function remove(event) {
             event.stopPropagation();
             disconnect(panel);
             panel.searchController?.abort();
+            motion.deactivate(panel);
             const wasActive = panel.classList.contains('active');
             panel.remove(); button.remove();
             if (wasActive) switchTab(document.querySelector('.tabs-nav .tab-btn:last-child')?.dataset.tab || 'homeTab');
             window.NewsSearchTabs?.update();
+            motion.scheduleIndicator();
         }
         close.addEventListener('click', remove);
         close.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); remove(event); } });
@@ -219,6 +238,7 @@
         document.querySelector('.tabs-nav').append(button);
         document.querySelector('.tabs-content').append(panel);
         setSearchState(panel, 'queued');
+        motion.scheduleIndicator();
         return panel;
     }
 
@@ -315,7 +335,8 @@
         if (state.cancelled) parts.push(`닫힌 탭 ${state.cancelled}개 제외`);
         document.getElementById('batchSearchMessage').textContent = parts.join(' · ');
         const progress = document.getElementById('batchSearchProgress');
-        progress.max = Math.max(1, state.total); progress.value = state.completed; progress.hidden = done;
+        progress.max = Math.max(1, state.total); progress.value = state.completed;
+        motion.progress(document.getElementById('batchSearchProgressFill'), state.completed / Math.max(1, state.total));
         const retry = document.getElementById('retryFailedSearchesBtn');
         retry.hidden = !done || !state.failed.length;
         retry.querySelector('span').textContent = `실패 ${state.failed.length}개 재시도`;
@@ -387,8 +408,8 @@
                 filterButton.setAttribute('aria-expanded', 'false');
             }
         });
-        document.getElementById('scrollTopBtn').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-        document.getElementById('scrollBottomBtn').addEventListener('click', () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }));
+        document.getElementById('scrollTopBtn').addEventListener('click', () => window.scrollTo({ top: 0, behavior: motion.scrollBehavior() }));
+        document.getElementById('scrollBottomBtn').addEventListener('click', () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: motion.scrollBehavior() }));
         window.addEventListener('scroll', () => document.getElementById('scrollControls').classList.toggle('show', window.scrollY > 300), { passive: true });
     });
 }());

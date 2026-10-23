@@ -30,7 +30,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 ```powershell
 python -m unittest discover -s tests -p "test_*.py"
-node --test tests/clipping_copy_formatter.test.js tests/clipping_document.test.js tests/home_keywords.test.js tests/search_batch.test.js
+node --test tests/clipping_copy_formatter.test.js tests/clipping_document.test.js tests/home_keywords.test.js tests/search_batch.test.js tests/ui_motion.test.js
 ```
 
 GitHub Actions는 Python/Node 테스트와 JS 문법 검사 통과 후 Docker 이미지를 생성한다.
@@ -41,6 +41,7 @@ GitHub Actions는 Python/Node 테스트와 JS 문법 검사 통과 후 Docker �
 
 - [검색과 클리핑](docs/search-and-clipping.md)
 - [검색 작업공간과 UI](docs/workspace-ui.md)
+- [UI 모션과 로딩 상태](docs/ui-motion.md)
 - [구조 개선과 이전 버전 복구](docs/learning-retirement.md)
 - [배포 설정](DEPLOYMENT.md)
 - [복사 형식](docs/clipping-copy-formats.md)

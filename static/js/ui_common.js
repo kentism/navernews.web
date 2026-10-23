@@ -49,7 +49,7 @@
         svg.classList.add('icon'); svg.setAttribute('viewBox', '0 0 24 24');
         svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
         const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-        use.setAttribute('href', `/static/icons.svg#${name}`); svg.append(use);
+        use.setAttribute('href', `/static/icons.svg?v=motion-1#${name}`); svg.append(use);
         return svg;
     }
     window.NewsUI = { read, write, readArray, toast, request, download, icon };

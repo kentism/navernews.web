@@ -34,7 +34,7 @@
                 <label><span>종료일</span><input type="date" data-date-until value="{{ until|default('') }}"></label>
             </div>
             <div class="period-actions">
-                <button type="submit" class="btn btn-primary" data-collect-search>기간 조회</button>
+                <button type="submit" class="btn btn-primary" data-collect-search>{{ icon('search') }}기간 조회</button>
                 <button type="button" class="btn btn-quiet" data-show-latest {% if mode == 'latest' %}disabled{% endif %}>최신순</button>
             </div>
         </form>
@@ -64,7 +64,7 @@
                 <button class="btn-small btn-primary btn-clip-trigger" type="button" data-title="{{ item.title }}"
                     data-link="{{ item.link }}" data-source="{{ item.source }}" data-pubdate="{{ item.pubDate }}"
                     data-originallink="{{ item.originallink }}" onclick="toggleClipMenu(this)">
-                    클리핑
+                    {{ icon('plus') }}클리핑
                 </button>
                 <div class="clip-popup-menu">
                     <button type="button"

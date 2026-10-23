@@ -25,7 +25,8 @@
         const controller = window.NewsSearch.beginRequest(panel);
         const button = panel.querySelector('[data-collect-search]');
         button.disabled = true;
-        button.setAttribute('aria-busy', 'true');
+        window.NewsMotion.setBusy(button, true);
+        panel.querySelector('.search-results-list').setAttribute('aria-busy', 'true');
         const status = panel.querySelector('[data-collection-status]');
         status.textContent = '기간 내 기사를 조회하는 중...';
         status.classList.remove('status-warning');
@@ -49,8 +50,9 @@
             }
         } finally {
             if (controller === panel.searchController) {
+                panel.querySelector('.search-results-list')?.setAttribute('aria-busy', 'false');
                 const current = panel.querySelector('[data-collect-search]');
-                if (current) { current.disabled = false; current.removeAttribute('aria-busy'); }
+                if (current) { current.disabled = false; window.NewsMotion.setBusy(current, false); }
             }
         }
     }

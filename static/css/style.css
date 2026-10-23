@@ -99,7 +99,7 @@ input::placeholder { color: var(--text-sub); }
 .recent-keyword-item:hover { background: var(--hover-bg); }
 .recent-keyword-item > button:first-child { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-main); text-align: left; padding: 9px 6px; overflow-wrap: anywhere; }
 .recent-keyword-item .icon-button { border: none; background: transparent; color: var(--text-sub); }
-.tabs-nav-wrapper { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); padding: 0 var(--app-gutter); }
+.tabs-nav-wrapper { position: relative; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); padding: 0 var(--app-gutter); }
 .fixed-tabs-nav { display: flex; gap: 4px; flex: 0 0 auto; }
 .tabs-nav { display: flex; flex: 1; gap: 4px; min-width: 0; overflow: auto; scrollbar-width: thin; padding-top: 2px; }
 .tab-btn { position: relative; display: flex; align-items: center; gap: 12px; flex: 0 1 200px; min-width: 132px; max-width: 230px; height: 42px; padding: 0 12px; color: var(--text-sub); border: 0; background: transparent; font-size: 13px; }
@@ -126,9 +126,9 @@ input::placeholder { color: var(--text-sub); }
 .search-tabs-menu .empty-msg { padding: 8px; }
 .batch-search-status { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 6px var(--app-gutter); min-height: 36px; border-bottom: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-sub); font-size: 12px; }
 .batch-search-status > span { overflow-wrap: anywhere; }
-.batch-search-status progress { width: 88px; height: 4px; flex: 0 0 88px; accent-color: var(--text-main); border: 0; border-radius: 2px; }
-.batch-search-status progress::-webkit-progress-bar { background: var(--border-color); border-radius: 2px; }
-.batch-search-status progress::-webkit-progress-value { background: var(--text-main); border-radius: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+.batch-progress-track { display: block; width: 88px; height: 4px; flex: 0 0 88px; overflow: hidden; background: var(--border-color); border-radius: 2px; }
+.batch-progress-track > span { display: block; width: 100%; height: 100%; background: var(--text-main); transform: scaleX(0); transform-origin: left center; }
 .batch-status-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .batch-status-actions .btn, .batch-status-actions .icon-button { height: 28px; font-size: 12px; }
 .batch-status-actions .icon-button { width: 28px; background: transparent; border-color: transparent; }
@@ -262,7 +262,35 @@ mark { background: #efedb9; color: inherit; border-radius: 2px; }
 .toast { padding: 12px 18px; border-radius: 8px; background: var(--toast-bg); color: var(--toast-text); box-shadow: var(--shadow-md); font-size: 13px; overflow-wrap: anywhere; opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; }
 .toast.show { opacity: 1; transform: translateY(0); }
 
-@media (min-width: 1800px) { .search-results-list { max-width: 1740px; } }
+/* Short, cancellable motion; background panes never run loading animations. */
+.tab-indicator-rail { position: absolute; inset: auto 0 0; height: 2px; overflow: hidden; pointer-events: none; }
+.active-tab-indicator { position: absolute; left: 0; bottom: 0; width: 1px; height: 2px; background: var(--text-main); transform-origin: left center; pointer-events: none; }
+.has-motion-indicator .tab-btn::after { display: none; }
+.search-loading { max-width: 1480px; margin: 0 auto; }
+.loading-heading { padding: 0 0 22px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+.loading-heading h2 { margin: 0 0 12px; font-size: 23px; font-weight: 650; overflow-wrap: anywhere; line-height: 1.4; }
+.loading-state { display: flex; align-items: center; gap: 8px; color: var(--text-sub); font-size: 12px; }
+.loading-state .icon { width: 15px; height: 15px; flex-basis: 15px; }
+.search-skeleton { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.skeleton-news-card { min-height: 186px; padding: 20px 22px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); }
+.skeleton-bars > span { display: block; height: 10px; margin-bottom: 9px; border-radius: 3px; background: var(--hover-bg); }
+.skeleton-bars .skeleton-source { width: 76px; height: 8px; margin-bottom: 18px; }
+.skeleton-bars .skeleton-title { width: 72%; height: 16px; margin-bottom: 16px; }
+.skeleton-bars .skeleton-short { width: 58%; }
+.skeleton-bars .skeleton-action { width: 64px; height: 28px; margin: 18px 0 0; }
+.tab-pane.active[data-search-state="loading"] .skeleton-bars { animation: skeleton-breathe 1.6s ease-in-out infinite; }
+.tab-pane.active[data-search-state="loading"] .loading-state .icon,
+.tab-pane.active button[aria-busy="true"] > .icon { animation: icon-spin .9s linear infinite; }
+.search-error-state { max-width: 1480px; margin: 0 auto; padding: 24px 0; color: var(--text-sub); }
+.search-error-state p { margin: 0 0 14px; }
+.clip-popup-menu.show, .advanced-search-dropdown.show, .recent-keywords-dropdown.show { animation: menu-enter .12s ease-out; }
+.feedback-success > .icon { animation: feedback-enter .12s ease-out; }
+@keyframes icon-spin { to { transform: rotate(360deg); } }
+@keyframes skeleton-breathe { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
+@keyframes menu-enter { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes feedback-enter { from { opacity: .65; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+
+@media (min-width: 1800px) { .search-results-list, .search-loading, .search-error-state { max-width: 1740px; } }
 @media (max-width: 900px) {
     :root { --app-gutter: 20px; }
     .header { gap: 16px; }
@@ -272,6 +300,7 @@ mark { background: #efedb9; color: inherit; border-radius: 2px; }
     .results-toolbar { align-items: flex-start; }
     .results-toolbar-actions { gap: 10px; }
     .results-toolbar-copy h2 { font-size: 21px; }
+    .loading-heading h2 { font-size: 21px; }
     .search-workbench { align-items: flex-start; }
     .results-summary { width: 100%; min-height: 20px; }
 }

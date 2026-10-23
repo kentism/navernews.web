@@ -15,7 +15,7 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=workspace-3">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=motion-1">
     <script>
         window.defaultSearchKeywords = {{ default_keywords|tojson }};
     </script>
@@ -58,6 +58,7 @@
                 <button class="tab-btn default-tab" data-tab="clippings" id="clippingsBtn"><span class="tab-btn-label">클리핑</span></button>
             </div>
             <div class="tabs-nav"></div>
+            <span class="tab-indicator-rail" aria-hidden="true"><span id="activeTabIndicator" class="active-tab-indicator" hidden></span></span>
             <div class="search-tabs-picker">
                 <button id="searchTabsMenuBtn" type="button" class="btn btn-quiet" title="열린 검색 탭 목록" aria-label="열린 검색 탭 목록" aria-expanded="false" aria-controls="searchTabsMenu" disabled>
                     <span class="search-tabs-label">검색 탭</span><span id="searchTabsCount" class="muted-count">0</span>{{ icon('chevron-down') }}
@@ -69,7 +70,8 @@
             </div>
         </div>
         <div id="batchSearchStatus" class="batch-search-status" hidden>
-            <progress id="batchSearchProgress" max="15" value="0" aria-label="전체 검색 진행률"></progress>
+            <progress id="batchSearchProgress" class="sr-only" max="15" value="0" aria-label="전체 검색 진행률"></progress>
+            <span class="batch-progress-track" aria-hidden="true"><span id="batchSearchProgressFill"></span></span>
             <span id="batchSearchMessage" role="status" aria-live="polite"></span>
             <div class="batch-status-actions">
                 <button id="retryFailedSearchesBtn" type="button" class="btn btn-quiet" hidden>{{ icon('refresh-cw') }}<span>실패 검색 재시도</span></button>
@@ -106,16 +108,17 @@
     </div>
 
     <script src="https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js"></script>
-    <script src="{{ url_for('static', path='js/ui_common.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/ui_common.js') }}?v=motion-1"></script>
+    <script src="{{ url_for('static', path='js/ui_motion.js') }}?v=motion-1"></script>
     <script src="{{ url_for('static', path='js/clipping_copy_formatter.js') }}"></script>
     <script src="{{ url_for('static', path='js/clipping_document.js') }}"></script>
-    <script src="{{ url_for('static', path='js/clipping_service.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/clipping_service.js') }}?v=motion-1"></script>
     <script src="{{ url_for('static', path='js/notifications.js') }}?v=workspace-2"></script>
-    <script src="{{ url_for('static', path='js/search_collection.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/search_collection.js') }}?v=motion-1"></script>
     <script src="{{ url_for('static', path='js/search_batch.js') }}?v=workspace-3"></script>
     <script src="{{ url_for('static', path='js/home_keywords.js') }}?v=workspace-3"></script>
-    <script src="{{ url_for('static', path='js/search_tabs.js') }}?v=workspace-3"></script>
-    <script src="{{ url_for('static', path='js/main.js') }}?v=workspace-3"></script>
+    <script src="{{ url_for('static', path='js/search_tabs.js') }}?v=motion-1"></script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v=motion-1"></script>
 </body>
 
 </html>

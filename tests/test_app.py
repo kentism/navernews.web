@@ -44,14 +44,18 @@ class AppTests(unittest.TestCase):
         self.login()
         home = BeautifulSoup(self.client.get('/').text, 'html.parser')
         for control in ['homeKeywordList', 'homeKeywordInput', 'searchSavedKeywordsBtn', 'homeRecentKeywords',
-                        'searchTabsMenuBtn', 'searchTabsFilter', 'batchSearchMessage', 'retryFailedSearchesBtn']:
+                        'searchTabsMenuBtn', 'searchTabsFilter', 'batchSearchMessage', 'retryFailedSearchesBtn',
+                        'activeTabIndicator', 'batchSearchProgressFill']:
             self.assertIsNotNone(home.find(id=control), control)
-        self.assertTrue(home.select('svg use[href="/static/icons.svg#search"]'))
+        self.assertTrue(home.select('svg use[href="/static/icons.svg?v=motion-1#search"]'))
         self.assertFalse(home.select('.storage-notice'))
         scripts = [tag.get('src', '') for tag in home.select('script[src]')]
         batch_index = next(i for i, src in enumerate(scripts) if '/js/search_batch.js' in src)
         home_index = next(i for i, src in enumerate(scripts) if '/js/home_keywords.js' in src)
         self.assertLess(batch_index, home_index)
+        motion_index = next(i for i, src in enumerate(scripts) if '/js/ui_motion.js' in src)
+        main_index = next(i for i, src in enumerate(scripts) if '/js/main.js' in src)
+        self.assertLess(motion_index, main_index)
 
     def test_search_toolbar_is_outside_article_grid_without_selection_controls(self):
         self.login()
