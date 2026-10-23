@@ -2,6 +2,8 @@ import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
+from markupsafe import Markup, escape
+
 
 def time_ago(value):
     if not value:
@@ -34,3 +36,19 @@ def time_ago(value):
 
 def extract_highlight_keyword(keyword: str) -> str:
     return re.sub(r'([+-][^\s"]+)|(\+"[^"]+")', " ", keyword).strip()
+
+
+def highlight_keyword(text: str, keyword: str) -> Markup:
+    """Escape external text before adding the application's own highlight tags."""
+    value = str(text or "")
+    term = extract_highlight_keyword(keyword or "")
+    if not term:
+        return escape(value)
+    pieces = []
+    position = 0
+    for match in re.finditer(re.escape(term), value, re.IGNORECASE):
+        pieces.extend([escape(value[position:match.start()]), Markup("<mark>"),
+                       escape(match.group()), Markup("</mark>")])
+        position = match.end()
+    pieces.append(escape(value[position:]))
+    return Markup("").join(pieces)

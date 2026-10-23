@@ -10,9 +10,9 @@
 
 ## 적용 위치
 
-- 브라우저 클리핑 생성 시 `static/js/clipping_service.js`에서 URL을 정리한다.
-- 최종본 학습 시 `services/clipping_store.py`에서 한 번 더 URL을 정리한다.
-- 기사 저장과 최종본 매칭도 정리된 URL 기준을 함께 사용한다.
+- 브라우저 클리핑 문서 생성 시 `static/js/clipping_document.js`에서 URL을 정리한다.
+- 기간 수집 시 `utils/article_urls.py`에서 동일 원문 URL을 판별한다.
+- 학습/서버 기사 저장은 종료했으며, 서로 다른 URL의 유사 기사는 제거하지 않는다.
 
 ## 예시
 

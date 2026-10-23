@@ -1,0 +1,91 @@
+import unittest
+from unittest.mock import AsyncMock, patch
+
+from fastapi.testclient import TestClient
+
+from app_config import APP_ACCESS_KEY
+from main import app
+from services.news_service import NewsItem, NewsPage, NewsServiceError
+from services.search_collection import CollectionResult
+from utils.template_filters import highlight_keyword
+
+
+class AppTests(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        self.client.close()
+
+    def login(self):
+        self.client.cookies.set('access_token', APP_ACCESS_KEY)
+
+    def test_notification_and_archive_endpoints_require_authentication(self):
+        for url in ['/api/stream/notifications?client_id=test', '/api/storage/export', '/api/storage/status']:
+            self.assertEqual(self.client.get(url).status_code, 401, url)
+        self.assertEqual(self.client.post('/api/search/collect', data={'keyword': '기사', 'since': '2026-10-23'}).status_code, 401)
+
+    def test_retired_endpoints_cannot_fetch_arbitrary_urls_or_modify_learning(self):
+        self.login()
+        self.assertEqual(self.client.get('/api/article', params={'url': 'http://127.0.0.1/'}).status_code, 404)
+        self.assertEqual(self.client.post('/api/clipping-finalizations', json={'content': 'test'}).status_code, 404)
+        self.assertEqual(self.client.post('/api/storage/restore', json={'confirm_replace': True}).status_code, 404)
+
+    def test_home_and_clipping_have_no_learning_controls(self):
+        self.login()
+        home = self.client.get('/').text
+        self.assertNotIn('candidatesBtn', home)
+        clipping = self.client.get('/clippings-tab').text
+        self.assertNotIn('finalizeLearningBtn', clipping)
+        self.assertIn('downloadClippingBtn', clipping)
+
+    def test_search_failure_is_502_not_an_empty_success(self):
+        self.login()
+        with patch('routers.search.fetch_news_page', new=AsyncMock(side_effect=NewsServiceError('검색 실패'))):
+            response = self.client.post('/search-results', data={'keyword': '기사'})
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json()['error'], '검색 실패')
+
+    def test_filtered_empty_page_preserves_pagination(self):
+        self.login()
+        page = NewsPage([], 80, 20, 1, 20)
+        with patch('routers.search.fetch_news_page', new=AsyncMock(return_value=page)):
+            response = self.client.post('/search-results', data={'keyword': '기사'})
+        self.assertIn('data-has-more="true"', response.text)
+        self.assertIn('data-next-start="21"', response.text)
+
+    def test_refresh_requests_new_results_instead_of_reusing_cache(self):
+        self.login()
+        item = NewsItem(title='새 기사', link='https://example.com/new', description='')
+        pages = [NewsPage([], 0, 0, 1, 20), NewsPage([item], 1, 1, 1, 20)]
+        with patch('routers.search.fetch_news_page', new=AsyncMock(side_effect=pages)) as fetch:
+            self.client.post('/search-results', data={'keyword': '기사'})
+            response = self.client.post('/search-results', data={'keyword': '기사', 'refresh': 'true'})
+        self.assertEqual(fetch.await_count, 2)
+        self.assertIn('새 기사', response.text)
+
+    def test_period_collection_reports_truncation_and_renders_controls(self):
+        self.login()
+        result = CollectionResult([], 1000, 0, 0, False, True)
+        with patch('routers.search.collect_articles', new=AsyncMock(return_value=result)):
+            response = self.client.post('/api/search/collect', data={'keyword': '기사', 'since': '2026-10-22'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['limit_reached'])
+        self.assertFalse(response.json()['complete'])
+        self.assertIn('data-select-all', response.json()['html'])
+
+    def test_invalid_period_is_a_validation_error(self):
+        self.login()
+        response = self.client.post('/api/search/collect', data={'keyword': '기사', 'since': '2026-10-24', 'until': '2026-10-23'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_startup_does_not_contact_backup_provider(self):
+        with patch('httpx.AsyncClient.send', new=AsyncMock(side_effect=AssertionError('Unexpected network'))):
+            with TestClient(app) as client:
+                self.assertEqual(client.get('/healthz').json()['mode'], 'search_clipping')
+
+    def test_external_html_is_escaped_before_highlighting(self):
+        result = str(highlight_keyword('<img src=x onerror=alert(1)> 정책', '정책'))
+        self.assertNotIn('<img', result)
+        self.assertIn('&lt;img', result)
+        self.assertIn('<mark>정책</mark>', result)

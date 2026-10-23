@@ -1,69 +1,57 @@
-# Naver News Web App 📰
+# 뉴스 클리핑
 
-네이버 뉴스 오픈 API를 활용한 맞춤형 뉴스 검색 및 클리핑 웹 애플리케이션입니다. 여러 개의 검색 탭을 관리하고, 관심 있는 기사 내용을 메모장에 바로 추가하여 관리할 수 있습니다.
+FastAPI + Jinja2 + vanilla JavaScript 기반의 내부 뉴스 검색/클리핑 도구다.
 
-## ✨ 주요 기능
+## 현재 기능
 
-- **멀티 탭 검색**: 여러 검색어를 각각의 탭으로 관리하여 동시에 여러 주제의 뉴스를 확인할 수 있습니다.
-- **무한 스크롤**: 하단으로 스크롤하면 자동으로 다음 뉴스 항목을 불러옵니다.
-- **기사 본문 추출**: 네이버 뉴스 API에서 제공하지 않는 기사 본문 내용을 서버 측 크롤링 기술을 통해 추출합니다. (Heuristic approach)
-- **클리핑 메모장**: 원하는 기사를 클릭 한 번으로 메모장에 추가하고, 내용을 편집하거나 클립보드에 복사할 수 있습니다.
-- **최근 검색어**: 최근에 검색한 키워드를 저장하고 간편하게 다시 검색할 수 있습니다.
-- **다크 모드**: 사용자 환경에 맞춘 세련된 다크 모드 테마를 지원합니다.
-- **자동 새로고침**: 특정 키워드에 대한 최신 뉴스를 실시간으로 다시 불러올 수 있습니다.
+- 검색어별 탭, 포함/제외 검색, 최신순 추가 조회.
+- 한국 시간 기준 날짜 범위 조회와 조회 한도/완료 여부 표시.
+- 기사 선택과 분류별 일괄 클리핑. 동일 URL은 정리하고 서로 다른 기사는 유지한다.
+- 기존 WYSIWYG 편집, 일반 텍스트 복사, URL 제외 복사, TXT 파일 저장.
+- 브라우저 초안 저장 상태 표시와 편집기 외부 리소스 실패 시 텍스트 편집 대체.
+- 검색어 추적, 토스트/브라우저 알림, 클리핑 탭 내 알림 관리.
+- 기존 학습 DB의 읽기 전용 내보내기.
 
-## 🛠 기술 스택
+개인화 학습과 자동 후보 선별은 2026-10-23에 종료했다. 클리핑 클릭이나 문서 편집은 서버 학습 데이터를 생성하지 않는다.
 
-- **Backend**: Python, FastAPI
-- **Frontend**: HTML5, Vanilla CSS, JavaScript (ES6+)
-- **Templating**: Jinja2
-- **Crawling/Parsing**: BeautifulSoup4, HTTPX
-- **Environment**: Uvicorn
+## 실행
 
-## 🚀 시작하기
+Python 3.12 환경에서 다음을 실행한다.
 
-### 1단계: 필수 요구사항
-- Python 3.9 이상
-- 네이버 오픈 API 애플리케이션 등록 (Client ID, Client Secret 필요)
-
-### 2단계: 설치 및 환경 설정
-
-1. 저장소를 클론합니다:
-   ```bash
-   git clone https://github.com/your-username/navernews.web.git
-   cd navernews.web
-   ```
-
-2. 가상환경을 생성하고 의존성을 설치합니다:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. 환경 변수(`.env` 또는 시스템 환경 변수)를 설정합니다:
-   ```env
-   NAVER_CLIENT_ID=여러분의_클라이언트_ID
-   NAVER_CLIENT_SECRET=여러분의_클라이언트_시크릿
-   ```
-
-### 3단계: 실행
-
-```bash
-python main.py
-# 또는
-uvicorn main:app --reload
+```powershell
+python -m pip install -r requirements.lock
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-브라우저에서 `http://127.0.0.1:8000`에 접속하여 서비스를 이용하세요.
+`.env.example`에 설정 이름을 기록했다. 실제 값은 저장소 루트 `.env` 또는 배포 서비스 환경변수에 설정한다.
 
-## 📂 프로젝트 구조
+## 검증
 
-- `main.py`: FastAPI 백엔드 로직 및 API 엔드포인트
-- `static/`: CSS 및 JavaScript 클라이언트 사이드 에셋
-- `templates/`: Jinja2 HTML 템플릿 파일
-- `requirements.txt`: 프로젝트 의존성 목록
-- `Procfile`: 배포용 프로세스 설정 (Railway/Heroku 등)
+```powershell
+python -m unittest discover -s tests -p "test_*.py"
+node --test tests/clipping_copy_formatter.test.js tests/clipping_document.test.js
+```
 
-## 📝 라이선스
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+GitHub Actions는 Python/Node 테스트와 JS 문법 검사 통과 후 Docker 이미지를 생성한다.
+
+## 데이터와 문서
+
+작성 중인 클리핑은 현재 브라우저에 저장된다. 브라우저 데이터 삭제나 다른 기기로의 이동에 대비하려면 클리핑 탭의 `파일 저장`을 사용한다. 이전 SQLite와 GitHub 백업은 새로운 학습에 사용하지 않는다.
+
+- [검색과 클리핑](docs/search-and-clipping.md)
+- [구조 개선과 이전 버전 복구](docs/learning-retirement.md)
+- [배포 설정](DEPLOYMENT.md)
+- [복사 형식](docs/clipping-copy-formats.md)
+- [언론사 매칭](docs/media-domain-map.md)
+
+## 코드 위치
+
+- `routers/`: 인증, 화면, 검색/알림 API와 읽기 전용 이전 이력 내보내기.
+- `services/`: 네이버 검색, 날짜 범위 수집, 모니터링, 언론사 매칭, 이전 DB 읽기.
+- `templates/`: 초기 화면 및 기사 목록 HTML.
+- `static/js/`: 화면 상태와 작업별 브라우저 동작. 문서 변환과 편집기 연동을 분리한다.
+- `static/css/`: 기존 모노톤 스타일과 모바일 레이아웃.
+- `utils/`: 검색/템플릿 필터와 URL 정리.
+- `tests/`: 외부 통신을 대체한 단위/통합 테스트.
+- `docs/`: 기능, 운영, 구조 변경과 복구 절차.
+- `data/`: 보관 중인 이전 SQLite. 앱 시작 시 생성하거나 변경하지 않는다.

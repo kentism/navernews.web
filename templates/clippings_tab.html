@@ -1,16 +1,12 @@
 <div class="clipping-text-wrapper">
     <h2 class="clipping-header">클리핑 모음</h2>
 
-    <p class="clipping-main">
-        검색 결과에서 클리핑한 기사가 카테고리별로 정리됩니다.<br>
-        작성 중인 내용은 브라우저에 임시 저장되고, 최종본 학습을 누르면 학습 이력과 백업에 반영됩니다.<br>
-        텍스트를 직접 편집하거나 복사하고, 필요하면 초기화할 수 있습니다.
-    </p>
+    <p id="clippingSaveStatus" class="clipping-save-status" role="status" aria-live="polite"></p>
 
     <div class="clipping-actions">
         <button id="copyTextBtn" class="btn-copy" type="button">텍스트 복사</button>
         <button id="copyTextWithoutUrlsBtn" class="btn-copy" type="button">텍스트 복사(URL 제외)</button>
-        <button id="finalizeLearningBtn" class="btn-copy" type="button">최종본 학습</button>
+        <button id="downloadClippingBtn" class="btn-copy" type="button">파일 저장</button>
         <button id="clearTextBtn" class="btn-clear" type="button">비우기</button>
     </div>
 

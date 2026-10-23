@@ -1,9 +1,11 @@
-<div class="search-results-list">
+<div class="search-results-list" data-mode="{{ mode }}"
+     data-next-start="{{ page.next_start if page is defined else 1 }}"
+     data-has-more="{{ 'true' if page is defined and page.has_more else 'false' }}"
+     data-limit-reached="{{ 'true' if page is defined and not page.source_exhausted and not page.has_more else 'false' }}">
     <div class="results-toolbar">
         <div class="results-toolbar-copy">
             <span class="results-toolbar-label">현재 검색어</span>
             <h2>{{ keyword }}</h2>
-            <p>필요한 기사만 추려 클리핑하거나, 이 검색어를 후보 수집 검색어로 등록할 수 있습니다.</p>
         </div>
         <div class="results-toolbar-actions">
             <div class="results-layout-toggle" aria-label="검색 결과 보기 방식">
@@ -20,10 +22,26 @@
             <button type="button" class="btn-panel-refresh" data-search-refresh>
                 새로고침
             </button>
-            <button type="button" class="btn-panel-refresh" data-keyword="{{ keyword }}" onclick="addCandidateKeywordFromSearch(this.dataset.keyword)">
-                후보 수집에 추가
-            </button>
         </div>
+    </div>
+
+    <div class="search-workbench">
+        <div class="search-period-controls" role="group" aria-label="기사 조회 기간">
+            <label>시작일 <input type="date" data-date-since value="{{ since|default('') }}"></label>
+            <span aria-hidden="true">~</span>
+            <label>종료일 <input type="date" data-date-until value="{{ until|default('') }}"></label>
+            <button type="button" class="btn-small" data-collect-search>기간 조회</button>
+            <button type="button" class="btn-small" data-show-latest>최신순</button>
+        </div>
+        <div class="search-bulk-controls" role="group" aria-label="기사 일괄 클리핑">
+            <label class="selection-toggle"><input type="checkbox" data-select-all> 전체 선택</label>
+            <span data-selection-count aria-live="polite">0건 선택</span>
+            <select data-bulk-category aria-label="일괄 클리핑 분류">
+                <option>위원회 관련</option><option>방송·통신 관련</option><option>유관기관 관련</option><option>기타</option>
+            </select>
+            <button type="button" class="btn-small btn-primary" data-clip-selected disabled>선택 기사 클리핑</button>
+        </div>
+        <p class="collection-status" data-collection-status role="status" aria-live="polite"></p>
     </div>
 
     {% for item in items %}
@@ -32,8 +50,9 @@
         data-domain="{{ item.domain }}">
 
         <div class="news-header">
+            <label class="article-selection"><input type="checkbox" class="news-select" aria-label="{{ item.title }} 선택"><span>선택</span></label>
             <span class="news-source">{{ item.source }}</span>
-            <span class="news-date">{{ item.pubDate | time_ago }}</span>
+            <span class="news-date" title="{{ item.formatted_pubdate }}">{{ item.pubDate | time_ago }}</span>
         </div>
 
         <h3 class="news-title">{{ item.title | highlight(keyword) }}</h3>
@@ -73,7 +92,7 @@
 
     {% if items|length == 0 %}
     <div class="empty-state">
-        <p>검색 결과가 없습니다.</p>
+        <p>{{ '현재 구간에 일치하는 기사가 없습니다. 다음 결과를 확인해주세요.' if page is defined and page.has_more else '검색 결과가 없습니다.' }}</p>
     </div>
     {% endif %}
 </div>

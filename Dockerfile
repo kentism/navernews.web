@@ -7,8 +7,8 @@ ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 ENV APP_DATA_DIR=/app/data
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements.lock ./
+RUN pip install --no-cache-dir -r requirements.lock
 
 COPY . .
 

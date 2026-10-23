@@ -26,6 +26,9 @@ def _current_loop_time() -> float:
 
 @router.get("/stream/notifications")
 async def sse_notifications(request: Request, client_id: str = None):
+    auth_check = await require_auth(request)
+    if auth_check:
+        return auth_check
     if not client_id:
         return JSONResponse(content={"error": "client_id is required"}, status_code=400)
 
@@ -63,7 +66,8 @@ async def sse_notifications(request: Request, client_id: str = None):
         except asyncio.CancelledError:
             logger.info("SSE connection cancelled", extra={"client_id": client_id})
         finally:
-            state.sse_connections.pop(client_id, None)
+            if state.sse_connections.get(client_id) is queue:
+                state.sse_connections.pop(client_id, None)
             state.last_seen_clients[client_id] = _current_loop_time()
 
     return StreamingResponse(

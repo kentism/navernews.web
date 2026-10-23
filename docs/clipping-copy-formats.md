@@ -21,10 +21,10 @@ https://press.example.com/article/1
 ▷ 언론사명 : 기사 제목 (날짜)
 ```
 
-이 기능은 외부 보고나 공유처럼 URL이 필요 없는 실무용 텍스트를 만들기 위한 출력 전용 기능이다. 학습 데이터, 서버 저장 내용, GitHub 백업 내용은 변경하지 않는다.
+이 기능은 외부 보고나 공유처럼 URL이 필요 없는 실무용 텍스트를 만들기 위한 출력 전용 기능이다. 작성 중인 문서는 변경하지 않는다.
 
 ## 에디터 버전
 
 Toast UI Editor는 `3.2.2`로 고정한다. CDN의 `latest` 경로를 사용하지 않아 외부 라이브러리 갱신만으로 저장 및 복사 형식이 달라지는 상황을 방지한다.
 
-복사 포맷 변환은 `static/js/clipping_copy_formatter.js`에 격리되어 있으며, 에디터 Markdown과 `localStorage`, 최종본 학습 데이터는 수정하지 않는다.
+복사 포맷 변환은 `static/js/clipping_copy_formatter.js`에 격리되어 있으며, 에디터 Markdown과 `localStorage`는 수정하지 않는다. `파일 저장`도 같은 일반 복사 포맷터를 사용해 UTF-8 TXT를 내려받는다.
