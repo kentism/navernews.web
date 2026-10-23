@@ -15,7 +15,7 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css" />
     <link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/theme/toastui-editor-dark.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=workspace-2">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=workspace-3">
     <script>
         window.defaultSearchKeywords = {{ default_keywords|tojson }};
     </script>
@@ -53,9 +53,27 @@
         </header>
 
         <div class="tabs-nav-wrapper">
-            <div class="tabs-nav">
+            <div class="fixed-tabs-nav">
                 <button class="tab-btn default-tab active" data-tab="homeTab" id="homeTabBtn"><span class="tab-btn-label">홈</span></button>
                 <button class="tab-btn default-tab" data-tab="clippings" id="clippingsBtn"><span class="tab-btn-label">클리핑</span></button>
+            </div>
+            <div class="tabs-nav"></div>
+            <div class="search-tabs-picker">
+                <button id="searchTabsMenuBtn" type="button" class="btn btn-quiet" title="열린 검색 탭 목록" aria-label="열린 검색 탭 목록" aria-expanded="false" aria-controls="searchTabsMenu" disabled>
+                    <span class="search-tabs-label">검색 탭</span><span id="searchTabsCount" class="muted-count">0</span>{{ icon('chevron-down') }}
+                </button>
+                <div id="searchTabsMenu" class="search-tabs-menu" aria-label="열린 검색 탭 목록" hidden>
+                    <input id="searchTabsFilter" type="search" placeholder="검색 탭 찾기" aria-label="열린 검색 탭 찾기" autocomplete="off">
+                    <ul id="searchTabsMenuList"></ul>
+                </div>
+            </div>
+        </div>
+        <div id="batchSearchStatus" class="batch-search-status" hidden>
+            <progress id="batchSearchProgress" max="15" value="0" aria-label="전체 검색 진행률"></progress>
+            <span id="batchSearchMessage" role="status" aria-live="polite"></span>
+            <div class="batch-status-actions">
+                <button id="retryFailedSearchesBtn" type="button" class="btn btn-quiet" hidden>{{ icon('refresh-cw') }}<span>실패 검색 재시도</span></button>
+                <button id="dismissBatchStatusBtn" type="button" class="icon-button" title="검색 상태 닫기" aria-label="검색 상태 닫기" hidden>{{ icon('x') }}</button>
             </div>
         </div>
     </div>
@@ -94,8 +112,10 @@
     <script src="{{ url_for('static', path='js/clipping_service.js') }}?v=workspace-2"></script>
     <script src="{{ url_for('static', path='js/notifications.js') }}?v=workspace-2"></script>
     <script src="{{ url_for('static', path='js/search_collection.js') }}?v=workspace-2"></script>
-    <script src="{{ url_for('static', path='js/home_keywords.js') }}?v=workspace-2"></script>
-    <script src="{{ url_for('static', path='js/main.js') }}?v=workspace-2"></script>
+    <script src="{{ url_for('static', path='js/search_batch.js') }}?v=workspace-3"></script>
+    <script src="{{ url_for('static', path='js/home_keywords.js') }}?v=workspace-3"></script>
+    <script src="{{ url_for('static', path='js/search_tabs.js') }}?v=workspace-3"></script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v=workspace-3"></script>
 </body>
 
 </html>

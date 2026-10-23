@@ -3,6 +3,17 @@
     const ui = window.NewsUI;
     const observers = new Map();
     let counter = 0;
+    let batchPromise = null;
+    let batchRunning = false;
+    let failedKeywords = [];
+    let batchPanels = new Set();
+
+    function setSearchState(panel, state) {
+        panel.dataset.searchState = state;
+        const button = document.querySelector(`.tabs-nav [data-tab="${panel.id}"]`);
+        if (button) button.dataset.searchState = state;
+        window.NewsSearchTabs?.update();
+    }
 
     function disconnect(panel) {
         observers.get(panel.id)?.disconnect();
@@ -30,9 +41,10 @@
 
     function switchTab(id) {
         document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.toggle('active', pane.id === id));
-        document.querySelectorAll('.tabs-nav .tab-btn').forEach(button => button.classList.toggle('active', button.dataset.tab === id));
+        document.querySelectorAll('.tabs-nav-wrapper .tab-btn').forEach(button => button.classList.toggle('active', button.dataset.tab === id));
         if (id === 'clippings') window.loadClippingsTab();
         document.querySelector(`.tabs-nav [data-tab="${id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        window.NewsSearchTabs?.update();
     }
     window.switchTab = switchTab;
 
@@ -77,6 +89,7 @@
             return;
         }
         sentinelMessage(panel, '', true);
+        if (batchRunning) return;
         const observer = new IntersectionObserver(entries => {
             if (entries.some(entry => entry.isIntersecting)) loadMore(panel);
         }, { rootMargin: '300px' });
@@ -119,6 +132,9 @@
 
     async function refreshLatest(panel) {
         const controller = beginRequest(panel);
+        setSearchState(panel, 'loading');
+        const loading = panel.querySelector('.search-panel-content > p[role="status"]');
+        if (loading) loading.textContent = '검색 중...';
         const button = panel.querySelector('[data-search-refresh]');
         if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
         const form = new FormData();
@@ -128,9 +144,13 @@
         try {
             const response = await ui.request('/search-results', { method: 'POST', body: form, signal: controller.signal });
             const html = await response.text();
-            if (controller === panel.searchController && panel.isConnected) replaceResults(panel, html);
+            if (controller !== panel.searchController || !panel.isConnected) return 'cancelled';
+            replaceResults(panel, html);
+            setSearchState(panel, 'ready');
+            return 'loaded';
         } catch (error) {
-            if (error.name === 'AbortError') return;
+            if (error.name === 'AbortError' || controller !== panel.searchController) return 'cancelled';
+            setSearchState(panel, 'failed');
             ui.toast(error.message);
             if (!panel.querySelector('.search-results-list')) {
                 const content = panel.querySelector('.search-panel-content');
@@ -143,6 +163,7 @@
                 retry.addEventListener('click', () => refreshLatest(panel));
                 content.replaceChildren(message, retry);
             } else installSentinel(panel);
+            return 'failed';
         } finally {
             const refresh = panel.querySelector('[data-search-refresh]');
             if (refresh && controller === panel.searchController) { refresh.disabled = false; refresh.removeAttribute('aria-busy'); }
@@ -155,13 +176,14 @@
         return panel.dataset.mode === 'period' ? window.NewsSearchCollection.collect(panel) : refreshLatest(panel);
     };
 
-    async function openSearch(keyword, activate = true) {
-        keyword = keyword.trim();
-        if (!keyword || keyword.length > 300) { ui.toast('검색어는 1~300자로 입력해주세요.'); return; }
+    function rememberKeyword(keyword) {
         ui.write('navernews_recent_keywords', JSON.stringify([keyword, ...ui.readArray('navernews_recent_keywords').filter(item => item !== keyword)].slice(0, 10)));
         recentKeywords();
+    }
+
+    function ensureSearchPanel(keyword) {
         const existing = [...document.querySelectorAll('.tab-pane')].find(panel => panel.dataset.keyword === keyword);
-        if (existing) { if (activate) switchTab(existing.id); return; }
+        if (existing) return existing;
         const id = `search-${++counter}`;
         const button = document.createElement('button');
         button.type = 'button';
@@ -181,7 +203,7 @@
         panel.id = id;
         panel.className = 'tab-pane';
         panel.dataset.keyword = keyword;
-        panel.innerHTML = '<div class="search-panel-shell"><div class="search-panel-content"><p role="status">검색 중...</p></div></div>';
+        panel.innerHTML = '<div class="search-panel-shell"><div class="search-panel-content"><p role="status">검색 대기 중...</p></div></div>';
         function remove(event) {
             event.stopPropagation();
             disconnect(panel);
@@ -189,14 +211,35 @@
             const wasActive = panel.classList.contains('active');
             panel.remove(); button.remove();
             if (wasActive) switchTab(document.querySelector('.tabs-nav .tab-btn:last-child')?.dataset.tab || 'homeTab');
+            window.NewsSearchTabs?.update();
         }
         close.addEventListener('click', remove);
         close.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); remove(event); } });
         button.append(label, close);
         document.querySelector('.tabs-nav').append(button);
         document.querySelector('.tabs-content').append(panel);
+        setSearchState(panel, 'queued');
+        return panel;
+    }
+
+    async function loadInitial(panel) {
+        if (!panel.isConnected) return 'cancelled';
+        if (panel.initialSearch) return panel.initialSearch;
+        panel.initialSearch = refreshLatest(panel);
+        try { return await panel.initialSearch; }
+        finally { panel.initialSearch = null; }
+    }
+
+    async function openSearch(keyword, activate = true) {
+        keyword = keyword.trim();
+        if (!keyword || keyword.length > 300) { ui.toast('검색어는 1~300자로 입력해주세요.'); return 'failed'; }
+        rememberKeyword(keyword);
+        const panel = ensureSearchPanel(keyword);
+        const id = panel.id;
         if (activate) switchTab(id);
-        await refreshLatest(panel);
+        if (batchRunning && batchPanels.has(panel) && panel.dataset.searchState === 'queued') return 'queued';
+        if (panel.initialSearch || ['queued', 'failed'].includes(panel.dataset.searchState)) return loadInitial(panel);
+        return 'reused';
     }
 
     function recentKeywords() {
@@ -262,9 +305,53 @@
         document.querySelector('.toastui-editor-defaultUI')?.classList.toggle('toastui-editor-dark', dark);
     }
     window.toggleTheme = () => { document.body.classList.toggle('dark-mode'); ui.write('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); updateTheme(); };
-    async function openMany(keywords) {
-        const unique = [...new Set(keywords.map(keyword => keyword.trim()).filter(Boolean))].slice(0, 8);
-        await Promise.allSettled(unique.map((keyword, index) => openSearch(keyword, index === 0)));
+    function updateBatchStatus(state) {
+        const bar = document.getElementById('batchSearchStatus');
+        bar.hidden = false;
+        const done = state.completed === state.total;
+        const parts = [`검색 ${state.completed} / ${state.total} 처리${done ? ' 완료' : ' 중'}`];
+        if (state.reused) parts.push(`기존 탭 ${state.reused}개 재사용`);
+        if (state.failed.length) parts.push(`실패 ${state.failed.length}개`);
+        if (state.cancelled) parts.push(`닫힌 탭 ${state.cancelled}개 제외`);
+        document.getElementById('batchSearchMessage').textContent = parts.join(' · ');
+        const progress = document.getElementById('batchSearchProgress');
+        progress.max = Math.max(1, state.total); progress.value = state.completed; progress.hidden = done;
+        const retry = document.getElementById('retryFailedSearchesBtn');
+        retry.hidden = !done || !state.failed.length;
+        retry.querySelector('span').textContent = `실패 ${state.failed.length}개 재시도`;
+        document.getElementById('dismissBatchStatusBtn').hidden = !done;
+    }
+
+    /** Share one running batch so repeated clicks cannot create overlapping request queues. */
+    function openMany(keywords) {
+        if (batchPromise) return batchPromise;
+        const unique = window.NewsSearchBatch.normalizeKeywords(keywords);
+        if (!unique.length) return Promise.resolve();
+        batchRunning = true;
+        document.dispatchEvent(new CustomEvent('news:batch-state', { detail: { running: true } }));
+        const panels = unique.map(keyword => { rememberKeyword(keyword); return ensureSearchPanel(keyword); });
+        batchPanels = new Set(panels);
+        switchTab(panels[0].id);
+        batchPromise = (async () => {
+            try {
+                const result = await window.NewsSearchBatch.runBatch(unique, async (_, index) => {
+                    const panel = panels[index];
+                    if (!panel.isConnected) return 'cancelled';
+                    if (panel.dataset.searchState === 'ready') return 'reused';
+                    return loadInitial(panel);
+                }, updateBatchStatus);
+                failedKeywords = result.failed;
+                return result;
+            } finally {
+                batchPromise = null; batchRunning = false;
+                batchPanels.clear();
+                document.dispatchEvent(new CustomEvent('news:batch-state', { detail: { running: false } }));
+                document.querySelectorAll('.tab-pane[data-keyword]').forEach(panel => {
+                    if (panel.querySelector('.search-results-list') && panel.dataset.mode === 'latest') installSentinel(panel);
+                });
+            }
+        })();
+        return batchPromise;
     }
     window.NewsSearch = { beginRequest, replaceResults, disconnect, openSearch, openMany, latest: refreshLatest, resume: installSentinel };
 
@@ -280,12 +367,14 @@
             if (ui.readArray('navernews_recent_keywords').length) document.getElementById('recentKeywords').classList.add('show');
         });
         recentKeywords();
+        document.getElementById('retryFailedSearchesBtn').addEventListener('click', () => openMany(failedKeywords));
+        document.getElementById('dismissBatchStatusBtn').addEventListener('click', () => { document.getElementById('batchSearchStatus').hidden = true; });
         const filterButton = document.getElementById('advancedSearchToggleBtn');
         filterButton.addEventListener('click', () => {
             const expanded = document.getElementById('advancedSearchPanel').classList.toggle('show');
             filterButton.setAttribute('aria-expanded', String(expanded));
         });
-        document.querySelector('.tabs-nav').addEventListener('click', event => {
+        document.querySelector('.tabs-nav-wrapper').addEventListener('click', event => {
             const button = event.target.closest('button[data-tab]');
             if (button) switchTab(button.dataset.tab);
         });

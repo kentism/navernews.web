@@ -9,15 +9,22 @@ test('처음 접속할 때만 기본 검색어를 사용하고 빈 저장 목록
 test('저장값이 손상되었거나 배열이 아니면 기본값으로 복구한다', () => {
     for (const raw of ['broken', '{}', 'null']) assert.deepEqual(readKeywords(raw, ['기본']), ['기본']);
 });
-test('검색어는 앞뒤 공백과 중복을 정리하고 최대 8개만 유지한다', () => {
+test('검색어는 앞뒤 공백과 중복을 정리하고 최대 15개만 유지한다', () => {
     assert.deepEqual(normalizeKeywords([' 정책 ', '정책', '', null, 1, '법안']), ['정책', '법안']);
-    assert.equal(normalizeKeywords(Array.from({ length: 12 }, (_, i) => `검색${i}`)).length, 8);
+    assert.equal(normalizeKeywords(Array.from({ length: 20 }, (_, i) => `검색${i}`)).length, 15);
 });
-test('9번째 검색어와 중복 입력은 기존 목록을 바꾸지 않는다', () => {
-    const keywords = Array.from({ length: 8 }, (_, i) => `검색${i}`);
+test('16번째 검색어와 중복 입력은 기존 목록을 바꾸지 않는다', () => {
+    const keywords = Array.from({ length: 15 }, (_, i) => `검색${i}`);
     assert.ok(addKeyword(keywords, '추가').error);
     assert.deepEqual(addKeyword(keywords, '추가').keywords, keywords);
     assert.ok(addKeyword(['정책'], ' 정책 ').error);
+});
+test('기존 8개 저장 목록을 유지하면서 9번째 검색어를 추가한다', () => {
+    const old = Array.from({ length: 8 }, (_, i) => `기존${i}`);
+    const saved = readKeywords(JSON.stringify(old), ['기본']);
+    const result = addKeyword(saved, '추가 검색');
+    assert.equal(result.error, '');
+    assert.deepEqual(result.keywords, [...old, '추가 검색']);
 });
 test('빈 검색어와 API 한도를 초과한 검색어를 거부한다', () => {
     assert.ok(addKeyword([], ' ').error);

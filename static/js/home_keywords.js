@@ -1,13 +1,10 @@
 (function (root) {
     'use strict';
-    const LIMIT = 8;
+    const batchService = typeof module !== 'undefined' ? require('./search_batch.js') : root.NewsSearchBatch;
+    const { LIMIT, normalizeKeywords } = batchService;
     const STORAGE_KEY = 'navernews_home_keywords';
 
     /** Saved searches are browser-local; an explicit empty list never restores defaults. */
-    function normalizeKeywords(items) {
-        return [...new Set(items.filter(item => typeof item === 'string').map(item => item.trim())
-            .filter(item => item && item.length <= 300))].slice(0, LIMIT);
-    }
     function readKeywords(raw, defaults) {
         try {
             const saved = JSON.parse(raw);
@@ -20,7 +17,7 @@
         if (!keyword) error = '검색어를 입력해주세요.';
         else if (keyword.length > 300) error = '검색어는 300자 이내로 입력해주세요.';
         else if (keywords.some((item, i) => item === keyword && i !== index)) error = '이미 저장된 검색어입니다.';
-        else if (index === keywords.length && keywords.length >= LIMIT) error = '검색어는 최대 8개까지 저장할 수 있습니다.';
+        else if (index === keywords.length && keywords.length >= LIMIT) error = `검색어는 최대 ${LIMIT}개까지 저장할 수 있습니다.`;
         if (error) return { keywords, error };
         const next = [...keywords];
         next[index] = keyword;
@@ -97,6 +94,12 @@
             searching = true; updateCount(); batch.setAttribute('aria-busy', 'true');
             try { await root.NewsSearch.openMany([...keywords]); }
             finally { searching = false; updateCount(); batch.removeAttribute('aria-busy'); }
+        });
+        document.addEventListener('news:batch-state', event => {
+            searching = event.detail.running;
+            updateCount();
+            if (searching) batch.setAttribute('aria-busy', 'true');
+            else batch.removeAttribute('aria-busy');
         });
         render(); save();
     });
